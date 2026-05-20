@@ -1,0 +1,17 @@
+{
+  "name": "Menu Hub",
+  "short_name": "Menu Hub",
+  "description": "BKSTG Menu Management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/logo-tile.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
