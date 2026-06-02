@@ -14,8 +14,8 @@ import HelpPage from '@/pages/HelpPage'
 function ProtectedRoute({ children }) {
   const { session, loading, isPending } = useAuth()
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 14, color: '#667085' }}>
-      Loading...
+    <div className="flex items-center justify-center h-screen text-sm text-ink-400">
+      Loading…
     </div>
   )
   if (!session) return <Navigate to="/login" replace />

@@ -43,7 +43,9 @@ export default function EditLog({ menuId }) {
                 {format(new Date(log.created_at), 'MMM d, h:mma')}
               </td>
               <td className="px-4 py-2.5 text-xs text-ink-500 whitespace-nowrap">{log.user_email}</td>
-              <td className="px-4 py-2.5 font-medium text-ink-900">{log.menu_item?.title}</td>
+              <td className="px-4 py-2.5 font-medium text-ink-900">
+                {log.menu_item?.title ?? <span className="text-ink-300 italic">deleted item</span>}
+              </td>
               <td className="px-4 py-2.5 text-xs font-mono text-ink-500">{log.field_changed}</td>
               <td className="px-4 py-2.5 text-xs text-red-600 max-w-xs truncate">{log.old_value || '—'}</td>
               <td className="px-4 py-2.5 text-xs text-emerald-700 max-w-xs truncate">{log.new_value || '—'}</td>
