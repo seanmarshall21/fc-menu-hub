@@ -301,15 +301,26 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           gap: px(layout.sectionGap),
           overflow: 'hidden',
         }}>
-          {sectionGroups.map(group => (
-            <SectionBlock
-              key={group.key}
-              group={group}
-              colors={colors}
-              fonts={fonts}
-              layout={layout}
-            />
-          ))}
+          {layout.columns === 2 ? (
+            // ── 2-column: split section groups evenly left/right ──
+            <div style={{ display: 'flex', gap: px(layout.sectionGap), alignItems: 'flex-start', flex: 1 }}>
+              {[0, 1].map(colIdx => {
+                const colGroups = sectionGroups.filter((_, i) => i % 2 === colIdx)
+                return (
+                  <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: px(layout.sectionGap) }}>
+                    {colGroups.map(group => (
+                      <SectionBlock key={group.key} group={group} colors={colors} fonts={fonts} layout={layout} />
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            // ── 1-column: straight stack ──
+            sectionGroups.map(group => (
+              <SectionBlock key={group.key} group={group} colors={colors} fonts={fonts} layout={layout} />
+            ))
+          )}
 
           {/* Sponsors pushed to bottom */}
           {activeSponsors.length > 0 && (

@@ -446,20 +446,17 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
           {/* Colors */}
           <div>
             <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Colors</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Section',    value: colorSection,   set: setColorSection   },
-                { label: 'Title',      value: colorTitle,     set: setColorTitle     },
-                { label: 'Desc',       value: colorDesc,      set: setColorDesc      },
-                { label: 'Price',      value: colorPrice,     set: setColorPrice     },
-                { label: 'Size Label', value: colorSizeLabel, set: setColorSizeLabel },
-                { label: 'Divider',    value: colorDivider,   set: setColorDivider   },
+                { label: 'Section', value: colorSection, set: setColorSection },
+                { label: 'Title',   value: colorTitle,   set: setColorTitle   },
+                { label: 'Desc',    value: colorDesc,    set: setColorDesc    },
+                { label: 'Price',   value: colorPrice,   set: setColorPrice   },
               ].map(({ label, value, set }) => (
                 <div key={label}>
                   <label className="label">{label}</label>
                   <div className="flex items-center gap-2">
-                    <input type="color" value={value.startsWith('rgba') ? '#888888' : value}
-                      onChange={e => set(e.target.value)}
+                    <input type="color" value={value} onChange={e => set(e.target.value)}
                       className="w-9 h-9 rounded border border-surface-200 cursor-pointer flex-shrink-0" />
                     <input className="input input-sm font-mono flex-1 text-xs" value={value}
                       onChange={e => set(e.target.value)} />
@@ -487,26 +484,6 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
                     onChange={e => set(e.target.value)} min={0} />
                 </div>
               ))}
-            </div>
-            <div className="mt-3">
-              <label className="label text-xs">Columns</label>
-              <div className="flex items-center gap-2 mt-1">
-                {[1, 2].map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setColumns(n)}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                      Number(columns) === n
-                        ? 'bg-brand-500 text-white border-brand-500'
-                        : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
-                    }`}
-                  >
-                    {n} col
-                  </button>
-                ))}
-                <span className="text-xs text-ink-400">Splits sections into two columns side by side</span>
-              </div>
             </div>
           </div>
 
