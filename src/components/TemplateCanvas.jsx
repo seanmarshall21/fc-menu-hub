@@ -3,7 +3,7 @@
  * event_template record (background image, fonts, colors, layout).
  * Scales to fit the available container width via CSS transform.
  */
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { buildSectionGroups } from './MenuPreview'
 
 // ── Canvas dimensions at 1600px base width ────────────────────────────────────
@@ -199,14 +199,14 @@ function SponsorStrip({ sponsors, colors, fonts }) {
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
-export default function TemplateCanvas({
+const TemplateCanvas = forwardRef(function TemplateCanvas({
   template,   // event_template record (may be null)
   size,       // 'sm' | 'md' | 'lg'
   menu,
   items,
   eventSponsors,
   menuSponsorIds,
-}) {
+}, innerRef) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
@@ -276,8 +276,8 @@ export default function TemplateCanvas({
 
   return (
     <div ref={containerRef} style={{ width: '100%', position: 'relative', height: sizeConfig.h * scale }}>
-      {/* Scaled canvas */}
-      <div style={{
+      {/* Scaled canvas — innerRef lets callers capture at native resolution */}
+      <div ref={innerRef} style={{
         position: 'absolute',
         top: 0,
         left: 0,
@@ -321,4 +321,6 @@ export default function TemplateCanvas({
       </div>
     </div>
   )
-}
+})
+
+export default TemplateCanvas

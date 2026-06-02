@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -10,6 +10,7 @@ import CsvExport from '@/components/CsvExport'
 import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
+import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
 const LAYOUT_OPTIONS = [
@@ -119,6 +120,8 @@ export default function MenuPage() {
   const [tab, setTab] = useState('items')
   const [showImport, setShowImport] = useState(false)
   const [addingToSection, setAddingToSection] = useState(null) // section name | '__new__' | null
+  const [exporting, setExporting] = useState(false)
+  const canvasRef = useRef(null)
 
   const loadMenu = useCallback(async () => {
     const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
@@ -231,6 +234,35 @@ export default function MenuPage() {
       )
     )
     loadMenu()
+  }
+
+  async function exportPng(size) {
+    if (!canvasRef.current) return
+    setExporting(true)
+    const el = canvasRef.current
+    const prevTransform = el.style.transform
+    el.style.transform = 'none'
+    try {
+      const cfg = SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
+      const canvas = await html2canvas(el, {
+        useCORS: true,
+        allowTaint: true,
+        width: cfg.w,
+        height: cfg.h,
+        scrollX: 0,
+        scrollY: 0,
+        scale: 1,
+      })
+      const link = document.createElement('a')
+      link.download = `${menu?.name || 'menu'}-${size}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('PNG export failed:', err)
+    } finally {
+      el.style.transform = prevTransform
+      setExporting(false)
+    }
   }
 
   if (loading) return <div className="px-8 py-8 text-sm text-ink-400">Loading…</div>
@@ -467,6 +499,15 @@ export default function MenuPage() {
                 ))}
               </div>
               <div className="flex items-center gap-2">
+                {hasTemplate && (
+                  <button
+                    onClick={() => exportPng(activeSize)}
+                    disabled={exporting}
+                    className="btn-secondary btn-sm text-xs"
+                  >
+                    {exporting ? 'Exporting…' : 'Export PNG'}
+                  </button>
+                )}
                 {menu.preview_image_url && (
                   <a href={menu.preview_image_url} target="_blank" rel="noreferrer"
                     className="btn-secondary btn-sm text-xs">
@@ -480,6 +521,7 @@ export default function MenuPage() {
             {hasTemplate ? (
               <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm">
                 <TemplateCanvas
+                  ref={canvasRef}
                   template={template}
                   size={activeSize}
                   menu={menu}
