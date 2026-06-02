@@ -7,7 +7,13 @@ import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
 
-const PHASES = ['planning', 'confirmed', 'on_site', 'complete']
+const PHASES = [
+  { value: 'build',      label: 'Build' },
+  { value: 'proof',      label: 'Proof' },
+  { value: 'print_prep', label: 'Print Prep' },
+  { value: 'approved',   label: 'Approved' },
+  { value: 'archived',   label: 'Archived' },
+]
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -26,7 +32,7 @@ export default function SeriesPage() {
   const [eventSlugField, setEventSlugField] = useState('')
   const [eventVenue, setEventVenue] = useState('')
   const [eventDate, setEventDate] = useState('')
-  const [eventPhase, setEventPhase] = useState('planning')
+  const [eventPhase, setEventPhase] = useState('build')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
@@ -143,7 +149,7 @@ export default function SeriesPage() {
               <div>
                 <label className="label">Phase</label>
                 <select className="input" value={eventPhase} onChange={e => setEventPhase(e.target.value)}>
-                  {PHASES.map(p => <option key={p} value={p}>{p.replace('_', ' ')}</option>)}
+                  {PHASES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </div>
             </div>

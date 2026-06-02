@@ -42,6 +42,9 @@
   .input {
     @apply w-full px-3 py-2 rounded-lg border border-surface-300 bg-white text-ink-900 text-sm placeholder-ink-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:bg-surface-100 disabled:text-ink-500;
   }
+  .input-sm {
+    @apply px-2.5 py-1.5 text-xs;
+  }
   .input-error {
     @apply border-red-400 focus:ring-red-400;
   }
@@ -61,6 +64,10 @@
   .phase-proof      { @apply phase-badge bg-amber-100 text-amber-800; }
   .phase-print_prep { @apply phase-badge bg-red-100 text-red-800; }
   .phase-approved   { @apply phase-badge bg-indigo-100 text-indigo-800; }
+
+  .table-row-hover {
+    @apply hover:bg-surface-50 transition-colors;
+  }
 
   .sidebar-link {
     @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-ink-500 hover:bg-surface-100 hover:text-ink-900 transition-colors cursor-pointer;

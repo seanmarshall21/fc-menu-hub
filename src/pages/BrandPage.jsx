@@ -74,7 +74,7 @@ export default function BrandPage() {
   if (!brand) return <div className="px-8 py-8 text-sm text-red-500">Brand not found.</div>
 
   return (
-    <div className="px-8 py-8 max-w-5xl">
+    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-5xl">
       <Breadcrumbs crumbs={[{ label: 'Dashboard', to: '/' }, { label: brand.name }]} />
 
       <div className="flex items-center gap-3 mb-8">
@@ -97,7 +97,7 @@ export default function BrandPage() {
       {series.length === 0 ? (
         <div className="card px-6 py-8 text-sm text-ink-400">No series yet.</div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {series.map(s => (
             <Link
               key={s.id}

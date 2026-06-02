@@ -11,7 +11,7 @@ const PHASE_CLASSES = {
   proof:      'phase-proof',
   print_prep: 'phase-print_prep',
   approved:   'phase-approved',
-  archived:   'bg-surface-200 text-ink-500',
+  archived:   'phase-badge bg-surface-200 text-ink-500',
 }
 
 export default function PhaseBadge({ phase }) {
