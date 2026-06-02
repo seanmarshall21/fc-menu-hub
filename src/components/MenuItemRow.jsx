@@ -233,6 +233,11 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
           )}
         </div>
 
+        <div className="mb-3">
+          <label className="label">Notes <span className="text-ink-400 font-normal">(internal only)</span></label>
+          <textarea className="input text-xs" rows={2} value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Internal notes — not shown on the menu" />
+        </div>
+
         {saveError && (
           <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2 mb-3">{saveError}</p>
         )}

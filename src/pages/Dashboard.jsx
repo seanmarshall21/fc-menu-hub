@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PhaseBadge from '@/components/PhaseBadge'
+import { format } from 'date-fns'
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -84,7 +85,8 @@ export default function Dashboard() {
                 <tr className="border-b border-surface-100">
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Event</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Brand / Series</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Venue</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider hidden sm:table-cell">Date</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider hidden sm:table-cell">Venue</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Phase</th>
                 </tr>
               </thead>
@@ -107,7 +109,10 @@ export default function Dashboard() {
                         {event.series?.brand?.name} · {event.series?.name}
                       </span>
                     </td>
-                    <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap">{event.venue || '—'}</td>
+                    <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap hidden sm:table-cell">
+                      {event.event_date ? format(new Date(event.event_date), 'MMM d, yyyy') : '—'}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap hidden sm:table-cell">{event.venue || '—'}</td>
                     <td className="px-4 sm:px-6 py-3"><PhaseBadge phase={event.phase} /></td>
                   </tr>
                 ))}
