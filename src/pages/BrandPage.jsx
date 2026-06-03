@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import Modal from '@/components/Modal'
+import BrandLogoUploader from '@/components/BrandLogoUploader'
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -21,6 +22,14 @@ export default function BrandPage() {
   const [seriesSlugField, setSeriesSlugField] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+
+  // Edit-brand modal
+  const [showEditBrand, setShowEditBrand] = useState(false)
+  const [editBrandName, setEditBrandName] = useState('')
+  const [editBrandColor, setEditBrandColor] = useState('#6366f1')
+  const [editBrandLogoUrl, setEditBrandLogoUrl] = useState(null)
+  const [editBrandSaving, setEditBrandSaving] = useState(false)
+  const [editBrandError, setEditBrandError] = useState(null)
 
   async function loadData() {
     const { data: brandData } = await supabase
@@ -70,6 +79,31 @@ export default function BrandPage() {
     loadData()
   }
 
+  function openEditBrand() {
+    setEditBrandName(brand.name || '')
+    setEditBrandColor(brand.color || '#6366f1')
+    setEditBrandLogoUrl(brand.logo_url || null)
+    setEditBrandError(null)
+    setShowEditBrand(true)
+  }
+
+  async function handleSaveBrand(e) {
+    e.preventDefault()
+    setEditBrandSaving(true)
+    setEditBrandError(null)
+    const { error } = await supabase.from('brands')
+      .update({
+        name: editBrandName.trim(),
+        color: editBrandColor,
+        logo_url: editBrandLogoUrl,
+      })
+      .eq('id', brand.id)
+    setEditBrandSaving(false)
+    if (error) { setEditBrandError(error.message); return }
+    setShowEditBrand(false)
+    loadData()
+  }
+
   if (loading) return <div className="px-8 py-8 text-sm text-ink-400">Loading…</div>
   if (!brand) return <div className="px-8 py-8 text-sm text-red-500">Brand not found.</div>
 
@@ -78,8 +112,20 @@ export default function BrandPage() {
       <Breadcrumbs crumbs={[{ label: 'Dashboard', to: '/' }, { label: brand.name }]} />
 
       <div className="flex items-center gap-3 mb-8">
-        {brand.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brand.color }} />}
-        <h1 className="text-2xl font-semibold text-ink-900 tracking-tight">{brand.name}</h1>
+        {brand.logo_url ? (
+          <img src={brand.logo_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-surface-50 border border-surface-200" />
+        ) : (
+          brand.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brand.color }} />
+        )}
+        <h1 className="text-2xl font-semibold text-ink-900 tracking-tight flex-1">{brand.name}</h1>
+        {isAdmin && (
+          <button onClick={openEditBrand} className="btn-secondary btn-sm gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit
+          </button>
+        )}
       </div>
 
       <div className="mb-4 flex items-center justify-between">
@@ -109,6 +155,47 @@ export default function BrandPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {showEditBrand && (
+        <Modal title="Edit Brand" onClose={() => setShowEditBrand(false)}>
+          <form onSubmit={handleSaveBrand} className="space-y-4">
+            <div>
+              <label className="label">Brand Name</label>
+              <input
+                className="input"
+                value={editBrandName}
+                onChange={e => setEditBrandName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="label">Brand Color</label>
+              <div className="flex items-center gap-3">
+                <input type="color" className="w-10 h-10 rounded-lg border border-surface-200 cursor-pointer" value={editBrandColor} onChange={e => setEditBrandColor(e.target.value)} />
+                <span className="text-sm text-ink-500 font-mono">{editBrandColor}</span>
+              </div>
+            </div>
+            <div>
+              <label className="label">Logo</label>
+              <BrandLogoUploader
+                value={editBrandLogoUrl}
+                onChange={setEditBrandLogoUrl}
+                pathKey={brand.slug}
+              />
+            </div>
+            {editBrandError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editBrandError}</p>
+            )}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button type="button" onClick={() => setShowEditBrand(false)} className="btn-secondary btn-sm">Cancel</button>
+              <button type="submit" className="btn-primary btn-sm" disabled={editBrandSaving}>
+                {editBrandSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {showNewSeries && (

@@ -5,6 +5,7 @@ import { useBrands } from '@/hooks/useBrands'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
 import VersionWatcher from '@/components/VersionWatcher'
+import BrandLogoUploader from '@/components/BrandLogoUploader'
 import clsx from 'clsx'
 
 function IconHelp() {
@@ -115,6 +116,8 @@ export default function Layout() {
   const [brandName, setBrandName] = useState('')
   const [brandSlugField, setBrandSlugField] = useState('')
   const [brandColor, setBrandColor] = useState('#6366f1')
+  const [brandLogoUrl, setBrandLogoUrl] = useState(null)
+  const [brandTmpPathKey] = useState(() => `new-${Date.now()}`)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
@@ -124,7 +127,7 @@ export default function Layout() {
   }
 
   function openNewBrand() {
-    setBrandName(''); setBrandSlugField(''); setBrandColor('#6366f1'); setSaveError(null)
+    setBrandName(''); setBrandSlugField(''); setBrandColor('#6366f1'); setBrandLogoUrl(null); setSaveError(null)
     setShowNewBrand(true)
     setDrawerOpen(false)
   }
@@ -133,7 +136,10 @@ export default function Layout() {
     e.preventDefault()
     setSaving(true); setSaveError(null)
     const { error } = await supabase.from('brands').insert({
-      name: brandName.trim(), slug: brandSlugField.trim(), color: brandColor,
+      name: brandName.trim(),
+      slug: brandSlugField.trim(),
+      color: brandColor,
+      logo_url: brandLogoUrl,
     })
     setSaving(false)
     if (error) { setSaveError(error.message); return }
@@ -182,7 +188,11 @@ export default function Layout() {
           </div>
           {brands.map(brand => (
             <NavLink key={brand.id} to={`/brands/${brand.slug}`} className={navLinkClass}>
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brand.color || '#6366f1' }} />
+              {brand.logo_url ? (
+                <img src={brand.logo_url} alt="" className="w-5 h-5 rounded object-contain flex-shrink-0 bg-surface-50" />
+              ) : (
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brand.color || '#6366f1' }} />
+              )}
               <span className="truncate">{brand.name}</span>
             </NavLink>
           ))}
@@ -363,6 +373,14 @@ export default function Layout() {
                 <input type="color" className="w-10 h-10 rounded-lg border border-surface-200 cursor-pointer" value={brandColor} onChange={e => setBrandColor(e.target.value)} />
                 <span className="text-sm text-ink-500 font-mono">{brandColor}</span>
               </div>
+            </div>
+            <div>
+              <label className="label">Logo <span className="text-ink-300 font-normal">(optional)</span></label>
+              <BrandLogoUploader
+                value={brandLogoUrl}
+                onChange={setBrandLogoUrl}
+                pathKey={brandSlugField || brandTmpPathKey}
+              />
             </div>
             {saveError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>}
             <div className="flex items-center justify-end gap-3 pt-1">
