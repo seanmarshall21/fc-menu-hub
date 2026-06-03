@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useBrands } from '@/hooks/useBrands'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
+import VersionWatcher from '@/components/VersionWatcher'
 import clsx from 'clsx'
 
 function IconHelp() {
@@ -37,6 +38,34 @@ function IconAdmin() {
 function Logo() {
   return (
     <img src="/logo-tile.svg" alt="Menu Hub" className="w-7 h-7 flex-shrink-0" />
+  )
+}
+
+function BottomTab({ to, end = false, label, icon }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) => clsx(
+        'flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors',
+        isActive ? 'text-brand-600' : 'text-ink-400'
+      )}
+    >
+      {icon}
+      <span className="text-[10px] font-medium">{label}</span>
+    </NavLink>
+  )
+}
+
+function BottomTabButton({ onClick, label, icon }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex-1 flex flex-col items-center justify-center gap-0.5 text-ink-400 hover:text-ink-700 transition-colors"
+    >
+      {icon}
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
   )
 }
 
@@ -190,7 +219,7 @@ export default function Layout() {
   )
 
   return (
-    <div className="flex h-screen bg-surface-50 overflow-hidden">
+    <div className="flex h-[100dvh] bg-surface-50 overflow-hidden">
 
       {/* ── DESKTOP sidebar (md+) ── */}
       <aside className="hidden md:flex w-60 flex-shrink-0 bg-white border-r border-surface-200 flex-col">
@@ -230,26 +259,51 @@ export default function Layout() {
 
       {/* ── Main content ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
-        {/* Mobile top bar */}
-        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-surface-200 flex-shrink-0">
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="text-ink-500 hover:text-ink-900 transition-colors p-1 -ml-1"
-            aria-label="Open menu"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <Logo />
-          <span className="font-semibold text-ink-900 text-sm tracking-tight">Menu Hub</span>
-        </header>
-
-        <main className="flex-1 overflow-y-auto">
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
+        >
           <Outlet />
         </main>
       </div>
+
+      {/* ── Mobile bottom tab bar (always visible, never hides) ── */}
+      <nav
+        className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-surface-200"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex items-stretch justify-around h-16">
+          <BottomTab to="/" end label="Home" icon={
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+          } />
+          <BottomTabButton onClick={() => setDrawerOpen(true)} label="Brands" icon={
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14-4H5m14 8H5m14 4H5" />
+            </svg>
+          } />
+          {isAdmin && (
+            <BottomTab to="/admin" label="Admin" icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            } />
+          )}
+          <BottomTab to="/help" label="Help" icon={
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          } />
+          <BottomTabButton onClick={openProfile} label="Me" icon={
+            <div className="w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-[10px] font-semibold">
+              {profile?.full_name?.[0] || profile?.email?.[0] || '?'}
+            </div>
+          } />
+        </div>
+      </nav>
+
+      <VersionWatcher />
 
       {/* Profile edit modal */}
       {showProfile && (
