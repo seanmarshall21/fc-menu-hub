@@ -8,6 +8,7 @@ import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
 import { SIZE_CONFIGS } from '@/components/TemplateCanvas'
+import EventStylesTab from '@/components/EventStylesTab'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -589,7 +590,7 @@ export default function EventPage() {
   async function loadData() {
     const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
     setBrand(brandData)
-    const { data: seriesData } = await supabase.from('series').select('id,name,slug').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
+    const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     setSeries(seriesData)
     const { data: eventData } = await supabase.from('events').select('*').eq('series_id', seriesData?.id).eq('slug', eventSlug).single()
     setEvent(eventData)
@@ -838,6 +839,7 @@ export default function EventPage() {
           { id: 'menus', label: `Menus (${menus.length})` },
           { id: 'sponsors', label: `Sponsors (${sponsors.length})` },
           { id: 'templates', label: 'Templates' },
+          { id: 'styles', label: 'Styles' },
         ].map(t => (
           <button
             key={t.id}
@@ -988,6 +990,16 @@ export default function EventPage() {
           onSaved={tmpl => {
             setTemplates(prev => ({ ...prev, [tmpl.size]: tmpl }))
           }}
+        />
+      )}
+
+      {/* ── STYLES TAB ── */}
+      {tab === 'styles' && (
+        <EventStylesTab
+          event={event}
+          series={series}
+          canEdit={canEdit}
+          onSaved={loadData}
         />
       )}
 
