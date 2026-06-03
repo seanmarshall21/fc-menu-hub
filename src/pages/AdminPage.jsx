@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -40,6 +40,7 @@ export default function AdminPage() {
   const navigate = useNavigate()
 
   const [users, setUsers] = useState([])
+  const [brands, setBrands] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -56,6 +57,7 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState('')
+  const [editBrandAccess, setEditBrandAccess] = useState([])
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
@@ -71,6 +73,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin) { navigate('/'); return }
     loadUsers()
+    loadBrands()
   }, [isAdmin])
 
   async function loadUsers() {
@@ -83,6 +86,14 @@ export default function AdminPage() {
     if (err) setError(err.message)
     setUsers(data || [])
     setLoading(false)
+  }
+
+  async function loadBrands() {
+    const { data, error: err } = await supabase
+      .from('brands')
+      .select('id, name')
+      .order('name')
+    if (!err) setBrands(data || [])
   }
 
   // ── Invite ──────────────────────────────────────────────
@@ -115,6 +126,7 @@ export default function AdminPage() {
     setEditingId(user.id)
     setEditName(user.full_name || '')
     setEditRole(user.role || 'external')
+    setEditBrandAccess(Array.isArray(user.brand_access) ? user.brand_access : [])
     setEditError(null)
   }
 
@@ -122,10 +134,22 @@ export default function AdminPage() {
     setEditingId(null); setEditError(null)
   }
 
+  function toggleEditBrand(brandId) {
+    setEditBrandAccess(prev =>
+      prev.includes(brandId) ? prev.filter(id => id !== brandId) : [...prev, brandId]
+    )
+  }
+
   async function saveEdit(userId) {
     setEditSaving(true); setEditError(null)
     try {
-      await callAdminFn('update', { userId, full_name: editName.trim(), role: editRole })
+      // brand_access is only meaningful for external users; clear it for admin/internal
+      await callAdminFn('update', {
+        userId,
+        full_name: editName.trim(),
+        role: editRole,
+        brand_access: editRole === 'external' ? editBrandAccess : null,
+      })
       setEditingId(null)
       loadUsers()
     } catch (err) {
@@ -234,8 +258,11 @@ export default function AdminPage() {
                     const isApprovingUser = approvingId === user.id
                     const isSelf = user.id === profile?.id
 
+                    const externalBrandCount = Array.isArray(user.brand_access) ? user.brand_access.length : 0
+
                     return (
-                      <tr key={user.id} className={
+                      <Fragment key={user.id}>
+                      <tr className={
                         isPendingUser ? 'bg-amber-50' :
                         isEditing ? 'bg-brand-50' :
                         'table-row-hover'
@@ -277,9 +304,18 @@ export default function AdminPage() {
                               {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                             </select>
                           ) : (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_CLASSES[user.role] || 'text-ink-500 bg-surface-100'}`}>
-                              {ROLE_LABELS[user.role] || user.role}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium self-start ${ROLE_CLASSES[user.role] || 'text-ink-500 bg-surface-100'}`}>
+                                {ROLE_LABELS[user.role] || user.role}
+                              </span>
+                              {user.role === 'external' && (
+                                <span className="text-[10px] text-ink-400 leading-tight">
+                                  {externalBrandCount === 0
+                                    ? 'No brand access'
+                                    : `${externalBrandCount} of ${brands.length} ${brands.length === 1 ? 'brand' : 'brands'}`}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
 
@@ -332,6 +368,40 @@ export default function AdminPage() {
                           )}
                         </td>
                       </tr>
+                      {isEditing && editRole === 'external' && (
+                        <tr className="bg-brand-50">
+                          <td colSpan={4} className="px-4 sm:px-6 pt-0 pb-4">
+                            <div className="text-xs font-semibold text-ink-600 mb-2 uppercase tracking-wider">Brand Access</div>
+                            {brands.length === 0 ? (
+                              <p className="text-xs text-ink-400">No brands yet — create one first.</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {brands.map(b => {
+                                  const checked = editBrandAccess.includes(b.id)
+                                  return (
+                                    <button
+                                      key={b.id}
+                                      type="button"
+                                      onClick={() => toggleEditBrand(b.id)}
+                                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                                        checked
+                                          ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700'
+                                          : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                                      }`}
+                                    >
+                                      {b.name}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                            <p className="text-[11px] text-ink-400 mt-2">
+                              External users will only see menus under selected brands once read access is locked down. (Currently all menus are publicly readable — RLS lockdown pending.)
+                            </p>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     )
                   })}
               </tbody>
