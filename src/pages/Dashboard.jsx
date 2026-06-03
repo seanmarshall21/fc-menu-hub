@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useBrands } from '@/hooks/useBrands'
 import PhaseBadge from '@/components/PhaseBadge'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
   const { profile } = useAuth()
+  const { brands } = useBrands()
   const [recentEvents, setRecentEvents] = useState([])
   const [stats, setStats] = useState({ brands: 0, events: 0, menus: 0, pendingEdits: 0 })
   const [loading, setLoading] = useState(true)
@@ -121,6 +123,43 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Brands list */}
+      {brands.length > 0 && (
+        <div className="mt-6 sm:mt-8">
+          <p className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-3 px-1">Brands</p>
+          <div className="space-y-2">
+            {brands.map(brand => (
+              <Link
+                key={brand.id}
+                to={`/brands/${brand.slug}`}
+                className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group"
+              >
+                {brand.logo_url ? (
+                  <img
+                    src={brand.logo_url}
+                    alt=""
+                    className="w-10 h-10 rounded-lg object-contain bg-surface-50 border border-surface-200 flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                    style={{ backgroundColor: brand.color || '#6366f1' }}
+                  >
+                    {brand.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <span className="flex-1 font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">
+                  {brand.name}
+                </span>
+                <svg className="w-4 h-4 text-ink-300 group-hover:text-brand-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

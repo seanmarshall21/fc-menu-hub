@@ -44,27 +44,21 @@ export default function VersionWatcher() {
 
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-1.5rem)] max-w-md flex items-center justify-between gap-3 bg-ink-900 text-white rounded-2xl shadow-2xl px-5 py-4"
+      className="fixed left-3 right-3 z-[100] flex items-center justify-between gap-3 rounded-2xl shadow-2xl px-5 py-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[28rem]"
       style={{
-        bottom: 'calc(env(safe-area-inset-bottom) + 84px)',
+        bottom: 'calc(env(safe-area-inset-bottom) + 80px)',
+        background: 'linear-gradient(135deg, #fde047 0%, #fb923c 100%)',
       }}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-full bg-brand-500/20 flex items-center justify-center flex-shrink-0">
-          <svg className="w-5 h-5 text-brand-300" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </div>
-        <div className="min-w-0">
-          <p className="text-base font-semibold leading-tight">New version available</p>
-          <p className="text-xs text-ink-300 leading-tight mt-0.5">Tap reload to update Menu Hub.</p>
-        </div>
+      <div className="min-w-0">
+        <p className="text-xl font-extrabold text-ink-900 leading-none tracking-tight">NEW STUFF!</p>
+        <p className="text-xs text-ink-700 leading-tight mt-1.5">Updated version available</p>
       </div>
       <button
         onClick={() => window.location.reload()}
-        className="bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors flex-shrink-0"
+        className="bg-ink-900 hover:bg-ink-800 text-white text-sm font-bold tracking-wide rounded-xl px-5 py-3 transition-colors flex-shrink-0"
       >
-        Reload
+        UPDATE
       </button>
     </div>
   )
