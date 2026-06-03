@@ -9,6 +9,7 @@ import Modal from '@/components/Modal'
 import { format } from 'date-fns'
 import { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EventStylesTab from '@/components/EventStylesTab'
+import FavoriteButton from '@/components/FavoriteButton'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -782,8 +783,11 @@ export default function EventPage() {
 
       {/* Event header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-1">{event.name}</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">{event.name}</h1>
+            <FavoriteButton type="event" id={event.id} />
+          </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-500">
             {event.event_date && (
               <span className="whitespace-nowrap">{format(new Date(event.event_date), 'MMMM d, yyyy')}</span>

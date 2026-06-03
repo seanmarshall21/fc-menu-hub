@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import Modal from '@/components/Modal'
+import FavoriteButton from '@/components/FavoriteButton'
 import BrandLogoUploader from '@/components/BrandLogoUploader'
 
 function slugify(str) {
@@ -173,6 +174,7 @@ export default function BrandPage() {
           brand.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brand.color }} />
         )}
         <h1 className="text-2xl font-semibold text-ink-900 tracking-tight flex-1">{brand.name}</h1>
+        <FavoriteButton type="brand" id={brand.id} />
         {isAdmin && (
           <button onClick={openEditBrand} className="btn-secondary btn-sm gap-1.5">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

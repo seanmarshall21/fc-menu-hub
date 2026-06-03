@@ -6,6 +6,7 @@ import Breadcrumbs from '@/components/Breadcrumbs'
 import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
+import FavoriteButton from '@/components/FavoriteButton'
 import { format } from 'date-fns'
 
 const PHASES = [
@@ -77,7 +78,10 @@ export default function SeriesPage() {
         { label: series.name },
       ]} />
 
-      <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-4">{series.name}</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight flex-1">{series.name}</h1>
+        <FavoriteButton type="series" id={series.id} />
+      </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-surface-200 mb-6">

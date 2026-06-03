@@ -300,9 +300,9 @@ export default function Layout() {
               </svg>
             } />
           )}
-          <BottomTab to="/help" label="Help" icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <BottomTab to="/favorites" label="Favorites" icon={
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.86 5.706a1 1 0 00.95.69h6.001c.969 0 1.371 1.24.588 1.81l-4.857 3.527a1 1 0 00-.364 1.118l1.86 5.706c.3.921-.755 1.688-1.539 1.118l-4.857-3.527a1 1 0 00-1.176 0l-4.857 3.527c-.784.57-1.838-.197-1.539-1.118l1.86-5.706a1 1 0 00-.364-1.118L2.6 11.133c-.783-.57-.38-1.81.588-1.81h6.002a1 1 0 00.95-.69l1.86-5.706z" />
             </svg>
           } />
           <BottomTabButton onClick={openProfile} label="Me" icon={
@@ -351,6 +351,24 @@ export default function Layout() {
               </button>
             </div>
           </form>
+          <div className="mt-5 pt-4 border-t border-surface-200 space-y-1">
+            <button
+              onClick={() => { setShowProfile(false); navigate('/help') }}
+              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-ink-700 hover:bg-surface-100 transition-colors"
+            >
+              <IconHelp />
+              Help &amp; CSV templates
+            </button>
+            <button
+              onClick={() => { setShowProfile(false); handleSignOut() }}
+              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign out
+            </button>
+          </div>
         </Modal>
       )}
 

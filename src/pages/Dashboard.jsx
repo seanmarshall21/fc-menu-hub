@@ -3,14 +3,20 @@ import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useBrands } from '@/hooks/useBrands'
+import { useFavorites } from '@/hooks/useFavorites'
+import FavoriteButton from '@/components/FavoriteButton'
 import PhaseBadge from '@/components/PhaseBadge'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
   const { profile } = useAuth()
   const { brands } = useBrands()
+  const { favorites } = useFavorites()
   const [recentEvents, setRecentEvents] = useState([])
   const [stats, setStats] = useState({ brands: 0, events: 0, menus: 0, pendingEdits: 0 })
+  const [favBrands, setFavBrands]   = useState([])
+  const [favSeries, setFavSeries]   = useState([])
+  const [favEvents, setFavEvents]   = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -40,6 +46,23 @@ export default function Dashboard() {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    async function hydrateFavs() {
+      const brandIds  = favorites.filter(f => f.target_type === 'brand') .map(f => f.target_id)
+      const seriesIds = favorites.filter(f => f.target_type === 'series').map(f => f.target_id)
+      const eventIds  = favorites.filter(f => f.target_type === 'event') .map(f => f.target_id)
+      const [b, s, e] = await Promise.all([
+        brandIds.length  ? supabase.from('brands').select('id, name, slug, logo_url, color').in('id', brandIds)  : { data: [] },
+        seriesIds.length ? supabase.from('series').select('id, name, slug, brand:brands(name, slug, logo_url, color)').in('id', seriesIds) : { data: [] },
+        eventIds.length  ? supabase.from('events').select('id, name, slug, event_date, series:series(name, slug, brand:brands(name, slug, color))').in('id', eventIds) : { data: [] },
+      ])
+      setFavBrands(b.data || [])
+      setFavSeries(s.data || [])
+      setFavEvents(e.data || [])
+    }
+    hydrateFavs()
+  }, [favorites])
 
   const statCards = [
     { label: 'Brands', value: stats.brands, color: 'text-violet-600' },
@@ -124,6 +147,48 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Favorites */}
+      {favorites.length > 0 && (
+        <div className="mt-6 sm:mt-8">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <p className="text-xs font-semibold text-ink-400 uppercase tracking-wider">Favorites</p>
+            <Link to="/favorites" className="text-xs text-brand-600 hover:text-brand-700 font-medium">View all</Link>
+          </div>
+          <div className="space-y-2">
+            {favBrands.slice(0, 3).map(b => (
+              <Link key={`b-${b.id}`} to={`/brands/${b.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
+                <FavTile logoUrl={b.logo_url} color={b.color} name={b.name} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{b.name}</div>
+                  <div className="text-xs text-ink-400">Brand</div>
+                </div>
+                <FavoriteButton type="brand" id={b.id} size="sm" />
+              </Link>
+            ))}
+            {favSeries.slice(0, 3).map(s => (
+              <Link key={`s-${s.id}`} to={`/brands/${s.brand?.slug}/series/${s.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
+                <FavTile logoUrl={s.brand?.logo_url} color={s.brand?.color} name={s.brand?.name} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{s.name}</div>
+                  <div className="text-xs text-ink-400 truncate">{s.brand?.name} · Series</div>
+                </div>
+                <FavoriteButton type="series" id={s.id} size="sm" />
+              </Link>
+            ))}
+            {favEvents.slice(0, 3).map(e => (
+              <Link key={`e-${e.id}`} to={`/brands/${e.series?.brand?.slug}/series/${e.series?.slug}/events/${e.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
+                <FavTile color={e.series?.brand?.color} name={e.series?.brand?.name} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{e.name}</div>
+                  <div className="text-xs text-ink-400 truncate">{e.series?.brand?.name} · {e.series?.name}</div>
+                </div>
+                <FavoriteButton type="event" id={e.id} size="sm" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Brands list */}
       {brands.length > 0 && (
         <div className="mt-6 sm:mt-8">
@@ -160,6 +225,18 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function FavTile({ logoUrl, color, name }) {
+  if (logoUrl) {
+    return <img src={logoUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-surface-50 border border-surface-200 flex-shrink-0" />
+  }
+  return (
+    <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+      style={{ backgroundColor: color || '#6366f1' }}>
+      {(name?.[0] || '?').toUpperCase()}
     </div>
   )
 }
