@@ -44,8 +44,8 @@ export default function Dashboard() {
   const statCards = [
     { label: 'Brands', value: stats.brands, color: 'text-violet-600' },
     { label: 'Events', value: stats.events, color: 'text-brand-600' },
-    { label: 'Menus', value: stats.menus, color: 'text-emerald-600' },
-    { label: 'Pending Edits', value: stats.pendingEdits, color: 'text-red-600' },
+    { label: 'Menus',  value: stats.menus,  color: 'text-emerald-600' },
+    { label: 'Edits',  value: stats.pendingEdits, color: 'text-red-600' },
   ]
 
   return (
@@ -61,12 +61,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stat cards — 2 col mobile, 4 col desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      {/* Stat cards — 4 across at every breakpoint, centered */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
         {statCards.map(card => (
-          <div key={card.label} className="card p-4 sm:p-5">
-            <p className="text-xs font-medium text-ink-400 uppercase tracking-wider mb-2">{card.label}</p>
-            <p className={`text-2xl sm:text-3xl font-semibold ${card.color}`}>{loading ? '—' : card.value}</p>
+          <div key={card.label} className="card p-3 sm:p-5 text-center">
+            <p className="text-[10px] sm:text-xs font-medium text-ink-400 uppercase tracking-wider mb-1 sm:mb-2">{card.label}</p>
+            <p className={`text-xl sm:text-3xl font-semibold ${card.color}`}>{loading ? '—' : card.value}</p>
           </div>
         ))}
       </div>

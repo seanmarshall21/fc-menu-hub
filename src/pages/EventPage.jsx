@@ -406,8 +406,11 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
                     <button
                       onClick={() => fileRefs[size].current?.click()}
                       disabled={isUploading}
-                      className="btn-secondary btn-sm w-full"
+                      className="btn-primary w-full gap-2 justify-center"
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+                      </svg>
                       {isUploading ? 'Uploading…' : tmpl?.background_url ? 'Replace Image' : 'Upload Image'}
                     </button>
                     {err && <p className="text-xs text-red-600">{err}</p>}

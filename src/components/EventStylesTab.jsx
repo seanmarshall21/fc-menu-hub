@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import SegmentedToggle from '@/components/SegmentedToggle'
+
+const INHERIT_OPTS = [
+  { value: 'inherit',  label: 'Inherit'  },
+  { value: 'override', label: 'Override' },
+]
 
 const ROLES = [
   { key: 'menu_title',       label: 'Menu Title',       hasRotate: false },
@@ -243,7 +249,7 @@ export default function EventStylesTab({ event, series, canEdit, onSaved }) {
                         : <div className="text-[11px] text-ink-400">Upload a WOFF, WOFF2, TTF, or OTF.</div>}
                     </div>
                     {!readOnly && (
-                      <label className={`btn-secondary btn-sm cursor-pointer ${uploadBusy === `font:${i}` ? 'opacity-50' : ''}`}>
+                      <label className={`btn-primary btn-sm cursor-pointer gap-1.5 ${uploadBusy === `font:${i}` ? 'opacity-50' : ''}`}>
                         {uploadBusy === `font:${i}` ? 'Uploading…' : f.url ? 'Replace' : 'Upload'}
                         <input type="file" accept=".woff,.woff2,.ttf,.otf,font/*" className="hidden"
                           onChange={e => { const x = e.target.files?.[0]; if (x) handleFontUpload(x, i); e.target.value = '' }} />
@@ -314,7 +320,7 @@ export default function EventStylesTab({ event, series, canEdit, onSaved }) {
                     <div className="text-xs font-medium text-ink-700 mb-1">{labelMap[diet]}</div>
                     <div className="flex items-center gap-2 flex-wrap">
                       {!readOnly && (
-                        <label className={`btn-secondary btn-sm cursor-pointer ${uploadBusy === `icon:${diet}` ? 'opacity-50' : ''}`}>
+                        <label className={`btn-primary btn-sm cursor-pointer gap-1.5 ${uploadBusy === `icon:${diet}` ? 'opacity-50' : ''}`}>
                           {uploadBusy === `icon:${diet}` ? 'Uploading…' : block.url ? 'Replace SVG' : 'Upload SVG'}
                           <input type="file" accept=".svg,image/svg+xml" className="hidden"
                             onChange={e => { const x = e.target.files?.[0]; if (x) handleIconUpload(x, diet); e.target.value = '' }} />
@@ -439,14 +445,12 @@ function SectionHeader({ title, desc, overridden, onToggle, readOnly }) {
 
 function OverrideToggle({ on, onChange, readOnly }) {
   return (
-    <button type="button" onClick={onChange} disabled={readOnly}
-      className={`text-[11px] px-2 py-1 rounded-full font-medium border transition-colors flex-shrink-0 ${
-        on
-          ? 'bg-brand-500 border-brand-500 text-white'
-          : 'bg-white border-surface-300 text-ink-500 hover:border-brand-300'
-      } ${readOnly ? 'opacity-50' : ''}`}>
-      {on ? 'Override on' : 'Inherits'}
-    </button>
+    <SegmentedToggle
+      value={on ? 'override' : 'inherit'}
+      options={INHERIT_OPTS}
+      onChange={v => { if ((v === 'override') !== on) onChange() }}
+      disabled={readOnly}
+    />
   )
 }
 
@@ -485,7 +489,7 @@ function AssetRow({ label, url, onFile, onClear, busy, readOnly }) {
         {url && <div className="text-[11px] text-ink-400 font-mono truncate">{url.split('/').pop()}</div>}
         {!readOnly && (
           <div className="flex items-center gap-2 mt-2">
-            <label className={`btn-secondary btn-sm cursor-pointer ${busy ? 'opacity-50' : ''}`}>
+            <label className={`btn-primary btn-sm cursor-pointer gap-1.5 ${busy ? 'opacity-50' : ''}`}>
               {busy ? 'Uploading…' : url ? 'Replace' : 'Upload SVG'}
               <input type="file" accept=".svg,image/svg+xml,image/png" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }} disabled={busy} />
