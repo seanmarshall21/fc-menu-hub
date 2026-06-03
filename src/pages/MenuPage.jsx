@@ -126,9 +126,9 @@ export default function MenuPage() {
   const loadMenu = useCallback(async () => {
     const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
     setBrand(brandData)
-    const { data: seriesData } = await supabase.from('series').select('id,name,slug').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
+    const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     setSeries(seriesData)
-    const { data: eventData } = await supabase.from('events').select('id,name,slug,phase').eq('series_id', seriesData?.id).eq('slug', eventSlug).single()
+    const { data: eventData } = await supabase.from('events').select('*').eq('series_id', seriesData?.id).eq('slug', eventSlug).single()
     setEvent(eventData)
 
     if (eventData) {
@@ -523,6 +523,8 @@ export default function MenuPage() {
                 <TemplateCanvas
                   ref={canvasRef}
                   template={template}
+                  series={series}
+                  event={event}
                   size={activeSize}
                   menu={menu}
                   items={items}

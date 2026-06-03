@@ -1,87 +1,209 @@
 /**
- * TemplateCanvas — renders a menu at actual print proportions using the
- * event_template record (background image, fonts, colors, layout).
- * Scales to fit the available container width via CSS transform.
+ * TemplateCanvas v2 — renders a menu at print proportions using the resolved
+ * series + event style spec. Fonts, typography, icons, gaps, and assets all
+ * come from the spec; colors and background still come from event_templates.
  */
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { buildSectionGroups } from './MenuPreview'
 
-// ── Canvas dimensions at 1600px base width ────────────────────────────────────
 export const SIZE_CONFIGS = {
   sm: { w: 1600, h: 1600,  label: 'SM',  print: '23.5" × 23.5"' },
   md: { w: 1600, h: 2417,  label: 'MD',  print: '23.5" × 35.25"' },
   lg: { w: 1600, h: 3235,  label: 'LG',  print: '23.5" × 47.5"' },
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function px(n) { return `${n}px` }
+const ROLES = ['menu_title', 'section_label', 'item_title', 'item_description', 'item_size', 'item_price']
 
-// ── Diet flags ────────────────────────────────────────────────────────────────
-function DietFlags({ item, color }) {
+const DEFAULT_ROLE = { size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary' }
+const DEFAULT_GAP_BLOCK = { logo_to_title: 80, title_to_items: 100, items_to_footer: 100, section_gap: 'auto', item_gap: 'auto' }
+const FALLBACK_DIET_ICONS = {
+  vegetarian: { url: null, color: '#4a8054' },
+  vegan:      { url: null, color: '#a05a3e' },
+  gf:         { url: null, color: '#a05a3e' },
+}
+
+// ── Resolve effective spec / fonts / assets ──────────────────────────────────
+
+function normalizeSpec(spec) {
+  const s = { ...(spec || {}) }
+  for (const r of ROLES) s[r] = { ...DEFAULT_ROLE, ...(s[r] || {}) }
+  const rawGaps = s.gaps || {}
+  const isPerSize = rawGaps.sm || rawGaps.md || rawGaps.lg
+  s.gaps = {
+    sm: { ...DEFAULT_GAP_BLOCK, ...(isPerSize ? (rawGaps.sm || {}) : rawGaps) },
+    md: { ...DEFAULT_GAP_BLOCK, ...(isPerSize ? (rawGaps.md || {}) : rawGaps) },
+    lg: { ...DEFAULT_GAP_BLOCK, ...(isPerSize ? (rawGaps.lg || {}) : rawGaps) },
+  }
+  s.dietary_icons   = s.dietary_icons || FALLBACK_DIET_ICONS
+  if (s.dietary_icon_size == null) s.dietary_icon_size = 45
+  if (s.logo_max_height  == null) s.logo_max_height   = 100
+  return s
+}
+
+function resolveSpec(series, event) {
+  const seriesSpec = normalizeSpec(series?.style_spec)
+  const eventSpec  = event?.style_spec || {}
+  const merged = { ...seriesSpec }
+  for (const r of ROLES) merged[r] = { ...seriesSpec[r], ...(eventSpec[r] || {}) }
+  merged.gaps = {
+    sm: { ...seriesSpec.gaps.sm, ...(eventSpec.gaps?.sm || {}) },
+    md: { ...seriesSpec.gaps.md, ...(eventSpec.gaps?.md || {}) },
+    lg: { ...seriesSpec.gaps.lg, ...(eventSpec.gaps?.lg || {}) },
+  }
+  if (eventSpec.dietary_icons)      merged.dietary_icons    = eventSpec.dietary_icons
+  if (eventSpec.dietary_icon_size != null) merged.dietary_icon_size = eventSpec.dietary_icon_size
+  if (eventSpec.logo_max_height   != null) merged.logo_max_height   = eventSpec.logo_max_height
+  return merged
+}
+
+function resolveFonts(series, event) {
+  const arr = Array.isArray(event?.fonts) && event.fonts.length ? event.fonts : (series?.fonts || [])
+  return Array.isArray(arr) ? arr : []
+}
+
+function resolveHeaderLogo(series, event) { return event?.header_logo_url ?? series?.header_logo_url ?? null }
+function resolveFooterUrl(series, event)  { return event?.footer_url      ?? series?.footer_url      ?? null }
+
+// ── Build the font-family string for a role lookup ────────────────────────────
+
+function fontFamilyFor(role, fonts) {
+  const slot = fonts.find(f => f.key === role.font) || fonts[0]
+  return slot?.family || 'sans-serif'
+}
+
+// ── Inject Adobe/Google links + @font-face for uploads ───────────────────────
+
+function FontLoader({ fonts }) {
+  useEffect(() => {
+    const cleanups = []
+    const stylesheets = new Set()
+    let styleEl = null
+    const faceRules = []
+
+    for (const f of fonts) {
+      if (!f) continue
+      if ((f.source === 'adobe' || f.source === 'google') && f.url) {
+        if (stylesheets.has(f.url)) continue
+        stylesheets.add(f.url)
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = f.url
+        link.setAttribute('data-mh-font', '1')
+        document.head.appendChild(link)
+        cleanups.push(() => link.remove())
+      } else if (f.source === 'upload' && f.url && f.family) {
+        const fmt = (f.url.split('.').pop() || '').toLowerCase()
+        const format =
+          fmt === 'woff2' ? 'woff2' :
+          fmt === 'woff'  ? 'woff'  :
+          fmt === 'otf'   ? 'opentype' :
+          fmt === 'ttf'   ? 'truetype' :
+          ''
+        faceRules.push(`@font-face { font-family: ${JSON.stringify(f.family)}; src: url(${JSON.stringify(f.url)})${format ? ` format(${JSON.stringify(format)})` : ''}; font-display: swap; }`)
+      }
+    }
+
+    if (faceRules.length) {
+      styleEl = document.createElement('style')
+      styleEl.setAttribute('data-mh-font', '1')
+      styleEl.textContent = faceRules.join('\n')
+      document.head.appendChild(styleEl)
+      cleanups.push(() => styleEl.remove())
+    }
+
+    return () => { cleanups.forEach(fn => fn()) }
+  }, [JSON.stringify(fonts)])
+
+  return null
+}
+
+// ── Inline SVG fetcher so we can recolor via currentColor ────────────────────
+
+function InlineSvg({ url, size, color }) {
+  const [markup, setMarkup] = useState(null)
+  useEffect(() => {
+    if (!url) { setMarkup(null); return }
+    let aborted = false
+    fetch(url).then(r => r.text()).then(t => { if (!aborted) setMarkup(t) }).catch(() => {})
+    return () => { aborted = true }
+  }, [url])
+  if (!url) return null
+  if (!markup) {
+    return <img src={url} alt="" style={{ width: size, height: size, color, display: 'inline-block' }} />
+  }
+  return (
+    <span
+      style={{ width: size, height: size, color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+      dangerouslySetInnerHTML={{ __html: markup }}
+    />
+  )
+}
+
+// ── Text helpers ─────────────────────────────────────────────────────────────
+
+function roleStyle(role, fonts, colorMap) {
+  return {
+    fontSize: role.size,
+    fontWeight: role.weight,
+    letterSpacing: `${role.tracking}em`,
+    lineHeight: role.lineHeight,
+    textTransform: role.transform || 'none',
+    fontFamily: fontFamilyFor(role, fonts),
+    color: colorMap || undefined,
+  }
+}
+
+// ── Item rows ────────────────────────────────────────────────────────────────
+
+function DietaryIcons({ item, icons, size }) {
   const flags = []
-  if (item.vt) flags.push('VT')
-  if (item.ve) flags.push('VE')
-  if (item.gf) flags.push('GF')
+  if (item.vt && icons.vegetarian?.url) flags.push({ ...icons.vegetarian, key: 'vt' })
+  if (item.ve && icons.vegan?.url)      flags.push({ ...icons.vegan,      key: 've' })
+  if (item.gf && icons.gf?.url)         flags.push({ ...icons.gf,         key: 'gf' })
   if (!flags.length) return null
   return (
-    <span style={{ fontSize: 18, color, fontWeight: 500, marginLeft: 10, opacity: 0.7 }}>
-      {flags.join(' · ')}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: size * 0.3, marginLeft: size * 0.5 }}>
+      {flags.map(f => <InlineSvg key={f.key} url={f.url} size={size} color={f.color} />)}
     </span>
   )
 }
 
-// ── Single menu item row ──────────────────────────────────────────────────────
-function ItemRow({ item, colors, fonts, itemGap }) {
+function PriceBlock({ size, price, sizeRole, priceRole, fonts, colorSize, colorPrice }) {
+  if (!price) return null
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      gap: 40,
-      paddingBottom: itemGap,
-    }}>
-      {/* Left: title + description */}
+    <div style={{ textAlign: 'right' }}>
+      {size && (
+        <div style={{ ...roleStyle(sizeRole, fonts), color: colorSize }}>{size}</div>
+      )}
+      <div style={{ ...roleStyle(priceRole, fonts), color: colorPrice }}>{price}</div>
+    </div>
+  )
+}
+
+function ItemRow({ item, spec, fonts, colors }) {
+  const isAlt = item.layout === 'alt'
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 40, width: '100%' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 0 }}>
-          <span style={{
-            fontSize: 30,
-            fontWeight: 600,
-            color: colors.title,
-            fontFamily: fonts.primary,
-            lineHeight: 1.2,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em',
-          }}>
-            {item.title}
-          </span>
-          <DietFlags item={item} color={colors.description} />
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ ...roleStyle(spec.item_title, fonts), color: colors.title }}>{item.title}</span>
+          <DietaryIcons item={item} icons={spec.dietary_icons} size={spec.dietary_icon_size} />
         </div>
-        {item.description && (
-          <div style={{
-            fontSize: 20,
-            color: colors.description,
-            fontFamily: fonts.primary,
-            marginTop: 6,
-            lineHeight: 1.4,
-            fontStyle: 'italic',
-          }}>
+        {!isAlt && item.description && (
+          <div style={{ ...roleStyle(spec.item_description, fonts), color: colors.description, marginTop: spec.item_title.size * 0.15 }}>
             {item.description}
           </div>
         )}
       </div>
-
-      {/* Right: price(s) */}
-      <div style={{ flexShrink: 0, textAlign: 'right' }}>
-        <PriceBlock
-          size={item.size1} price={item.price1}
-          colors={colors} fonts={fonts}
-        />
+      <div style={{ flexShrink: 0 }}>
+        <PriceBlock size={item.size1} price={item.price1}
+          sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
+          colorSize={colors.sizeLabel} colorPrice={colors.price} />
         {item.two_sizes && item.price2 && (
-          <div style={{ marginTop: 6 }}>
-            <PriceBlock
-              size={item.size2} price={item.price2}
-              colors={colors} fonts={fonts}
-            />
+          <div style={{ marginTop: spec.item_size.size * 0.3 }}>
+            <PriceBlock size={item.size2} price={item.price2}
+              sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
+              colorSize={colors.sizeLabel} colorPrice={colors.price} />
           </div>
         )}
       </div>
@@ -89,135 +211,69 @@ function ItemRow({ item, colors, fonts, itemGap }) {
   )
 }
 
-function PriceBlock({ size, price, colors, fonts }) {
-  if (!price) return null
-  return (
-    <div>
-      {size && (
-        <div style={{
-          fontSize: 16,
-          color: colors.sizeLabel,
-          fontFamily: fonts.primary,
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-          lineHeight: 1,
-        }}>{size}</div>
-      )}
-      <div style={{
-        fontSize: 36,
-        fontWeight: 700,
-        color: colors.price,
-        fontFamily: fonts.primary,
-        lineHeight: 1.1,
-        letterSpacing: '-0.01em',
-      }}>{price}</div>
-    </div>
-  )
-}
+// ── Section block ────────────────────────────────────────────────────────────
 
-// ── Section block: vertical title + items ────────────────────────────────────
-function SectionBlock({ group, colors, fonts, layout }) {
+function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
+  const itemGap = gapBlock.item_gap
   return (
-    <div style={{ display: 'flex', gap: 36, alignItems: 'flex-start' }}>
-      {/* Vertical section label */}
+    <div style={{ display: 'flex', gap: 36, alignItems: 'stretch' }}>
       {group.section && (
         <div style={{
-          writingMode: 'vertical-rl',
-          transform: 'rotate(180deg)',
-          fontSize: 20,
-          fontWeight: 800,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
+          ...roleStyle(spec.section_label, fonts),
           color: colors.section,
-          fontFamily: fonts.primary,
+          writingMode: 'vertical-rl',
+          transform: spec.section_label.rotate ? `rotate(${spec.section_label.rotate}deg)` : 'rotate(-180deg)',
           flexShrink: 0,
-          lineHeight: 1,
-          alignSelf: 'stretch',
           display: 'flex',
           alignItems: 'center',
         }}>
           {group.section}
         </div>
       )}
-
-      {/* Vertical rule */}
       <div style={{
-        width: 1,
-        alignSelf: 'stretch',
-        flexShrink: 0,
-        backgroundColor: colors.divider,
-        opacity: 0.5,
+        width: 1, alignSelf: 'stretch', flexShrink: 0,
+        backgroundColor: colors.divider, opacity: 0.5,
       }} />
-
-      {/* Items */}
-      <div style={{ flex: 1 }}>
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        justifyContent: itemGap === 'auto' ? 'space-between' : 'flex-start',
+        gap: itemGap === 'auto' ? 0 : itemGap,
+      }}>
         {group.items.map(item => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            colors={colors}
-            fonts={fonts}
-            itemGap={layout.itemGap}
-          />
+          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} />
         ))}
       </div>
     </div>
   )
 }
 
-// ── Sponsor strip ─────────────────────────────────────────────────────────────
-function SponsorStrip({ sponsors, colors, fonts }) {
+// ── Sponsor strip ────────────────────────────────────────────────────────────
+
+function SponsorStrip({ sponsors, color }) {
   if (!sponsors.length) return null
   return (
-    <div style={{
-      display: 'flex',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 48,
-      paddingTop: 32,
-    }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 48 }}>
       {sponsors.map(sp => (
-        sp.logo_url ? (
-          <img key={sp.id} src={sp.logo_url} alt={sp.name}
-            style={{ height: 56, objectFit: 'contain', opacity: 0.85 }} />
-        ) : (
-          <span key={sp.id} style={{
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: colors.description,
-            fontFamily: fonts.primary,
-          }}>
-            {sp.name}
-          </span>
-        )
+        sp.logo_url
+          ? <img key={sp.id} src={sp.logo_url} alt={sp.name} style={{ height: 64, objectFit: 'contain', opacity: 0.9 }} />
+          : <span key={sp.id} style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color }}>{sp.name}</span>
       ))}
     </div>
   )
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
+// ── Main export ──────────────────────────────────────────────────────────────
+
 const TemplateCanvas = forwardRef(function TemplateCanvas({
-  template,   // event_template record (may be null)
-  size,       // 'sm' | 'md' | 'lg'
-  menu,
-  items,
-  eventSponsors,
-  menuSponsorIds,
+  template, series, event, size, menu, items, eventSponsors, menuSponsorIds,
 }, innerRef) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
 
-  // Recalculate scale when container width changes
   useEffect(() => {
     const update = () => {
-      if (containerRef.current) {
-        const availW = containerRef.current.offsetWidth
-        setScale(availW / sizeConfig.w)
-      }
+      if (containerRef.current) setScale(containerRef.current.offsetWidth / sizeConfig.w)
     }
     update()
     const ro = new ResizeObserver(update)
@@ -225,46 +281,32 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
     return () => ro.disconnect()
   }, [sizeConfig.w])
 
-  // Inject Adobe Fonts stylesheet if configured
-  useEffect(() => {
-    if (!template?.adobe_fonts_url) return
-    const existing = document.querySelector(`link[data-adobe-fonts]`)
-    if (existing) existing.remove()
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = template.adobe_fonts_url
-    link.setAttribute('data-adobe-fonts', '1')
-    document.head.appendChild(link)
-    return () => link.remove()
-  }, [template?.adobe_fonts_url])
+  const spec   = useMemo(() => resolveSpec(series, event),   [series, event])
+  const fonts  = useMemo(() => resolveFonts(series, event),  [series, event])
+  const headerLogoUrl = resolveHeaderLogo(series, event)
+  const footerUrl     = resolveFooterUrl(series, event)
+  const gapBlock = spec.gaps[size] || spec.gaps.md
 
-  const fonts = { primary: template?.font_primary || 'sans-serif' }
   const colors = {
     section:     template?.color_section     || '#1a1a1a',
     title:       template?.color_title       || '#1a1a1a',
     description: template?.color_description || '#555555',
     price:       template?.color_price       || '#1a1a1a',
     sizeLabel:   template?.color_size_label  || '#888888',
-    divider:     template?.color_divider     || 'rgba(0,0,0,0.15)',
+    divider:     template?.color_divider     || 'rgba(0,0,0,0.2)',
   }
-  const layout = {
-    padTop:     template?.padding_top    ?? 160,
-    padRight:   template?.padding_right  ?? 100,
-    padBottom:  template?.padding_bottom ?? 160,
-    padLeft:    template?.padding_left   ?? 100,
-    sectionGap: template?.section_gap    ?? 72,
-    itemGap:    template?.item_gap       ?? 24,
-    columns:    template?.columns        ?? 1,
-  }
-
   const backgroundStyle = template?.background_url
     ? { backgroundImage: `url(${template.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center top' }
-    : { backgroundColor: template?.background_color || '#f5f0e8' }
+    : { backgroundColor: template?.background_color || '#ffffff' }
 
   const activeItems = (items || []).filter(i => i.status === 'active')
   const sectionGroups = buildSectionGroups(activeItems)
-  const activeSponsors = (eventSponsors || [])
-    .filter(s => menuSponsorIds?.has(s.id) && s.active)
+  const activeSponsors = (eventSponsors || []).filter(s => menuSponsorIds?.has(s.id) && s.active)
+
+  // Boiler head (diet key + tax line)
+  const showDietKey = menu?.footer_show_diet_key !== false
+  const showTaxText = menu?.footer_show_tax_text !== false
+  const customFooter = menu?.footer_custom_text
 
   if (activeItems.length === 0) {
     return (
@@ -274,59 +316,90 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
     )
   }
 
+  // Padding: 100px default (overridable per-template — kept for backwards compat)
+  const padT = template?.padding_top    ?? 140
+  const padR = template?.padding_right  ?? 120
+  const padB = template?.padding_bottom ?? 100
+  const padL = template?.padding_left   ?? 120
+  const sectionsJustify = gapBlock.section_gap === 'auto' ? 'space-between' : 'flex-start'
+  const sectionsGapPx   = gapBlock.section_gap === 'auto' ? 0 : gapBlock.section_gap
+
   return (
     <div ref={containerRef} style={{ width: '100%', position: 'relative', height: sizeConfig.h * scale }}>
-      {/* Scaled canvas — innerRef lets callers capture at native resolution */}
+      <FontLoader fonts={fonts} />
       <div ref={innerRef} style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: px(sizeConfig.w),
-        height: px(sizeConfig.h),
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
-        ...backgroundStyle,
-        fontFamily: fonts.primary,
-        overflow: 'hidden',
+        position: 'absolute', top: 0, left: 0,
+        width: sizeConfig.w, height: sizeConfig.h,
+        transform: `scale(${scale})`, transformOrigin: 'top left',
+        ...backgroundStyle, overflow: 'hidden',
       }}>
-        {/* Content area inset by template padding */}
         <div style={{
           position: 'absolute',
-          top: px(layout.padTop),
-          right: px(layout.padRight),
-          bottom: px(layout.padBottom),
-          left: px(layout.padLeft),
-          display: 'flex',
-          flexDirection: 'column',
-          gap: px(layout.sectionGap),
-          overflow: 'hidden',
+          top: padT, right: padR, bottom: padB, left: padL,
+          display: 'flex', flexDirection: 'column',
         }}>
-          {layout.columns === 2 ? (
-            // ── 2-column: split section groups evenly left/right ──
-            <div style={{ display: 'flex', gap: px(layout.sectionGap), alignItems: 'flex-start', flex: 1 }}>
-              {[0, 1].map(colIdx => {
-                const colGroups = sectionGroups.filter((_, i) => i % 2 === colIdx)
-                return (
-                  <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: px(layout.sectionGap) }}>
-                    {colGroups.map(group => (
-                      <SectionBlock key={group.key} group={group} colors={colors} fonts={fonts} layout={layout} />
-                    ))}
-                  </div>
-                )
-              })}
+          {/* Header logo */}
+          {headerLogoUrl && (
+            <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: 'flex-start' }} />
+          )}
+          {headerLogoUrl && <div style={{ height: gapBlock.logo_to_title }} />}
+
+          {/* Menu title */}
+          {menu?.name && (
+            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.name}</div>
+          )}
+          <div style={{ height: gapBlock.title_to_items }} />
+
+          {/* Sections — fill remaining space */}
+          <div style={{
+            flex: 1,
+            display: 'flex', flexDirection: 'column',
+            justifyContent: sectionsJustify,
+            gap: sectionsGapPx,
+            minHeight: 0,
+          }}>
+            {sectionGroups.map(group => (
+              <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
+            ))}
+          </div>
+
+          <div style={{ height: gapBlock.items_to_footer }} />
+
+          {/* Sponsors */}
+          {activeSponsors.length > 0 && (
+            <div style={{ marginBottom: footerUrl || showDietKey || showTaxText || customFooter ? 60 : 0 }}>
+              <SponsorStrip sponsors={activeSponsors} color={colors.description} />
             </div>
-          ) : (
-            // ── 1-column: straight stack ──
-            sectionGroups.map(group => (
-              <SectionBlock key={group.key} group={group} colors={colors} fonts={fonts} layout={layout} />
-            ))
           )}
 
-          {/* Sponsors pushed to bottom */}
-          {activeSponsors.length > 0 && (
-            <div style={{ marginTop: 'auto' }}>
-              <SponsorStrip sponsors={activeSponsors} colors={colors} fonts={fonts} />
+          {/* Boiler head row: diet key + tax text */}
+          {(showDietKey || showTaxText || customFooter) && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 60, marginBottom: footerUrl ? 30 : 0 }}>
+              {showDietKey ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: spec.dietary_icon_size * 0.6 }}>
+                  {[
+                    { url: spec.dietary_icons.vegetarian?.url, color: spec.dietary_icons.vegetarian?.color, label: 'Vegetarian' },
+                    { url: spec.dietary_icons.vegan?.url,      color: spec.dietary_icons.vegan?.color,      label: 'Vegan' },
+                    { url: spec.dietary_icons.gf?.url,         color: spec.dietary_icons.gf?.color,         label: 'Gluten Free' },
+                  ].filter(x => x.url).map(({ url, color, label }) => (
+                    <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: spec.dietary_icon_size * 0.3 }}>
+                      <span style={{ ...roleStyle(spec.item_size, fonts), color: colors.description }}>{label}</span>
+                      <InlineSvg url={url} size={spec.dietary_icon_size * 0.7} color={color} />
+                    </span>
+                  ))}
+                </div>
+              ) : <span />}
+              {(showTaxText || customFooter) && (
+                <span style={{ ...roleStyle(spec.item_size, fonts), color: colors.description, textAlign: 'right' }}>
+                  {customFooter || 'Prices do not include sales tax · Cashless event'}
+                </span>
+              )}
             </div>
+          )}
+
+          {/* Footer / boiler graphic */}
+          {footerUrl && (
+            <img src={footerUrl} alt="" style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: 80, alignSelf: 'stretch' }} />
           )}
         </div>
       </div>
