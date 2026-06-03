@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
+import SeriesStylesTab from '@/components/SeriesStylesTab'
 import { format } from 'date-fns'
 
 const PHASES = [
@@ -27,6 +28,7 @@ export default function SeriesPage() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [tab, setTab] = useState('events') // 'events' | 'styles'
   const [showNewEvent, setShowNewEvent] = useState(false)
   const [eventName, setEventName] = useState('')
   const [eventSlugField, setEventSlugField] = useState('')
@@ -75,8 +77,28 @@ export default function SeriesPage() {
         { label: series.name },
       ]} />
 
-      <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-8">{series.name}</h1>
+      <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-4">{series.name}</h1>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-surface-200 mb-6">
+        {[{ key: 'events', label: 'Events' }, { key: 'styles', label: 'Styles' }].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === t.key
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-ink-500 hover:text-ink-800'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'styles' ? (
+        <SeriesStylesTab series={series} canEdit={isAdmin || isInternal} onSaved={loadData} />
+      ) : (
       <div className="card overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-surface-200 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink-900">Events</h2>
@@ -126,6 +148,7 @@ export default function SeriesPage() {
           </div>
         )}
       </div>
+      )}
 
       {showNewEvent && (
         <Modal title="New Event" onClose={() => setShowNewEvent(false)}>
