@@ -16,6 +16,7 @@ import AdminPage from '@/pages/AdminPage'
 import HelpPage from '@/pages/HelpPage'
 import FavoritesPage from '@/pages/FavoritesPage'
 import SponsorsPage from '@/pages/SponsorsPage'
+import SearchPage from '@/pages/SearchPage'
 
 function ProtectedRoute({ children }) {
   const { session, loading, isPending } = useAuth()
@@ -46,6 +47,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="help" element={<HelpPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
+            <Route path="search" element={<SearchPage />} />
             <Route path="sponsors" element={<SponsorsPage />} />
             <Route path="admin" element={<AdminPage />} />
             <Route path="brands" element={<BrandsListPage />} />
