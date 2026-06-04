@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 
 const ROLES = ['admin', 'internal', 'external']
@@ -210,19 +211,19 @@ export default function AdminPage() {
   const confirmUser = users.find(u => u.id === confirmDeleteId)
 
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-4xl">
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-1">User Management</h1>
-          <p className="text-sm text-ink-400">Invite, edit, and manage access for all Menu Hub users.</p>
-        </div>
-        <button onClick={openInvite} className="btn-primary btn-sm gap-1.5 flex-shrink-0">
+    <PageScreen
+      breadcrumbs={[{ label: 'User Management' }]}
+      actions={(
+        <button onClick={openInvite} className="btn-primary btn-sm gap-1.5">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           Add User
         </button>
-      </div>
+      )}
+    >
+      <PageBody>
+      <p className="text-sm text-ink-400 mb-6">Invite, edit, and manage access for all Menu Hub users.</p>
 
       {error && (
         <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>
@@ -552,6 +553,7 @@ export default function AdminPage() {
           </div>
         </Modal>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }

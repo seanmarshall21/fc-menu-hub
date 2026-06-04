@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import Breadcrumbs from '@/components/Breadcrumbs'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
@@ -741,43 +741,59 @@ export default function EventPage() {
   const baseUrl = `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`
 
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-5xl">
-      <Breadcrumbs crumbs={[
+    <PageScreen
+      breadcrumbs={[
         { label: 'Dashboard', to: '/' },
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series?.name, to: `/brands/${brandSlug}/series/${seriesSlug}` },
         { label: event.name },
-      ]} />
-
-      {/* Event header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">{event.name}</h1>
-            <FavoriteButton type="event" id={event.id} />
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-500">
-            {event.event_date && (
-              <span className="whitespace-nowrap">{format(new Date(event.event_date), 'MMMM d, yyyy')}</span>
-            )}
-            {event.event_date && event.venue && <span className="text-surface-300">·</span>}
-            {event.venue && <span className="whitespace-nowrap">{event.venue}</span>}
-          </div>
+      ]}
+      actions={<>
+        <FavoriteButton type="event" id={event.id} />
+        <PhaseBadge phase={event.phase} />
+        {event.figma_file_url && (
+          <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm hidden sm:inline-flex">Open Figma</a>
+        )}
+        {canEdit && (
+          <button onClick={openEditEvent} className="btn-secondary btn-sm">Edit</button>
+        )}
+      </>}
+      below={(
+        <div className="flex items-center gap-0 overflow-x-auto">
+          {[
+            { id: 'menus', label: `Menus (${menus.length})` },
+            { id: 'sponsors', label: `Sponsors (${sponsors.length})` },
+            { id: 'templates', label: 'Templates' },
+            { id: 'styles', label: 'Styles' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
+                tab === t.id
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-ink-500 hover:text-ink-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <PhaseBadge phase={event.phase} />
-          {event.figma_file_url && (
-            <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">Open Figma</a>
-          )}
-          {canEdit && (
-            <button onClick={openEditEvent} className="btn-secondary btn-sm">Edit Event</button>
-          )}
-        </div>
+      )}
+    >
+      <PageBody>
+      {/* Event meta row */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-500 mb-4">
+        {event.event_date && (
+          <span className="whitespace-nowrap">{format(new Date(event.event_date), 'MMMM d, yyyy')}</span>
+        )}
+        {event.event_date && event.venue && <span className="text-surface-300">·</span>}
+        {event.venue && <span className="whitespace-nowrap">{event.venue}</span>}
       </div>
 
       {/* Figma page name — admin only */}
       {canEdit && (
-        <div className="flex items-center gap-2 mb-6 -mt-2">
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
           <span className="text-xs text-ink-400 font-medium">Figma Page</span>
           {editingFigmaPage ? (
             <>
@@ -807,28 +823,6 @@ export default function EventPage() {
           )}
         </div>
       )}
-
-      {/* Tabs */}
-      <div className="flex items-center gap-0 border-b border-surface-200 mb-6">
-        {[
-          { id: 'menus', label: `Menus (${menus.length})` },
-          { id: 'sponsors', label: `Sponsors (${sponsors.length})` },
-          { id: 'templates', label: 'Templates' },
-          { id: 'styles', label: 'Styles' },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              tab === t.id
-                ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-ink-500 hover:text-ink-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       {/* ── MENUS TAB ── */}
       {tab === 'menus' && (
@@ -1258,6 +1252,7 @@ export default function EventPage() {
           </form>
         </Modal>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }

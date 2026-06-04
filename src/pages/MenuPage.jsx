@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import Breadcrumbs from '@/components/Breadcrumbs'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import MenuItemRow from '@/components/MenuItemRow'
 import CsvImport from '@/components/CsvImport'
@@ -281,72 +281,69 @@ export default function MenuPage() {
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
 
+  const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
+
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-6xl">
-      <Breadcrumbs crumbs={[
+    <PageScreen
+      breadcrumbs={[
         { label: 'Dashboard', to: '/' },
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series?.name, to: `/brands/${brandSlug}/series/${seriesSlug}` },
         { label: event?.name, to: `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}` },
         { label: menu.name },
-      ]} />
-
-      {/* Menu header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-1">{menu.name}</h1>
-          <p className="text-sm text-ink-500 capitalize">
-            {menu.category.replace('_', ' ')} menu · {event?.name}
-            {menu.size && <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 text-xs font-mono uppercase not-capitalize">{menu.size}</span>}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-          <PhaseBadge phase={menu.phase} />
-          {/* Sync-needed indicator — shown when items edited after last Figma sync */}
-          {(!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at))) && (
-            <span
-              title={menu.last_synced_at
-                ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since`
-                : 'Never synced to Figma'}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
+      ]}
+      actions={<>
+        <PhaseBadge phase={menu.phase} />
+        {syncNeeded && (
+          <span
+            title={menu.last_synced_at
+              ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since`
+              : 'Never synced to Figma'}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+            Sync
+          </span>
+        )}
+        {isInternal && (
+          <>
+            <button onClick={() => setShowImport(v => !v)} className="btn-secondary btn-sm hidden sm:inline-flex">
+              Import CSV
+            </button>
+            <CsvExport menu={menu} items={items} />
+          </>
+        )}
+      </>}
+      below={(
+        <div className="flex gap-1 overflow-x-auto">
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                tab === t.key
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-ink-500 hover:text-ink-700'
+              }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-              Sync needed
-            </span>
-          )}
-          {isInternal && (
-            <>
-              <button onClick={() => setShowImport(v => !v)} className="btn-secondary btn-sm">
-                Import CSV
-              </button>
-              <CsvExport menu={menu} items={items} />
-            </>
-          )}
+              {t.label}
+            </button>
+          ))}
         </div>
-      </div>
+      )}
+    >
+      <PageBody>
+      {/* Menu meta */}
+      <p className="text-sm text-ink-500 capitalize mb-4">
+        {menu.category.replace('_', ' ')} menu · {event?.name}
+        {menu.size && <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 text-xs font-mono uppercase not-capitalize">{menu.size}</span>}
+      </p>
 
       {showImport && (
         <div className="mb-6">
           <CsvImport menuId={menu.id} onImported={() => { setShowImport(false); loadMenu() }} />
         </div>
       )}
-
-      {/* Tabs */}
-      <div className="flex border-b border-surface-200 mb-6 gap-1 overflow-x-auto">
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              tab === t.key
-                ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-ink-500 hover:text-ink-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       {/* Items tab */}
       {tab === 'items' && (
@@ -602,6 +599,7 @@ export default function MenuPage() {
           />
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }

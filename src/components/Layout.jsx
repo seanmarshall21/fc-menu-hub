@@ -288,10 +288,7 @@ export default function Layout() {
 
       {/* ── Main content ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <main
-          className="flex-1 overflow-y-auto"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
-        >
+        <main className="flex-1 overflow-hidden bg-surface-50">
           <Outlet />
         </main>
       </div>

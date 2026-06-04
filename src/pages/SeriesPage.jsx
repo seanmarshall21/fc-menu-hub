@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import Breadcrumbs from '@/components/Breadcrumbs'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
@@ -71,34 +71,32 @@ export default function SeriesPage() {
   if (!series) return <div className="px-8 py-8 text-sm text-red-500">Series not found.</div>
 
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-5xl">
-      <Breadcrumbs crumbs={[
+    <PageScreen
+      breadcrumbs={[
         { label: 'Dashboard', to: '/' },
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series.name },
-      ]} />
-
-      <div className="flex items-center gap-3 mb-4">
-        <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight flex-1">{series.name}</h1>
-        <FavoriteButton type="series" id={series.id} />
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-surface-200 mb-6">
-        {[{ key: 'events', label: 'Events' }, { key: 'styles', label: 'Styles' }].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.key
-                ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-ink-500 hover:text-ink-800'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      ]}
+      actions={<FavoriteButton type="series" id={series.id} />}
+      below={(
+        <div className="flex items-center gap-1">
+          {[{ key: 'events', label: 'Events' }, { key: 'styles', label: 'Styles' }].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === t.key
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-ink-500 hover:text-ink-800'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+    >
+      <PageBody>
 
       {tab === 'styles' ? (
         <SeriesStylesTab series={series} canEdit={isAdmin || isInternal} onSaved={loadData} />
@@ -192,6 +190,7 @@ export default function SeriesPage() {
           </form>
         </Modal>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }

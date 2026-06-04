@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useBrands } from '@/hooks/useBrands'
 import { useFavorites } from '@/hooks/useFavorites'
 import FavoriteButton from '@/components/FavoriteButton'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import { format } from 'date-fns'
 
@@ -72,17 +73,8 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-6xl">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8 flex items-center gap-4">
-        <img src="/logo-tile.svg" alt="Menu Hub" className="w-10 h-10 flex-shrink-0 opacity-90" />
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">
-            Good {timeOfDay()}, {profile?.full_name?.split(' ')[0] || 'there'}
-          </h1>
-          <p className="text-sm text-ink-500 mt-1">Menu Hub · BKSTG</p>
-        </div>
-      </div>
+    <PageScreen breadcrumbs={[{ label: `Good ${timeOfDay()}, ${profile?.full_name?.split(' ')[0] || 'there'}` }]}>
+      <PageBody>
 
       {/* Stat cards — 4 across at every breakpoint, centered */}
       <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
@@ -225,7 +217,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }
 

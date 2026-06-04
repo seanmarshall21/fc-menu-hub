@@ -46,11 +46,13 @@ function Code({ children }) {
   return <code className="bg-surface-100 text-ink-700 font-mono text-xs px-1.5 py-0.5 rounded">{children}</code>
 }
 
+import PageScreen, { PageBody } from '@/components/PageScreen'
+
 export default function HelpPage() {
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-3xl">
-      <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight mb-1">Help & Resources</h1>
-      <p className="text-sm text-ink-400 mb-8">Templates, workflow guides, and reference for Menu Hub.</p>
+    <PageScreen breadcrumbs={[{ label: 'Help & Resources' }]}>
+      <PageBody className="max-w-3xl">
+      <p className="text-sm text-ink-400 mb-6">Templates, workflow guides, and reference for Menu Hub.</p>
 
       {/* ── CSV Template ── */}
       <Section title="CSV Template">
@@ -157,6 +159,7 @@ export default function HelpPage() {
           <p>sponsor--patron-tequila</p>
         </div>
       </Section>
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }

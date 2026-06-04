@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import Breadcrumbs from '@/components/Breadcrumbs'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 import FavoriteButton from '@/components/FavoriteButton'
 import BrandLogoUploader from '@/components/BrandLogoUploader'
@@ -164,16 +164,9 @@ export default function BrandPage() {
   if (!brand) return <div className="px-8 py-8 text-sm text-red-500">Brand not found.</div>
 
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-5xl">
-      <Breadcrumbs crumbs={[{ label: 'Dashboard', to: '/' }, { label: brand.name }]} />
-
-      <div className="flex items-center gap-3 mb-8">
-        {brand.logo_url ? (
-          <img src={brand.logo_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-surface-50 border border-surface-200" />
-        ) : (
-          brand.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brand.color }} />
-        )}
-        <h1 className="text-2xl font-semibold text-ink-900 tracking-tight flex-1">{brand.name}</h1>
+    <PageScreen
+      breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: brand.name }]}
+      actions={<>
         <FavoriteButton type="brand" id={brand.id} />
         {isAdmin && (
           <button onClick={openEditBrand} className="btn-secondary btn-sm gap-1.5">
@@ -183,6 +176,16 @@ export default function BrandPage() {
             Edit
           </button>
         )}
+      </>}
+    >
+      <PageBody>
+      <div className="flex items-center gap-3 mb-6">
+        {brand.logo_url ? (
+          <img src={brand.logo_url} alt="" className="w-12 h-12 rounded-lg object-contain bg-surface-50 border border-surface-200" />
+        ) : (
+          brand.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brand.color }} />
+        )}
+        <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">{brand.name}</h1>
       </div>
 
       <div className="mb-4 flex items-center justify-between">
@@ -393,6 +396,7 @@ export default function BrandPage() {
           </form>
         </Modal>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }

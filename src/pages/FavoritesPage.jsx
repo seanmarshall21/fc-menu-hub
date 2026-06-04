@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useFavorites } from '@/hooks/useFavorites'
+import PageScreen, { PageBody } from '@/components/PageScreen'
 import FavoriteButton from '@/components/FavoriteButton'
 import { format } from 'date-fns'
 
@@ -41,16 +42,9 @@ export default function FavoritesPage() {
   const empty = !loading && !hydrating && favorites.length === 0
 
   return (
-    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-5xl">
-      <div className="mb-6 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-400 flex-shrink-0">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.86 5.706a1 1 0 00.95.69h6.001c.969 0 1.371 1.24.588 1.81l-4.857 3.527a1 1 0 00-.364 1.118l1.86 5.706c.3.921-.755 1.688-1.539 1.118l-4.857-3.527a1 1 0 00-1.176 0l-4.857 3.527c-.784.57-1.838-.197-1.539-1.118l1.86-5.706a1 1 0 00-.364-1.118L2.6 11.133c-.783-.57-.38-1.81.588-1.81h6.002a1 1 0 00.95-.69l1.86-5.706z" /></svg>
-        </div>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">Favorites</h1>
-          <p className="text-sm text-ink-500 mt-1">Brands, series, and events you've starred.</p>
-        </div>
-      </div>
+    <PageScreen breadcrumbs={[{ label: 'Favorites' }]}>
+      <PageBody>
+      <p className="text-sm text-ink-500 mb-6">Brands, series, and events you've starred.</p>
 
       {loading && <div className="text-sm text-ink-400">Loading…</div>}
 
@@ -105,7 +99,8 @@ export default function FavoritesPage() {
           ))}
         </Section>
       )}
-    </div>
+      </PageBody>
+    </PageScreen>
   )
 }
 
