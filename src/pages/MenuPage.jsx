@@ -291,6 +291,30 @@ export default function MenuPage() {
   ]
 
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
+  const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+  const isApproved = menu.phase === 'approved'
+
+  async function approveAllPending() {
+    if (!pendingCount) return
+    await supabase
+      .from('menu_items')
+      .update({ edit_status: 'approved' })
+      .eq('menu_id', menu.id)
+      .eq('edit_status', 'pending_approval')
+    loadMenu()
+  }
+
+  async function approveMenu() {
+    if (isApproved) return
+    await supabase.from('menus').update({ phase: 'approved' }).eq('id', menu.id)
+    loadMenu()
+  }
+
+  async function unapproveMenu() {
+    if (!isApproved) return
+    await supabase.from('menus').update({ phase: 'proof' }).eq('id', menu.id)
+    loadMenu()
+  }
 
   return (
     <PageScreen
@@ -320,6 +344,25 @@ export default function MenuPage() {
             </button>
             <CsvExport menu={menu} items={items} />
           </>
+        )}
+        {(isAdmin || isInternal) && (
+          isApproved ? (
+            <button
+              onClick={unapproveMenu}
+              className="text-xs px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 hover:bg-indigo-200 font-medium"
+              title="Click to move back to Proof"
+            >
+              ✓ Approved
+            </button>
+          ) : (
+            <button
+              onClick={approveMenu}
+              className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 font-medium"
+              title="Mark this menu as Approved"
+            >
+              Approve
+            </button>
+          )
         )}
         {canEdit && (
           <button
@@ -395,6 +438,20 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
+          {pendingCount > 0 && (isAdmin || isInternal) && (
+            <div className="card border-amber-200 bg-amber-50 p-3 flex items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="font-semibold text-amber-900">{pendingCount} pending edit{pendingCount === 1 ? '' : 's'}</span>
+                <span className="text-amber-800 ml-2">— review each item or approve the batch.</span>
+              </div>
+              <button
+                onClick={approveAllPending}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 flex-shrink-0"
+              >
+                ✓ Approve all
+              </button>
+            </div>
+          )}
           {sectionGroups.length === 0 && !canEdit && (
             <p className="text-sm text-ink-400">No items yet.</p>
           )}

@@ -25,54 +25,83 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
   async function save() {
     setSaving(true)
     setSaveError(null)
-    const changes = {}
-    const logEntries = []
-    const fields = ['title', 'description', 'price1', 'size1', 'price2', 'size2', 'status', 'notes', 'vt', 've', 'gf', 'two_sizes', 'section', 'layout']
+    try {
+      const changes = {}
+      const logEntries = []
+      const fields = ['title', 'description', 'price1', 'size1', 'price2', 'size2', 'status', 'notes', 'vt', 've', 'gf', 'two_sizes', 'section', 'layout']
 
-    for (const field of fields) {
-      if (form[field] !== item[field]) {
-        changes[field] = form[field]
-        if (['title','description','price1','size1','price2','size2','status'].includes(field)) {
-          logEntries.push({ field, old: String(item[field] || ''), new: String(form[field] || '') })
+      for (const field of fields) {
+        if (form[field] !== item[field]) {
+          changes[field] = form[field]
+          if (['title','description','price1','size1','price2','size2','status'].includes(field)) {
+            logEntries.push({ field, old: String(item[field] || ''), new: String(form[field] || '') })
+          }
         }
       }
+
+      if (Object.keys(changes).length === 0) {
+        setEditing(false)
+        return
+      }
+
+      if (profile?.id) changes.last_edited_by = profile.id
+      changes.last_edited_at = new Date().toISOString()
+      changes.edit_status = 'pending_approval'
+
+      const { error: updateErr } = await supabase.from('menu_items').update(changes).eq('id', item.id)
+      if (updateErr) {
+        // Retry without tracking fields in case schema differs
+        const { title, description, price1, size1, price2, size2, status, notes, vt, ve, gf, two_sizes, section, layout } = changes
+        const coreChanges = Object.fromEntries(
+          Object.entries({ title, description, price1, size1, price2, size2, status, notes, vt, ve, gf, two_sizes, section, layout })
+            .filter(([, v]) => v !== undefined)
+        )
+        const { error: retryErr } = await supabase.from('menu_items').update(coreChanges).eq('id', item.id)
+        if (retryErr) throw retryErr
+      }
+
+      // Log edits — fire and forget, doesn't block UI
+      for (const entry of logEntries) {
+        supabase.rpc('log_menu_item_edit', {
+          p_item_id: item.id, p_menu_id: menu.id,
+          p_field: entry.field, p_old_value: entry.old, p_new_value: entry.new, p_phase: menu.phase,
+        }).catch(() => {})
+      }
+
+      setEditing(false)
+      onUpdated()
+    } catch (e) {
+      setSaveError(e?.message || String(e))
+    } finally {
+      setSaving(false)
     }
-
-    if (Object.keys(changes).length === 0) { setEditing(false); setSaving(false); return }
-
-    // Only add tracking fields if they exist — avoids silent failure if columns missing
-    if (profile?.id) changes.last_edited_by = profile.id
-    changes.last_edited_at = new Date().toISOString()
-    changes.edit_status = 'pending_approval'
-
-    const { error: updateErr } = await supabase.from('menu_items').update(changes).eq('id', item.id)
-    if (updateErr) {
-      // Retry without tracking fields in case schema differs
-      const { title, description, price1, size1, price2, size2, status, notes, vt, ve, gf, two_sizes, section, layout } = changes
-      const coreChanges = Object.fromEntries(
-        Object.entries({ title, description, price1, size1, price2, size2, status, notes, vt, ve, gf, two_sizes, section, layout })
-          .filter(([, v]) => v !== undefined)
-      )
-      const { error: retryErr } = await supabase.from('menu_items').update(coreChanges).eq('id', item.id)
-      if (retryErr) { setSaveError(retryErr.message); setSaving(false); return }
-    }
-
-    // Log edits (non-blocking — ignore errors)
-    for (const entry of logEntries) {
-      supabase.rpc('log_menu_item_edit', {
-        p_item_id: item.id, p_menu_id: menu.id,
-        p_field: entry.field, p_old_value: entry.old, p_new_value: entry.new, p_phase: menu.phase,
-      }).catch(() => {})
-    }
-
-    setSaving(false); setEditing(false); onUpdated()
   }
 
   async function handleDelete() {
     if (!confirm(`Delete "${item.title}"?`)) return
     setDeleting(true)
-    await supabase.from('menu_items').delete().eq('id', item.id)
-    onUpdated()
+    try {
+      await supabase.from('menu_items').delete().eq('id', item.id)
+      onUpdated()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function approveItem() {
+    if (!profile?.id) return
+    setSaving(true); setSaveError(null)
+    try {
+      const { error } = await supabase.from('menu_items')
+        .update({ edit_status: 'approved' })
+        .eq('id', item.id)
+      if (error) throw error
+      onUpdated()
+    } catch (e) {
+      setSaveError(e?.message || String(e))
+    } finally {
+      setSaving(false)
+    }
   }
 
   function cancel() { setForm({ ...item }); setEditing(false) }
@@ -133,6 +162,16 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
             </span>
             {canEdit && (
               <>
+                {pendingFlag && (
+                  <button
+                    onClick={approveItem}
+                    disabled={saving}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                    title="Approve this edit"
+                  >
+                    {saving ? '…' : '✓'}
+                  </button>
+                )}
                 <button onClick={() => { setForm({ ...item }); setEditing(true) }} className="text-xs text-brand-500 hover:text-brand-700 font-medium">Edit</button>
                 <button onClick={handleDelete} disabled={deleting} className="text-xs text-red-400 hover:text-red-600 font-medium">{deleting ? '…' : 'Del'}</button>
               </>
