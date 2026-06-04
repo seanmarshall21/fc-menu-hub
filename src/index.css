@@ -5,6 +5,14 @@
 @tailwind utilities;
 
 @layer base {
+  html, body {
+    overscroll-behavior: none;
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -15,7 +23,7 @@
   }
 
   #root {
-    @apply min-h-screen;
+    @apply h-full;
   }
 }
 

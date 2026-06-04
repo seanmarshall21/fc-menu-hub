@@ -46,10 +46,10 @@ export default function PageScreen({
     <div className="flex flex-col h-full min-h-0 overscroll-none">
       <header
         className="z-30 bg-white border-b border-surface-200 flex-shrink-0"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 28px)' }}
       >
         <div className="px-4 sm:px-8 max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 pt-7 pb-3 sm:pt-8 sm:pb-4">
+          <div className="flex items-center gap-3 pt-2 pb-4 sm:pt-3 sm:pb-5">
             {showBack && (
               <button
                 onClick={() => navigate(-1)}
