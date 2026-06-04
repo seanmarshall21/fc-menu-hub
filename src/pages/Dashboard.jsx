@@ -73,8 +73,15 @@ export default function Dashboard() {
   ]
 
   return (
-    <PageScreen breadcrumbs={[{ label: `Good ${timeOfDay()}, ${profile?.full_name?.split(' ')[0] || 'there'}` }]}>
+    <PageScreen
+      title={`Good ${timeOfDay()}, ${profile?.full_name?.split(' ')[0] || 'there'}`}
+      subtitle="Menu Hub · BKSTG"
+    >
       <PageBody>
+      {/* Hero lockup */}
+      <div className="flex items-center justify-center py-4 sm:py-8 mb-2">
+        <img src="/menu-hub-lockup.svg" alt="Menu Hub" className="max-w-[320px] sm:max-w-[420px] w-full h-auto" />
+      </div>
 
       {/* Stat cards — 4 across at every breakpoint, centered */}
       <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">

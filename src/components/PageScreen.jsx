@@ -1,26 +1,46 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * Standard page chrome:
- *   - Sticky top header (white, extends behind iOS status bar)
- *   - Breadcrumbs + optional back button on the left, actions on the right
- *   - Optional second row below the breadcrumb row (e.g. tabs)
- *   - Scrollable body underneath, with safe-area-inset-bottom + bottom-nav padding
+ *   - Tall sticky header (logo tile + title + subtitle + actions)
+ *   - Header extends behind the iOS status bar via safe-area-inset-top
+ *   - Optional back button on the left when breadcrumbs imply a parent
+ *   - Optional second row below the header (e.g. tabs)
+ *   - Scrollable body underneath, padded for the bottom nav
+ *
+ * Two ways to supply the title text:
+ *   1. Pass `title` + `subtitle` directly
+ *   2. Pass `breadcrumbs` and PageScreen derives title = last crumb,
+ *      subtitle = the parent chain joined with " · "
  *
  *   <PageScreen
- *     breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'CRSSD Festival' }]}
- *     actions={<button className="btn-primary btn-sm">+ Series</button>}
- *     below={<TabRow />}
+ *     breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'CRSSD' }, { label: 'CRSSD Spring 2026' }]}
+ *     actions={<button>+ New</button>}
+ *     below={<TabsRow />}
  *   >
- *     <PageBody>...</PageBody>
+ *     <PageBody>…</PageBody>
  *   </PageScreen>
- *
- * Pass `noPad` to PageBody (or use raw children) when the page wants its own padding.
  */
-export default function PageScreen({ breadcrumbs = [], actions, below, children }) {
+export default function PageScreen({
+  title,
+  subtitle,
+  breadcrumbs = [],
+  back = false,
+  actions,
+  below,
+  hideLogo = false,
+  children,
+}) {
   const navigate = useNavigate()
-  const lastCrumb = breadcrumbs[breadcrumbs.length - 1]
-  const showBack = breadcrumbs.length > 1
+
+  const last = breadcrumbs[breadcrumbs.length - 1]
+  const parents = breadcrumbs.slice(0, -1)
+
+  const effectiveTitle = title ?? last?.label ?? ''
+  const effectiveSubtitle = subtitle ?? (parents.length
+    ? parents.map(p => p.label).join(' · ')
+    : null)
+  const showBack = back || breadcrumbs.length > 1
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -28,42 +48,44 @@ export default function PageScreen({ breadcrumbs = [], actions, below, children 
         className="sticky top-0 z-30 bg-white border-b border-surface-200 flex-shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="px-4 sm:px-8">
-          <div className="flex items-center justify-between gap-3 py-3 max-w-6xl mx-auto">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              {showBack && (
-                <button
-                  onClick={() => navigate(-1)}
-                  className="text-ink-400 hover:text-ink-700 p-1 -ml-1 flex-shrink-0"
-                  aria-label="Back"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
+        <div className="px-4 sm:px-8 max-w-6xl mx-auto">
+          <div className="flex items-center gap-3 py-3 sm:py-4">
+            {showBack && (
+              <button
+                onClick={() => navigate(-1)}
+                className="text-ink-400 hover:text-ink-700 p-1 -ml-1 flex-shrink-0"
+                aria-label="Back"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            {!hideLogo && (
+              <img
+                src="/logo-tile.svg"
+                alt=""
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex-shrink-0"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base sm:text-lg font-semibold text-ink-900 tracking-tight truncate leading-tight">
+                {effectiveTitle}
+              </h1>
+              {effectiveSubtitle && (
+                <p className="text-xs sm:text-sm text-ink-500 truncate leading-tight mt-0.5">
+                  {effectiveSubtitle}
+                </p>
               )}
-              <nav className="flex items-center gap-1.5 text-xs sm:text-sm text-ink-500 min-w-0 flex-1">
-                {breadcrumbs.length > 1 && (
-                  <div className="hidden sm:flex items-center gap-1.5 min-w-0">
-                    {breadcrumbs.slice(0, -1).map((crumb, i) => (
-                      <span key={i} className="flex items-center gap-1.5 flex-shrink-0">
-                        {crumb.to
-                          ? <Link to={crumb.to} className="hover:text-brand-600 truncate">{crumb.label}</Link>
-                          : <span className="truncate">{crumb.label}</span>}
-                        <span className="text-ink-300">/</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {lastCrumb && (
-                  <span className="text-ink-900 font-semibold truncate">{lastCrumb.label}</span>
-                )}
-              </nav>
             </div>
-            {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+            {actions && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {actions}
+              </div>
+            )}
           </div>
           {below && (
-            <div className="max-w-6xl mx-auto pb-1">{below}</div>
+            <div className="pb-1">{below}</div>
           )}
         </div>
       </header>
@@ -78,7 +100,7 @@ export default function PageScreen({ breadcrumbs = [], actions, below, children 
   )
 }
 
-/** Standard padded body container. Most pages should wrap their content in this. */
+/** Standard padded body container. */
 export function PageBody({ children, className = '' }) {
   return (
     <div className={`px-4 sm:px-8 py-5 sm:py-7 max-w-6xl mx-auto ${className}`}>

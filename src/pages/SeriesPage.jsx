@@ -73,7 +73,6 @@ export default function SeriesPage() {
   return (
     <PageScreen
       breadcrumbs={[
-        { label: 'Dashboard', to: '/' },
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series.name },
       ]}

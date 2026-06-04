@@ -286,7 +286,6 @@ export default function MenuPage() {
   return (
     <PageScreen
       breadcrumbs={[
-        { label: 'Dashboard', to: '/' },
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series?.name, to: `/brands/${brandSlug}/series/${seriesSlug}` },
         { label: event?.name, to: `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}` },
