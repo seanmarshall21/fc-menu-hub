@@ -66,10 +66,10 @@ export default function Dashboard() {
   }, [favorites])
 
   const statCards = [
-    { label: 'Brands', value: stats.brands, color: 'text-violet-600' },
-    { label: 'Events', value: stats.events, color: 'text-brand-600' },
-    { label: 'Menus',  value: stats.menus,  color: 'text-emerald-600' },
-    { label: 'Edits',  value: stats.pendingEdits, color: 'text-red-600' },
+    { label: 'Brands', value: stats.brands,       color: 'text-violet-600',  to: '/brands' },
+    { label: 'Events', value: stats.events,       color: 'text-brand-600',   to: '/events' },
+    { label: 'Menus',  value: stats.menus,        color: 'text-emerald-600', to: '/menus'  },
+    { label: 'Edits',  value: stats.pendingEdits, color: 'text-red-600',     to: '/edits'  },
   ]
 
   return (
@@ -86,10 +86,14 @@ export default function Dashboard() {
       {/* Stat cards — 4 across at every breakpoint, centered */}
       <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
         {statCards.map(card => (
-          <div key={card.label} className="card p-3 sm:p-5 text-center">
+          <Link
+            key={card.label}
+            to={card.to}
+            className="card p-3 sm:p-5 text-center hover:border-brand-200 hover:shadow-sm active:scale-[0.98] transition-all"
+          >
             <p className="text-[10px] sm:text-xs font-medium text-ink-400 uppercase tracking-wider mb-1 sm:mb-2">{card.label}</p>
             <p className={`text-xl sm:text-3xl font-semibold ${card.color}`}>{loading ? '—' : card.value}</p>
-          </div>
+          </Link>
         ))}
       </div>
 

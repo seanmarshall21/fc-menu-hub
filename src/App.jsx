@@ -4,6 +4,10 @@ import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
 import PendingPage from '@/pages/PendingPage'
 import Dashboard from '@/pages/Dashboard'
+import BrandsListPage from '@/pages/BrandsListPage'
+import EventsListPage from '@/pages/EventsListPage'
+import MenusListPage from '@/pages/MenusListPage'
+import EditsListPage from '@/pages/EditsListPage'
 import BrandPage from '@/pages/BrandPage'
 import SeriesPage from '@/pages/SeriesPage'
 import EventPage from '@/pages/EventPage'
@@ -44,6 +48,10 @@ function App() {
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="sponsors" element={<SponsorsPage />} />
             <Route path="admin" element={<AdminPage />} />
+            <Route path="brands" element={<BrandsListPage />} />
+            <Route path="events" element={<EventsListPage />} />
+            <Route path="menus" element={<MenusListPage />} />
+            <Route path="edits" element={<EditsListPage />} />
             <Route path="brands/:brandSlug" element={<BrandPage />} />
             <Route path="brands/:brandSlug/series/:seriesSlug" element={<SeriesPage />} />
             <Route path="brands/:brandSlug/series/:seriesSlug/events/:eventSlug" element={<EventPage />} />
