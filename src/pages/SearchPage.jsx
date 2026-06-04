@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 
-const GROUP_ORDER = ['brand', 'series', 'event', 'menu', 'item']
-const GROUP_LABELS = {
+const TYPE_ORDER = ['brand', 'series', 'event', 'menu', 'item']
+const TYPE_LABELS = {
   brand:  'Brands',
   series: 'Series',
   event:  'Events',
@@ -12,8 +12,74 @@ const GROUP_LABELS = {
   item:   'Items',
 }
 
+const FILTERS = [
+  { value: 'all',    label: 'All' },
+  { value: 'brand',  label: 'Brands' },
+  { value: 'series', label: 'Series' },
+  { value: 'event',  label: 'Events' },
+  { value: 'menu',   label: 'Menus' },
+  { value: 'item',   label: 'Items' },
+]
+
+const SORTS = [
+  { value: 'recent', label: 'Most recent' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'az',     label: 'A → Z' },
+  { value: 'za',     label: 'Z → A' },
+]
+
+const LIMITS = {
+  all:    { brand: 8,  series: 8,  event: 10, menu: 12, item: 14 },
+  brand:  { brand: 60 },
+  series: { series: 60 },
+  event:  { event: 80 },
+  menu:   { menu: 80 },
+  item:   { item: 100 },
+}
+
+const SELECT = {
+  brand:  'id, name, slug, color, logo_url, created_at',
+  series: 'id, name, slug, created_at, brand:brands(name, slug, color, logo_url)',
+  event:  'id, name, slug, event_date, venue, created_at, series:series(slug, brand:brands(slug, name, color, logo_url))',
+  menu:   'id, name, slug, category, size, created_at, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url)))',
+  item:   'id, title, description, created_at, menu:menus(name, slug, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url))))',
+}
+
+const NAME_KEY = { brand: 'name', series: 'name', event: 'name', menu: 'name', item: 'title' }
+
+function applySort(rows, type, sort) {
+  const nameField = NAME_KEY[type]
+  const copy = [...rows]
+  switch (sort) {
+    case 'recent': return copy.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    case 'oldest': return copy.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
+    case 'az':     return copy.sort((a, b) => (a[nameField] || '').localeCompare(b[nameField] || ''))
+    case 'za':     return copy.sort((a, b) => (b[nameField] || '').localeCompare(a[nameField] || ''))
+    default:       return copy
+  }
+}
+
+function orderFor(type, sort) {
+  // Hint Postgres to do the heavy lifting; client re-sort handles ties + nested
+  if (sort === 'recent') return { col: 'created_at', asc: false }
+  if (sort === 'oldest') return { col: 'created_at', asc: true }
+  if (sort === 'az')     return { col: NAME_KEY[type], asc: true }
+  if (sort === 'za')     return { col: NAME_KEY[type], asc: false }
+  return { col: 'created_at', asc: false }
+}
+
+function filterFor(type, term) {
+  if (!term) return null
+  const like = `%${term}%`
+  if (type === 'event') return `name.ilike.${like},venue.ilike.${like}`
+  if (type === 'item')  return `title.ilike.${like},description.ilike.${like}`
+  return null // single-field types use .ilike()
+}
+
 export default function SearchPage() {
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('all')
+  const [sort, setSort] = useState('recent')
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
   const inputRef = useRef(null)
@@ -22,62 +88,66 @@ export default function SearchPage() {
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
-    if (!query.trim()) { setResults(null); setLoading(false); return }
     const term = query.trim()
     const seq = ++requestSeq.current
     setLoading(true)
+
     const t = setTimeout(async () => {
-      const like = `%${term}%`
-      const [b, s, e, m, i] = await Promise.all([
-        supabase.from('brands')
-          .select('id, name, slug, color, logo_url')
-          .ilike('name', like)
-          .limit(10),
-        supabase.from('series')
-          .select('id, name, slug, brand:brands(name, slug, color, logo_url)')
-          .ilike('name', like)
-          .limit(10),
-        supabase.from('events')
-          .select('id, name, slug, event_date, venue, series:series(slug, brand:brands(slug, name, color, logo_url))')
-          .or(`name.ilike.${like},venue.ilike.${like}`)
-          .limit(15),
-        supabase.from('menus')
-          .select('id, name, slug, category, size, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url)))')
-          .ilike('name', like)
-          .limit(15),
-        supabase.from('menu_items')
-          .select('id, title, description, menu:menus(name, slug, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url))))')
-          .or(`title.ilike.${like},description.ilike.${like}`)
-          .limit(20),
-      ])
-      if (seq !== requestSeq.current) return
-      setResults({
-        brand:  (b.data || []).map(x => ({ type: 'brand',  raw: x })),
-        series: (s.data || []).map(x => ({ type: 'series', raw: x })),
-        event:  (e.data || []).map(x => ({ type: 'event',  raw: x })),
-        menu:   (m.data || []).map(x => ({ type: 'menu',   raw: x })),
-        item:   (i.data || []).map(x => ({ type: 'item',   raw: x })),
+      const limits = LIMITS[filter] || LIMITS.all
+      const types = filter === 'all' ? TYPE_ORDER : [filter]
+
+      const queries = types.map(type => {
+        const order = orderFor(type, sort)
+        let q = supabase
+          .from(typeTable(type))
+          .select(SELECT[type])
+          .order(order.col, { ascending: order.asc })
+          .limit(limits[type] || 20)
+
+        if (term) {
+          const orExpr = filterFor(type, term)
+          if (orExpr) {
+            q = q.or(orExpr)
+          } else {
+            q = q.ilike(NAME_KEY[type], `%${term}%`)
+          }
+        }
+        return q.then(r => [type, r.data || []])
       })
+
+      const settled = await Promise.all(queries)
+      if (seq !== requestSeq.current) return
+
+      const grouped = {}
+      for (const [type, rows] of settled) {
+        grouped[type] = applySort(rows, type, sort).map(raw => ({ type, raw }))
+      }
+      setResults(grouped)
       setLoading(false)
-    }, 200)
+    }, query ? 200 : 0)
+
     return () => clearTimeout(t)
-  }, [query])
+  }, [query, filter, sort])
 
   const totalHits = results
-    ? GROUP_ORDER.reduce((sum, k) => sum + (results[k]?.length || 0), 0)
+    ? TYPE_ORDER.reduce((sum, k) => sum + (results[k]?.length || 0), 0)
     : 0
 
   return (
-    <PageScreen title="Search" subtitle="Brands, series, events, menus, items" back>
+    <PageScreen
+      title="Search"
+      subtitle="Brands, series, events, menus, items"
+      back
+    >
       <PageBody>
-        <div className="relative mb-4">
+        <div className="relative mb-3">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-300 pointer-events-none" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
           </svg>
           <input
             ref={inputRef}
             className="input pl-9 pr-9"
-            placeholder="Search…"
+            placeholder="Search anything…"
             value={query}
             onChange={e => setQuery(e.target.value)}
             autoFocus
@@ -95,33 +165,59 @@ export default function SearchPage() {
           )}
         </div>
 
-        {!query.trim() && (
-          <div className="card p-6 text-center">
-            <p className="text-sm text-ink-500">Type to search across everything in Menu Hub.</p>
-            <p className="text-xs text-ink-400 mt-2">Try a brand, an event, a cocktail name, or a venue.</p>
+        {/* Filter chips + sort */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto flex-1 -mx-1 px-1">
+            {FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors border ${
+                  filter === f.value
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value)}
+            className="input input-sm w-auto flex-shrink-0"
+            aria-label="Sort by"
+          >
+            {SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+
+        {!query.trim() && !loading && totalHits === 0 && (
+          <p className="text-sm text-ink-400 px-1">Loading suggestions…</p>
         )}
 
-        {query.trim() && loading && !results && (
-          <p className="text-sm text-ink-400">Searching…</p>
+        {loading && !results && (
+          <p className="text-sm text-ink-400 px-1">Searching…</p>
         )}
 
         {results && totalHits === 0 && !loading && (
           <div className="card p-6 text-center">
-            <p className="text-sm text-ink-500">No matches for "{query}".</p>
+            <p className="text-sm text-ink-500">
+              {query ? `No matches for "${query}".` : 'No items found.'}
+            </p>
           </div>
         )}
 
         {results && totalHits > 0 && (
           <div className="space-y-5">
-            {GROUP_ORDER.map(group => {
+            {(filter === 'all' ? TYPE_ORDER : [filter]).map(group => {
               const items = results[group]
               if (!items?.length) return null
               return (
                 <section key={group}>
                   <div className="flex items-baseline justify-between mb-2 px-1">
-                    <h2 className="text-xs font-semibold text-ink-500 uppercase tracking-wider">{GROUP_LABELS[group]}</h2>
-                    <span className="text-[11px] text-ink-400">{items.length}{items.length >= maxFor(group) ? '+' : ''}</span>
+                    <h2 className="text-xs font-semibold text-ink-500 uppercase tracking-wider">{TYPE_LABELS[group]}</h2>
+                    <span className="text-[11px] text-ink-400">{items.length}</span>
                   </div>
                   <div className="space-y-1.5">
                     {items.map(hit => <ResultRow key={`${hit.type}-${hit.raw.id}`} hit={hit} />)}
@@ -136,14 +232,18 @@ export default function SearchPage() {
   )
 }
 
-function maxFor(group) {
-  return group === 'item' ? 20 : group === 'menu' || group === 'event' ? 15 : 10
+function typeTable(type) {
+  return type === 'brand'  ? 'brands'
+       : type === 'series' ? 'series'
+       : type === 'event'  ? 'events'
+       : type === 'menu'   ? 'menus'
+       : 'menu_items'
 }
 
 function ResultRow({ hit }) {
   const { type, raw } = hit
   const brand = (() => {
-    if (type === 'brand') return raw
+    if (type === 'brand')  return raw
     if (type === 'series') return raw.brand
     if (type === 'event')  return raw.series?.brand
     if (type === 'menu')   return raw.event?.series?.brand
