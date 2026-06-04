@@ -337,11 +337,13 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
                   <SelectField label="Font"      value={v.font}      onChange={s => setRoleField(role.key, 'font', s)}      options={fontKeys.length ? fontKeys : ['primary']} disabled={readOnly} />
                   <SelectField label="Transform" value={v.transform} onChange={s => setRoleField(role.key, 'transform', s)} options={TRANSFORMS} disabled={readOnly} />
                 </div>
-                {role.hasRotate && (
-                  <div className="mt-2 max-w-[160px]">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  <NumberField label="Width (wdth)" value={v.width}  onChange={n => setRoleField(role.key, 'width',  n)} step={1}   min={25} max={200} allowEmpty disabled={readOnly} />
+                  <NumberField label="Slant (slnt)" value={v.slant}  onChange={n => setRoleField(role.key, 'slant',  n)} step={1}   min={-15} max={15} allowEmpty disabled={readOnly} />
+                  {role.hasRotate && (
                     <NumberField label="Rotate" value={v.rotate || 0} onChange={n => setRoleField(role.key, 'rotate', n)} step={15} suffix="°" disabled={readOnly} />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )
           })}
@@ -421,13 +423,18 @@ function AssetRow({ label, url, onFile, onClear, busy, readOnly }) {
   )
 }
 
-function NumberField({ label, value, onChange, suffix, step = 1, min, max, float, disabled }) {
+function NumberField({ label, value, onChange, suffix, step = 1, min, max, float, allowEmpty, disabled }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-ink-500 mb-1">{label}</label>
       <div className="relative">
         <input type="number" className="input input-sm pr-7" value={value ?? ''} step={step} min={min} max={max}
-          onChange={e => onChange(float ? parseFloat(e.target.value) || 0 : parseInt(e.target.value, 10) || 0)}
+          placeholder={allowEmpty ? 'auto' : undefined}
+          onChange={e => {
+            const v = e.target.value
+            if (v === '' && allowEmpty) return onChange(null)
+            onChange(float ? parseFloat(v) || 0 : parseInt(v, 10) || 0)
+          }}
           disabled={disabled} />
         {suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-ink-400 pointer-events-none">{suffix}</span>}
       </div>

@@ -142,7 +142,7 @@ function InlineSvg({ url, size, color }) {
 // ── Text helpers ─────────────────────────────────────────────────────────────
 
 function roleStyle(role, fonts, colorMap) {
-  return {
+  const style = {
     fontSize: role.size,
     fontWeight: role.weight,
     letterSpacing: `${role.tracking}em`,
@@ -151,6 +151,12 @@ function roleStyle(role, fonts, colorMap) {
     fontFamily: fontFamilyFor(role, fonts),
     color: colorMap || undefined,
   }
+  // Variable-font axes: only emit when explicitly set so static fonts pass through clean.
+  const variations = []
+  if (role.width != null) variations.push(`"wdth" ${role.width}`)
+  if (role.slant != null) variations.push(`"slnt" ${role.slant}`)
+  if (variations.length) style.fontVariationSettings = variations.join(', ')
+  return style
 }
 
 // ── Item rows ────────────────────────────────────────────────────────────────
