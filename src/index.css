@@ -19,7 +19,7 @@
   }
 
   body {
-    @apply bg-surface-50 text-ink-900 m-0;
+    @apply bg-white text-ink-900 m-0;
   }
 
   #root {

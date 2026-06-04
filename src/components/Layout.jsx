@@ -248,7 +248,7 @@ export default function Layout() {
   )
 
   return (
-    <div className="flex h-[100dvh] bg-surface-50 overflow-hidden">
+    <div className="flex h-[100dvh] bg-white overflow-hidden">
 
       {/* ── DESKTOP sidebar (md+) ── */}
       <aside className="hidden md:flex w-60 flex-shrink-0 bg-white border-r border-surface-200 flex-col">
