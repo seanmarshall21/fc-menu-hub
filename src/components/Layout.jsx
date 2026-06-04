@@ -219,7 +219,10 @@ export default function Layout() {
       </nav>
 
       {/* User footer */}
-      <div className="px-3 py-3 border-t border-surface-200">
+      <div
+        className="px-3 pt-3 border-t border-surface-200 flex-shrink-0"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+      >
         <div className="flex items-center gap-3 px-2 py-2">
           <button
             onClick={openProfile}
@@ -304,7 +307,7 @@ export default function Layout() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           } />
-          <BottomTabButton onClick={() => setDrawerOpen(true)} label="Brands" icon={
+          <BottomTabButton onClick={() => setDrawerOpen(true)} label="Menus" icon={
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14-4H5m14 8H5m14 4H5" />
             </svg>
@@ -321,10 +324,10 @@ export default function Layout() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.86 5.706a1 1 0 00.95.69h6.001c.969 0 1.371 1.24.588 1.81l-4.857 3.527a1 1 0 00-.364 1.118l1.86 5.706c.3.921-.755 1.688-1.539 1.118l-4.857-3.527a1 1 0 00-1.176 0l-4.857 3.527c-.784.57-1.838-.197-1.539-1.118l1.86-5.706a1 1 0 00-.364-1.118L2.6 11.133c-.783-.57-.38-1.81.588-1.81h6.002a1 1 0 00.95-.69l1.86-5.706z" />
             </svg>
           } />
-          <BottomTabButton onClick={openProfile} label="Me" icon={
-            <div className="w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-[10px] font-semibold">
-              {profile?.full_name?.[0] || profile?.email?.[0] || '?'}
-            </div>
+          <BottomTabButton onClick={() => {}} label="Search" icon={
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
           } />
         </div>
       </nav>

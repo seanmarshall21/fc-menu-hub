@@ -118,9 +118,9 @@ export default function CsvImport({ menuId, onImported }) {
         </button>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
-        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="text-sm text-ink-700" />
-        <div className="flex items-center gap-4 text-sm">
+      <div className="flex flex-col gap-3 mb-4">
+        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="text-sm text-ink-700 max-w-full" />
+        <div className="flex items-center gap-4 text-sm flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="radio" value="replace" checked={mode === 'replace'} onChange={() => setMode('replace')} />
             Replace all items
