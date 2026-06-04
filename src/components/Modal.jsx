@@ -9,12 +9,18 @@ export default function Modal({ title, onClose, children }) {
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)',
+      }}
+    >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       {/* Panel */}
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 z-10">
-        <div className="flex items-center justify-between mb-5">
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md max-h-full overflow-y-auto p-6 z-10">
+        <div className="flex items-center justify-between mb-5 sticky top-0 bg-white -mx-6 -mt-6 px-6 pt-6 pb-3 z-10">
           <h2 className="text-base font-semibold text-ink-900">{title}</h2>
           <button onClick={onClose} className="btn-ghost btn-sm p-1.5 -mr-1">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

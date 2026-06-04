@@ -338,6 +338,31 @@ export default function MenuPage() {
         {menu.size && <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 text-xs font-mono uppercase not-capitalize">{menu.size}</span>}
       </p>
 
+      {/* Sync helper banner */}
+      {syncNeeded && (
+        <div className="mb-6 card border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-amber-900">Sync needed</div>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {menu.last_synced_at
+                ? `Items have been edited since the last sync (${new Date(menu.last_synced_at).toLocaleString()}).`
+                : 'This menu has never been synced to Figma.'}
+              {' '}Open the Figma file and run the Menu Hub plugin to push these changes.
+            </p>
+          </div>
+          {event?.figma_file_url && (
+            <a
+              href={event.figma_file_url}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-primary btn-sm flex-shrink-0 self-start sm:self-auto"
+            >
+              Open Figma →
+            </a>
+          )}
+        </div>
+      )}
+
       {showImport && (
         <div className="mb-6">
           <CsvImport menuId={menu.id} onImported={() => { setShowImport(false); loadMenu() }} />

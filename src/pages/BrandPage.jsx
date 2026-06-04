@@ -167,6 +167,7 @@ export default function BrandPage() {
     <PageScreen
       breadcrumbs={[{ label: brand.name }]}
       back
+      icon={brand.logo_url || undefined}
       actions={<>
         <FavoriteButton type="brand" id={brand.id} />
         {isAdmin && (
