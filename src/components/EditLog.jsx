@@ -61,23 +61,33 @@ export default function EditLog({ menuId }) {
   if (loading) return <div className="text-sm text-ink-400">Loading log…</div>
   if (logs.length === 0) return <div className="text-sm text-ink-400">No edits logged yet.</div>
 
-  return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[760px]">
-          <thead>
-            <tr className="border-b border-surface-100 bg-surface-50">
-              <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">When</th>
-              <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">By</th>
-              <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Item</th>
-              <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Field</th>
-              <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Change</th>
-              <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Phase</th>
-              {canApprove && <th className="px-3 sm:px-4 py-2.5 text-right text-xs font-medium text-ink-400">Status</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-surface-100">
-            {logs.map(log => {
+  // Group by pending vs approved/historical
+  const pending = logs.filter(l => l.menu_item?.edit_status === 'pending_approval')
+  const historical = logs.filter(l => l.menu_item?.edit_status !== 'pending_approval')
+
+  function renderTable(rows, headingLabel, colorClass) {
+    if (rows.length === 0) return null
+    return (
+      <div className="card overflow-hidden">
+        <div className={`px-4 py-2.5 border-b border-surface-100 flex items-center justify-between ${colorClass}`}>
+          <h3 className="text-xs font-semibold uppercase tracking-wider">{headingLabel}</h3>
+          <span className="text-xs opacity-70">{rows.length}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[760px]">
+            <thead>
+              <tr className="border-b border-surface-100 bg-surface-50">
+                <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">When</th>
+                <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">By</th>
+                <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Item</th>
+                <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Field</th>
+                <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Change</th>
+                <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Phase</th>
+                {canApprove && <th className="px-3 sm:px-4 py-2.5 text-right text-xs font-medium text-ink-400">Status</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-100">
+              {rows.map(log => {
               const isOpen = expanded.has(log.id)
               const itemPending = log.menu_item?.edit_status === 'pending_approval'
               const itemApproved = log.menu_item?.edit_status === 'approved'
@@ -146,7 +156,15 @@ export default function EditLog({ menuId }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-ink-400 px-4 py-2 border-t border-surface-100">Tap a change row to expand long values.</p>
+        <p className="text-[11px] text-ink-400 px-4 py-2 border-t border-surface-100">Tap a change row to expand long values.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {renderTable(pending,    'Pending approval', 'bg-amber-50 text-amber-800')}
+      {renderTable(historical, 'Approved & history', 'bg-emerald-50 text-emerald-800')}
     </div>
   )
 }

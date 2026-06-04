@@ -225,21 +225,25 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
     <div style={{ display: 'flex', gap: 36, alignItems: 'stretch' }}>
       {group.section && (
         <div style={{
-          ...roleStyle(spec.section_label, fonts),
-          color: colors.section,
-          writingMode: 'vertical-rl',
-          transform: spec.section_label.rotate ? `rotate(${spec.section_label.rotate}deg)` : 'rotate(-180deg)',
           flexShrink: 0,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
+          gap: 24,
         }}>
-          {group.section}
+          <div style={{
+            ...roleStyle(spec.section_label, fonts),
+            color: colors.section,
+            writingMode: 'vertical-rl',
+            transform: spec.section_label.rotate ? `rotate(${spec.section_label.rotate}deg)` : 'rotate(-180deg)',
+            whiteSpace: 'nowrap',
+          }}>
+            {group.section}
+          </div>
+          {/* Vertical line under the rotated label, fills remaining height of the section */}
+          <div style={{ flex: 1, width: 1, backgroundColor: colors.section || colors.divider, opacity: 0.8 }} />
         </div>
       )}
-      <div style={{
-        width: 1, alignSelf: 'stretch', flexShrink: 0,
-        backgroundColor: colors.divider, opacity: 0.5,
-      }} />
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: itemGap === 'auto' ? 'space-between' : 'flex-start',
@@ -346,13 +350,13 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
         }}>
           {/* Header logo */}
           {headerLogoUrl && (
-            <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: 'flex-start' }} />
+            <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: 'center' }} />
           )}
           {headerLogoUrl && <div style={{ height: gapBlock.logo_to_title }} />}
 
           {/* Menu title */}
           {menu?.name && (
-            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.name}</div>
+            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title, textAlign: 'center' }}>{menu.name}</div>
           )}
           <div style={{ height: gapBlock.title_to_items }} />
 

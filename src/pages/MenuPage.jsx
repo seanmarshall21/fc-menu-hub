@@ -11,6 +11,7 @@ import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EntityIconPicker from '@/components/EntityIconPicker'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -763,15 +764,17 @@ export default function MenuPage() {
             </div>
             <div>
               <label className="label">Icon</label>
-              <EntityIconPicker
-                iconUrl={editMenuIconUrl}
-                iconName={editMenuIconName}
-                onChange={({ icon_url, icon_name }) => { setEditMenuIconUrl(icon_url); setEditMenuIconName(icon_name) }}
-                uploadBucket="series-assets"
-                uploadPathPrefix={`${menu.id}/icons`}
-                fallbackText={editMenuName}
-                fallbackColor={brand?.color}
-              />
+              <ErrorBoundary>
+                <EntityIconPicker
+                  iconUrl={editMenuIconUrl}
+                  iconName={editMenuIconName}
+                  onChange={({ icon_url, icon_name }) => { setEditMenuIconUrl(icon_url); setEditMenuIconName(icon_name) }}
+                  uploadBucket="series-assets"
+                  uploadPathPrefix={`${menu.id}/icons`}
+                  fallbackText={editMenuName}
+                  fallbackColor={brand?.color}
+                />
+              </ErrorBoundary>
             </div>
             {editMenuError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editMenuError}</p>}
             <div className="flex items-center justify-end gap-3 pt-1">
