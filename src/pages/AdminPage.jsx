@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -138,6 +138,13 @@ export default function AdminPage() {
     setEditingId(null); setEditError(null)
   }
 
+  // Modal-side delete that closes the editor and opens the confirm dialog
+  function requestDeleteFromEditor() {
+    if (!editingId) return
+    setConfirmDeleteId(editingId)
+    setEditingId(null)
+  }
+
   function toggleEditBrand(brandId) {
     setEditBrandAccess(prev =>
       prev.includes(brandId) ? prev.filter(id => id !== brandId) : [...prev, brandId]
@@ -244,10 +251,10 @@ export default function AdminPage() {
               <thead>
                 <tr className="border-b border-surface-100">
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">User</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Email</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider hidden md:table-cell">Company</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider hidden md:table-cell">Email</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Company</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Role</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 sm:px-6 py-3 py-3 text-right text-xs font-medium text-ink-400 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
@@ -260,67 +267,40 @@ export default function AdminPage() {
                   })
                   .map(user => {
                     const isPendingUser = user.role === 'pending'
-                    const isEditing = editingId === user.id
                     const isApprovingUser = approvingId === user.id
                     const isSelf = user.id === profile?.id
 
                     const externalBrandCount = Array.isArray(user.brand_access) ? user.brand_access.length : 0
 
                     return (
-                      <Fragment key={user.id}>
-                      <tr className={
+                      <tr key={user.id} className={
                         isPendingUser ? 'bg-amber-50' :
-                        isEditing ? 'bg-brand-50' :
                         'table-row-hover'
                       }>
                         {/* Name */}
                         <td className="px-4 sm:px-6 py-3">
-                          {isEditing ? (
-                            <input
-                              className="input py-1.5 text-sm w-36"
-                              value={editName}
-                              onChange={e => setEditName(e.target.value)}
-                              placeholder="Full name"
-                              spellCheck autoFocus
-                            />
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isPendingUser ? 'bg-amber-100 text-amber-700' : 'bg-brand-100 text-brand-600'}`}>
-                                {user.full_name?.[0] || user.email?.[0] || '?'}
-                              </div>
-                              <span className="font-medium text-ink-900 whitespace-nowrap">
-                                {user.full_name || '—'}
-                                {isSelf && <span className="ml-1.5 text-xs text-ink-300 font-normal">(you)</span>}
-                              </span>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isPendingUser ? 'bg-amber-100 text-amber-700' : 'bg-brand-100 text-brand-600'}`}>
+                              {user.full_name?.[0] || user.email?.[0] || '?'}
                             </div>
-                          )}
+                            <span className="font-medium text-ink-900 whitespace-nowrap">
+                              {user.full_name || '—'}
+                              {isSelf && <span className="ml-1.5 text-xs text-ink-300 font-normal">(you)</span>}
+                            </span>
+                          </div>
                         </td>
 
-                        {/* Email */}
-                        <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap">{user.email}</td>
+                        {/* Email (desktop+ only) */}
+                        <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap hidden md:table-cell">{user.email}</td>
 
                         {/* Company */}
-                        <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap hidden md:table-cell">
-                          {isEditing ? (
-                            <input
-                              className="input py-1.5 text-sm w-36"
-                              value={editCompany}
-                              onChange={e => setEditCompany(e.target.value)}
-                              placeholder="Company"
-                              spellCheck
-                            />
-                          ) : (
-                            user.company || <span className="text-ink-300">—</span>
-                          )}
+                        <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap">
+                          {user.company || <span className="text-ink-300">—</span>}
                         </td>
 
                         {/* Role */}
                         <td className="px-4 sm:px-6 py-3">
-                          {isEditing ? (
-                            <select className="input py-1.5 text-sm w-28" value={editRole} onChange={e => setEditRole(e.target.value)}>
-                              {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                            </select>
-                          ) : isApprovingUser ? (
+                          {isApprovingUser ? (
                             <select className="input py-1.5 text-sm w-28" value={approveRole} onChange={e => setApproveRole(e.target.value)} autoFocus>
                               {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                             </select>
@@ -341,88 +321,39 @@ export default function AdminPage() {
                         </td>
 
                         {/* Actions */}
-                        <td className="px-4 sm:px-6 py-3">
+                        <td className="px-3 sm:px-6 py-3 text-right">
                           {isApprovingUser ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleApprove(user.id)}
-                                disabled={approving}
-                                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded px-2 py-1 transition-colors disabled:opacity-50"
-                              >
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => handleApprove(user.id)} disabled={approving}
+                                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded px-2 py-1 transition-colors disabled:opacity-50">
                                 {approving ? '…' : 'Approve'}
                               </button>
                               <button onClick={() => setApprovingId(null)} className="text-xs text-ink-400 hover:text-ink-700">Cancel</button>
                             </div>
-                          ) : isEditing ? (
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => saveEdit(user.id)} disabled={editSaving} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
-                                {editSaving ? '…' : 'Save'}
-                              </button>
-                              <button onClick={cancelEdit} className="text-xs text-ink-400 hover:text-ink-700">Cancel</button>
-                              {editError && <span className="text-xs text-red-500">{editError}</span>}
-                            </div>
                           ) : isPendingUser ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => startApprove(user)}
-                                className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-medium rounded px-2 py-1 transition-colors"
-                              >
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => startApprove(user)}
+                                className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-medium rounded px-2 py-1 transition-colors">
                                 Approve
                               </button>
                               <button onClick={() => setConfirmDeleteId(user.id)} className="text-xs text-red-400 hover:text-red-600 font-medium">
                                 Deny
                               </button>
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {!isSelf && (
-                                <>
-                                  <button onClick={() => startEdit(user)} className="text-xs text-ink-400 hover:text-brand-600 font-medium transition-colors">
-                                    Edit
-                                  </button>
-                                  <button onClick={() => setConfirmDeleteId(user.id)} className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">
-                                    Delete
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                          ) : !isSelf && (
+                            <button
+                              onClick={() => startEdit(user)}
+                              className="w-8 h-8 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                              aria-label="Edit user"
+                              title="Edit user"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
                           )}
                         </td>
                       </tr>
-                      {isEditing && editRole === 'external' && (
-                        <tr className="bg-brand-50">
-                          <td colSpan={5} className="px-4 sm:px-6 pt-0 pb-4">
-                            <div className="text-xs font-semibold text-ink-600 mb-2 uppercase tracking-wider">Brand Access</div>
-                            {brands.length === 0 ? (
-                              <p className="text-xs text-ink-400">No brands yet — create one first.</p>
-                            ) : (
-                              <div className="flex flex-wrap gap-1.5">
-                                {brands.map(b => {
-                                  const checked = editBrandAccess.includes(b.id)
-                                  return (
-                                    <button
-                                      key={b.id}
-                                      type="button"
-                                      onClick={() => toggleEditBrand(b.id)}
-                                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                                        checked
-                                          ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700'
-                                          : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
-                                      }`}
-                                    >
-                                      {b.name}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            )}
-                            <p className="text-[11px] text-ink-400 mt-2">
-                              External users will only see menus under selected brands once read access is locked down. (Currently all menus are publicly readable — RLS lockdown pending.)
-                            </p>
-                          </td>
-                        </tr>
-                      )}
-                      </Fragment>
                     )
                   })}
               </tbody>
@@ -521,6 +452,86 @@ export default function AdminPage() {
           )}
         </Modal>
       )}
+
+      {/* ── Edit User modal ── */}
+      {editingId && (() => {
+        const editingUser = users.find(u => u.id === editingId)
+        return (
+          <Modal title="Edit User" onClose={cancelEdit}>
+            <form onSubmit={e => { e.preventDefault(); saveEdit(editingId) }} className="space-y-4">
+              <div>
+                <label className="label">Full Name</label>
+                <input className="input" value={editName} onChange={e => setEditName(e.target.value)}
+                  placeholder="Full name" spellCheck autoFocus />
+              </div>
+              <div>
+                <label className="label">Email</label>
+                <input className="input bg-surface-50 text-ink-400" value={editingUser?.email || ''} disabled />
+              </div>
+              <div>
+                <label className="label">Company <span className="text-ink-300 font-normal">(optional)</span></label>
+                <input className="input" value={editCompany} onChange={e => setEditCompany(e.target.value)}
+                  placeholder="e.g. CRSSD" spellCheck />
+              </div>
+              <div>
+                <label className="label">Role</label>
+                <select className="input" value={editRole} onChange={e => setEditRole(e.target.value)}>
+                  {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                </select>
+              </div>
+
+              {editRole === 'external' && (
+                <div>
+                  <label className="label">Brand Access</label>
+                  {brands.length === 0 ? (
+                    <p className="text-xs text-ink-400">No brands yet — create one first.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {brands.map(b => {
+                        const checked = editBrandAccess.includes(b.id)
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => toggleEditBrand(b.id)}
+                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                              checked
+                                ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700'
+                                : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                            }`}
+                          >
+                            {b.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-ink-400 mt-2">
+                    External users will only see menus under selected brands once read access is locked down.
+                  </p>
+                </div>
+              )}
+
+              {editError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editError}</p>
+              )}
+
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-surface-100 mt-4">
+                <button type="button" onClick={requestDeleteFromEditor}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium">
+                  Delete User
+                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={cancelEdit} className="btn-secondary btn-sm">Cancel</button>
+                  <button type="submit" disabled={editSaving} className="btn-primary btn-sm">
+                    {editSaving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </Modal>
+        )
+      })()}
 
       {/* ── Delete confirm modal ── */}
       {confirmDeleteId && (
