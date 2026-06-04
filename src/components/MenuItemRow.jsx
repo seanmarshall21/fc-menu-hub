@@ -60,12 +60,14 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
         if (retryErr) throw retryErr
       }
 
-      // Log edits — fire and forget, doesn't block UI
+      // Log edits — fire and forget, doesn't block UI.
+      // (supabase.rpc() returns a PostgrestBuilder which is thenable but
+      // doesn't expose .catch() in some versions — use .then(_, onErr).)
       for (const entry of logEntries) {
         supabase.rpc('log_menu_item_edit', {
           p_item_id: item.id, p_menu_id: menu.id,
           p_field: entry.field, p_old_value: entry.old, p_new_value: entry.new, p_phase: menu.phase,
-        }).catch(() => {})
+        }).then(() => {}, () => {})
       }
 
       setEditing(false)

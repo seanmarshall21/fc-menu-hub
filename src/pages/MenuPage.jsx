@@ -124,6 +124,9 @@ export default function MenuPage() {
   const [exporting, setExporting] = useState(false)
   const canvasRef = useRef(null)
 
+  // Undo memory for Approve All
+  const [lastApprovedIds, setLastApprovedIds] = useState([])
+
   // Edit menu modal
   const [showEditMenu, setShowEditMenu] = useState(false)
   const [editMenuName, setEditMenuName] = useState('')
@@ -296,11 +299,22 @@ export default function MenuPage() {
 
   async function approveAllPending() {
     if (!pendingCount) return
+    const pendingIds = items.filter(i => i.edit_status === 'pending_approval').map(i => i.id)
     await supabase
       .from('menu_items')
       .update({ edit_status: 'approved' })
-      .eq('menu_id', menu.id)
-      .eq('edit_status', 'pending_approval')
+      .in('id', pendingIds)
+    setLastApprovedIds(pendingIds)
+    loadMenu()
+  }
+
+  async function undoApproveAll() {
+    if (!lastApprovedIds.length) return
+    await supabase
+      .from('menu_items')
+      .update({ edit_status: 'pending_approval' })
+      .in('id', lastApprovedIds)
+    setLastApprovedIds([])
     loadMenu()
   }
 
@@ -337,19 +351,11 @@ export default function MenuPage() {
             Sync
           </span>
         )}
-        {isInternal && (
-          <>
-            <button onClick={() => setShowImport(v => !v)} className="btn-secondary btn-sm hidden sm:inline-flex">
-              Import CSV
-            </button>
-            <CsvExport menu={menu} items={items} />
-          </>
-        )}
         {(isAdmin || isInternal) && (
           isApproved ? (
             <button
               onClick={unapproveMenu}
-              className="text-xs px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 hover:bg-indigo-200 font-medium"
+              className="text-xs px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium"
               title="Click to move back to Proof"
             >
               ✓ Approved
@@ -357,10 +363,10 @@ export default function MenuPage() {
           ) : (
             <button
               onClick={approveMenu}
-              className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 font-medium"
+              className="text-xs px-3 py-1 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium"
               title="Mark this menu as Approved"
             >
-              Approve
+              Approve Menu
             </button>
           )
         )}
@@ -398,11 +404,19 @@ export default function MenuPage() {
       )}
     >
       <PageBody>
-      {/* Menu meta */}
-      <p className="text-sm text-ink-500 capitalize mb-4">
-        {menu.category.replace('_', ' ')} menu · {event?.name}
-        {menu.size && <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 text-xs font-mono uppercase not-capitalize">{menu.size}</span>}
-      </p>
+      {/* Menu meta + CSV controls */}
+      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+        <p className="text-sm text-ink-500 capitalize">
+          {menu.category.replace('_', ' ')} menu · {event?.name}
+          {menu.size && <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 text-xs font-mono uppercase not-capitalize">{menu.size}</span>}
+        </p>
+        {isInternal && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setShowImport(v => !v)} className="btn-secondary btn-sm">Import CSV</button>
+            <CsvExport menu={menu} items={items} />
+          </div>
+        )}
+      </div>
 
       {/* Sync helper banner */}
       {syncNeeded && (
@@ -438,18 +452,39 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
-          {pendingCount > 0 && (isAdmin || isInternal) && (
-            <div className="card border-amber-200 bg-amber-50 p-3 flex items-center justify-between gap-3">
-              <div className="text-sm">
-                <span className="font-semibold text-amber-900">{pendingCount} pending edit{pendingCount === 1 ? '' : 's'}</span>
-                <span className="text-amber-800 ml-2">— review each item or approve the batch.</span>
+          {lastApprovedIds.length > 0 && pendingCount === 0 && (
+            <div className="card border-emerald-200 bg-emerald-50 p-3 flex items-center justify-between gap-3">
+              <div className="text-sm text-emerald-800">
+                ✓ Approved {lastApprovedIds.length} edit{lastApprovedIds.length === 1 ? '' : 's'}.
               </div>
               <button
-                onClick={approveAllPending}
-                className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 flex-shrink-0"
+                onClick={undoApproveAll}
+                className="text-xs font-medium px-3 py-1.5 rounded-md bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
               >
-                ✓ Approve all
+                Undo
               </button>
+            </div>
+          )}
+          {pendingCount > 0 && (isAdmin || isInternal) && (
+            <div className="card border-amber-200 bg-amber-50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="font-semibold text-amber-900">{pendingCount} pending edit{pendingCount === 1 ? '' : 's'}</span>
+                <span className="text-amber-800 ml-2">— review one-by-one or approve in bulk.</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setTab('log')}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-white text-amber-800 border border-amber-300 hover:bg-amber-100"
+                >
+                  Review individually
+                </button>
+                <button
+                  onClick={() => { if (confirm(`Approve all ${pendingCount} pending edits at once?`)) approveAllPending() }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  ✓ Approve all
+                </button>
+              </div>
             </div>
           )}
           {sectionGroups.length === 0 && !canEdit && (
