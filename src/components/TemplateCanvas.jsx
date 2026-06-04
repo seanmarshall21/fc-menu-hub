@@ -356,18 +356,44 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           )}
           <div style={{ height: gapBlock.title_to_items }} />
 
-          {/* Sections — fill remaining space */}
-          <div style={{
-            flex: 1,
-            display: 'flex', flexDirection: 'column',
-            justifyContent: sectionsJustify,
-            gap: sectionsGapPx,
-            minHeight: 0,
-          }}>
-            {sectionGroups.map(group => (
-              <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
-            ))}
-          </div>
+          {/* Sections — fill remaining space; 1 or 2 columns based on template.columns */}
+          {(template?.columns ?? 1) === 2 ? (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              gap: gapBlock.section_gap === 'auto' ? 60 : gapBlock.section_gap,
+              alignItems: 'stretch',
+              minHeight: 0,
+            }}>
+              {[0, 1].map(colIdx => {
+                const colGroups = sectionGroups.filter((_, i) => i % 2 === colIdx)
+                return (
+                  <div key={colIdx} style={{
+                    flex: 1, display: 'flex', flexDirection: 'column',
+                    justifyContent: sectionsJustify,
+                    gap: sectionsGapPx,
+                    minHeight: 0,
+                  }}>
+                    {colGroups.map(group => (
+                      <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{
+              flex: 1,
+              display: 'flex', flexDirection: 'column',
+              justifyContent: sectionsJustify,
+              gap: sectionsGapPx,
+              minHeight: 0,
+            }}>
+              {sectionGroups.map(group => (
+                <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
+              ))}
+            </div>
+          )}
 
           <div style={{ height: gapBlock.items_to_footer }} />
 

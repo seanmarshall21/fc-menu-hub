@@ -232,8 +232,6 @@ function SponsorRow({ sponsor, canEdit, onSave, onDelete, onMoveUp, onMoveDown, 
 function TemplatesTab({ event, templates, canEdit, onSaved }) {
   // Shared style config (read from first existing template, or defaults)
   const existing = Object.values(templates)[0] || {}
-  const [fontPrimary,    setFontPrimary]    = useState(existing.font_primary    || '')
-  const [adobeFontsUrl,  setAdobeFontsUrl]  = useState(existing.adobe_fonts_url || '')
   const [colorSection,   setColorSection]   = useState(existing.color_section   || '#1a1a1a')
   const [colorTitle,     setColorTitle]     = useState(existing.color_title     || '#1a1a1a')
   const [colorDesc,      setColorDesc]      = useState(existing.color_description || '#555555')
@@ -245,8 +243,6 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
   const [padRight,       setPadRight]       = useState(existing.padding_right   ?? 100)
   const [padBottom,      setPadBottom]      = useState(existing.padding_bottom  ?? 160)
   const [padLeft,        setPadLeft]        = useState(existing.padding_left    ?? 100)
-  const [sectionGap,     setSectionGap]     = useState(existing.section_gap     ?? 72)
-  const [itemGap,        setItemGap]        = useState(existing.item_gap        ?? 24)
   const [styleSaving,    setStyleSaving]    = useState(false)
   const [styleError,     setStyleError]     = useState(null)
   const [styleSuccess,   setStyleSuccess]   = useState(false)
@@ -277,8 +273,6 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
         event_id: event.id,
         size,
         background_url: publicUrl,
-        font_primary:    fontPrimary    || current.font_primary    || 'sans-serif',
-        adobe_fonts_url: adobeFontsUrl  || current.adobe_fonts_url || null,
         color_section:     colorSection   || current.color_section,
         color_title:       colorTitle     || current.color_title,
         color_description: colorDesc      || current.color_description,
@@ -290,8 +284,6 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
         padding_right:     Number(padRight)  || current.padding_right,
         padding_bottom:    Number(padBottom) || current.padding_bottom,
         padding_left:      Number(padLeft)   || current.padding_left,
-        section_gap:       Number(sectionGap)|| current.section_gap,
-        item_gap:          Number(itemGap)   || current.item_gap,
       }
       const { data: saved, error: dbErr } = await supabase
         .from('event_templates')
@@ -312,8 +304,6 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
     setStyleSaving(true); setStyleError(null); setStyleSuccess(false)
     try {
       const payload = {
-        font_primary:      fontPrimary.trim() || 'sans-serif',
-        adobe_fonts_url:   adobeFontsUrl.trim() || null,
         color_section:     colorSection,
         color_title:       colorTitle,
         color_description: colorDesc,
@@ -325,8 +315,6 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
         padding_right:     Number(padRight),
         padding_bottom:    Number(padBottom),
         padding_left:      Number(padLeft),
-        section_gap:       Number(sectionGap),
-        item_gap:          Number(itemGap),
       }
       // Apply to all existing template sizes + create for any missing sizes
       const sizes = ['sm', 'md', 'lg']
@@ -423,31 +411,13 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
         </div>
       </div>
 
-      {/* Font + Color + Layout config */}
+      {/* Color + Layout config */}
       <div className="card p-6">
-        <h3 className="text-sm font-semibold text-ink-700 mb-1">Font & Color Configuration</h3>
+        <h3 className="text-sm font-semibold text-ink-700 mb-1">Colors & Layout</h3>
         <p className="text-xs text-ink-400 mb-5">
-          Applied to all three sizes. Changes take effect immediately in the Preview tab on each menu.
+          Applied to all three sizes for this event. Fonts, typography, and per-size gaps live on <strong>Series → Styles</strong>.
         </p>
         <form onSubmit={handleSaveStyle} className="space-y-5">
-          {/* Fonts */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Primary Font Family</label>
-              <input className="input font-mono text-sm" value={fontPrimary}
-                onChange={e => setFontPrimary(e.target.value)}
-                placeholder="acumin-pro, sans-serif" />
-              <p className="text-xs text-ink-400 mt-1">CSS font-family string. Must match the Adobe Fonts name exactly.</p>
-            </div>
-            <div>
-              <label className="label">Adobe Fonts Kit URL <span className="text-ink-400 font-normal">(optional)</span></label>
-              <input className="input text-sm" value={adobeFontsUrl}
-                onChange={e => setAdobeFontsUrl(e.target.value)}
-                placeholder="https://use.typekit.net/xxxxxxx.css" />
-              <p className="text-xs text-ink-400 mt-1">From Adobe Fonts → Web Projects. Loads the font in-app.</p>
-            </div>
-          </div>
-
           {/* Colors */}
           <div>
             <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Colors</p>
@@ -476,15 +446,13 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
 
           {/* Layout */}
           <div>
-            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Layout (px at 1600px canvas)</p>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Padding (px at 1600px canvas)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Pad Top',    value: padTop,      set: setPadTop      },
                 { label: 'Pad Right',  value: padRight,    set: setPadRight    },
                 { label: 'Pad Bottom', value: padBottom,   set: setPadBottom   },
                 { label: 'Pad Left',   value: padLeft,     set: setPadLeft     },
-                { label: 'Sec. Gap',   value: sectionGap,  set: setSectionGap  },
-                { label: 'Item Gap',   value: itemGap,     set: setItemGap     },
               ].map(({ label, value, set }) => (
                 <div key={label}>
                   <label className="label text-xs">{label}</label>
