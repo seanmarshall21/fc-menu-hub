@@ -107,7 +107,7 @@ export default function SeriesPage() {
         <div className="px-4 sm:px-6 py-4 border-b border-surface-200 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink-900">Events</h2>
           {(isAdmin || isInternal) && (
-            <button onClick={() => { setEventName(''); setEventSlugField(''); setEventVenue(''); setEventDate(''); setEventPhase('planning'); setSaveError(null); setShowNewEvent(true) }}
+            <button onClick={() => { setEventName(''); setEventSlugField(''); setEventVenue(''); setEventDate(''); setEventPhase('build'); setSaveError(null); setShowNewEvent(true) }}
               className="btn-secondary btn-sm gap-1.5">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -168,7 +168,7 @@ export default function SeriesPage() {
               <input className="input font-mono text-sm" value={eventSlugField}
                 onChange={e => setEventSlugField(slugify(e.target.value))} placeholder="crssd-fall-2025" required />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="label">Date</label>
                 <input type="date" className="input" value={eventDate} onChange={e => setEventDate(e.target.value)} />

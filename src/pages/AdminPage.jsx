@@ -48,6 +48,7 @@ export default function AdminPage() {
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
+  const [inviteCompany, setInviteCompany] = useState('')
   const [inviteRole, setInviteRole] = useState('external')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState(null)
@@ -57,6 +58,7 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState('')
+  const [editCompany, setEditCompany] = useState('')
   const [editBrandAccess, setEditBrandAccess] = useState([])
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
@@ -98,7 +100,7 @@ export default function AdminPage() {
 
   // ── Invite ──────────────────────────────────────────────
   function openInvite() {
-    setInviteEmail(''); setInviteName(''); setInviteRole('external')
+    setInviteEmail(''); setInviteName(''); setInviteCompany(''); setInviteRole('external')
     setInviteError(null); setInviteSuccess(false)
     setShowInvite(true)
   }
@@ -110,6 +112,7 @@ export default function AdminPage() {
       await callAdminFn('invite', {
         email: inviteEmail.trim(),
         full_name: inviteName.trim() || null,
+        company: inviteCompany.trim() || null,
         role: inviteRole,
       })
       setInviteSuccess(true)
@@ -126,6 +129,7 @@ export default function AdminPage() {
     setEditingId(user.id)
     setEditName(user.full_name || '')
     setEditRole(user.role || 'external')
+    setEditCompany(user.company || '')
     setEditBrandAccess(Array.isArray(user.brand_access) ? user.brand_access : [])
     setEditError(null)
   }
@@ -148,6 +152,7 @@ export default function AdminPage() {
         userId,
         full_name: editName.trim(),
         role: editRole,
+        company: editCompany.trim(),
         brand_access: editRole === 'external' ? editBrandAccess : null,
       })
       setEditingId(null)
@@ -240,6 +245,7 @@ export default function AdminPage() {
                 <tr className="border-b border-surface-100">
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">User</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Email</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider hidden md:table-cell">Company</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Role</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -292,6 +298,21 @@ export default function AdminPage() {
 
                         {/* Email */}
                         <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap">{user.email}</td>
+
+                        {/* Company */}
+                        <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap hidden md:table-cell">
+                          {isEditing ? (
+                            <input
+                              className="input py-1.5 text-sm w-36"
+                              value={editCompany}
+                              onChange={e => setEditCompany(e.target.value)}
+                              placeholder="Company"
+                              spellCheck
+                            />
+                          ) : (
+                            user.company || <span className="text-ink-300">—</span>
+                          )}
+                        </td>
 
                         {/* Role */}
                         <td className="px-4 sm:px-6 py-3">
@@ -370,7 +391,7 @@ export default function AdminPage() {
                       </tr>
                       {isEditing && editRole === 'external' && (
                         <tr className="bg-brand-50">
-                          <td colSpan={4} className="px-4 sm:px-6 pt-0 pb-4">
+                          <td colSpan={5} className="px-4 sm:px-6 pt-0 pb-4">
                             <div className="text-xs font-semibold text-ink-600 mb-2 uppercase tracking-wider">Brand Access</div>
                             {brands.length === 0 ? (
                               <p className="text-xs text-ink-400">No brands yet — create one first.</p>
@@ -468,6 +489,16 @@ export default function AdminPage() {
                   value={inviteName}
                   onChange={e => setInviteName(e.target.value)}
                   placeholder="Jane Smith"
+                  spellCheck
+                />
+              </div>
+              <div>
+                <label className="label">Company <span className="text-ink-300 font-normal">(optional)</span></label>
+                <input
+                  className="input"
+                  value={inviteCompany}
+                  onChange={e => setInviteCompany(e.target.value)}
+                  placeholder="e.g. CRSSD"
                   spellCheck
                 />
               </div>
