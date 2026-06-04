@@ -7,6 +7,7 @@ import { useFavorites } from '@/hooks/useFavorites'
 import FavoriteButton from '@/components/FavoriteButton'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
+import EntityIcon from '@/components/EntityIcon'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
@@ -54,9 +55,9 @@ export default function Dashboard() {
       const seriesIds = favorites.filter(f => f.target_type === 'series').map(f => f.target_id)
       const eventIds  = favorites.filter(f => f.target_type === 'event') .map(f => f.target_id)
       const [b, s, e] = await Promise.all([
-        brandIds.length  ? supabase.from('brands').select('id, name, slug, logo_url, color').in('id', brandIds)  : { data: [] },
-        seriesIds.length ? supabase.from('series').select('id, name, slug, brand:brands(name, slug, logo_url, color)').in('id', seriesIds) : { data: [] },
-        eventIds.length  ? supabase.from('events').select('id, name, slug, event_date, series:series(name, slug, brand:brands(name, slug, color))').in('id', eventIds) : { data: [] },
+        brandIds.length  ? supabase.from('brands').select('id, name, slug, logo_url, icon_name, color').in('id', brandIds)  : { data: [] },
+        seriesIds.length ? supabase.from('series').select('id, name, slug, icon_url, icon_name, brand:brands(name, slug, logo_url, icon_name, color)').in('id', seriesIds) : { data: [] },
+        eventIds.length  ? supabase.from('events').select('id, name, slug, event_date, icon_url, icon_name, series:series(name, slug, brand:brands(name, slug, color, logo_url, icon_name))').in('id', eventIds) : { data: [] },
       ])
       setFavBrands(b.data || [])
       setFavSeries(s.data || [])
@@ -160,7 +161,7 @@ export default function Dashboard() {
           <div className="space-y-2">
             {favBrands.slice(0, 3).map(b => (
               <Link key={`b-${b.id}`} to={`/brands/${b.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
-                <FavTile logoUrl={b.logo_url} color={b.color} name={b.name} />
+                <EntityIcon iconUrl={b.logo_url} iconName={b.icon_name} fallbackText={b.name} fallbackColor={b.color} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{b.name}</div>
                   <div className="text-xs text-ink-400">Brand</div>
@@ -170,7 +171,7 @@ export default function Dashboard() {
             ))}
             {favSeries.slice(0, 3).map(s => (
               <Link key={`s-${s.id}`} to={`/brands/${s.brand?.slug}/series/${s.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
-                <FavTile logoUrl={s.brand?.logo_url} color={s.brand?.color} name={s.brand?.name} />
+                <EntityIcon iconUrl={s.icon_url || s.brand?.logo_url} iconName={s.icon_name || s.brand?.icon_name} fallbackText={s.name || s.brand?.name} fallbackColor={s.brand?.color} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{s.name}</div>
                   <div className="text-xs text-ink-400 truncate">{s.brand?.name} · Series</div>
@@ -180,7 +181,7 @@ export default function Dashboard() {
             ))}
             {favEvents.slice(0, 3).map(e => (
               <Link key={`e-${e.id}`} to={`/brands/${e.series?.brand?.slug}/series/${e.series?.slug}/events/${e.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
-                <FavTile color={e.series?.brand?.color} name={e.series?.brand?.name} />
+                <EntityIcon iconUrl={e.icon_url || e.series?.brand?.logo_url} iconName={e.icon_name || e.series?.brand?.icon_name} fallbackText={e.name || e.series?.brand?.name} fallbackColor={e.series?.brand?.color} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{e.name}</div>
                   <div className="text-xs text-ink-400 truncate">{e.series?.brand?.name} · {e.series?.name}</div>
@@ -203,20 +204,7 @@ export default function Dashboard() {
                 to={`/brands/${brand.slug}`}
                 className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group"
               >
-                {brand.logo_url ? (
-                  <img
-                    src={brand.logo_url}
-                    alt=""
-                    className="w-10 h-10 rounded-lg object-contain bg-surface-50 border border-surface-200 flex-shrink-0"
-                  />
-                ) : (
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
-                    style={{ backgroundColor: brand.color || '#6366f1' }}
-                  >
-                    {brand.name?.[0]?.toUpperCase() || '?'}
-                  </div>
-                )}
+                <EntityIcon iconUrl={brand.logo_url} iconName={brand.icon_name} fallbackText={brand.name} fallbackColor={brand.color} size={40} />
                 <span className="flex-1 font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">
                   {brand.name}
                 </span>

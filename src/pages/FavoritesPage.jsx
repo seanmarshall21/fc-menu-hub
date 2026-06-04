@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useFavorites } from '@/hooks/useFavorites'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import FavoriteButton from '@/components/FavoriteButton'
+import EntityIcon from '@/components/EntityIcon'
 import { format } from 'date-fns'
 
 export default function FavoritesPage() {
@@ -22,13 +23,13 @@ export default function FavoritesPage() {
       setHydrating(true)
       const [bRes, sRes, eRes] = await Promise.all([
         brandIds.length
-          ? supabase.from('brands').select('id, name, slug, logo_url, color').in('id', brandIds)
+          ? supabase.from('brands').select('id, name, slug, logo_url, icon_name, color').in('id', brandIds)
           : Promise.resolve({ data: [] }),
         seriesIds.length
-          ? supabase.from('series').select('id, name, slug, brand:brands(name, slug, logo_url, color)').in('id', seriesIds)
+          ? supabase.from('series').select('id, name, slug, icon_url, icon_name, brand:brands(name, slug, logo_url, icon_name, color)').in('id', seriesIds)
           : Promise.resolve({ data: [] }),
         eventIds.length
-          ? supabase.from('events').select('id, name, slug, event_date, venue, phase, series:series(name, slug, brand:brands(name, slug, color))').in('id', eventIds)
+          ? supabase.from('events').select('id, name, slug, event_date, venue, phase, icon_url, icon_name, series:series(name, slug, brand:brands(name, slug, color, logo_url, icon_name))').in('id', eventIds)
           : Promise.resolve({ data: [] }),
       ])
       setBrands(bRes.data || [])
@@ -59,7 +60,7 @@ export default function FavoritesPage() {
         <Section title="Brands">
           {brands.map(b => (
             <Link key={b.id} to={`/brands/${b.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
-              <Avatar logoUrl={b.logo_url} color={b.color} name={b.name} />
+              <EntityIcon iconUrl={b.logo_url} iconName={b.icon_name} fallbackText={b.name} fallbackColor={b.color} size={40} />
               <span className="flex-1 font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">{b.name}</span>
               <FavoriteButton type="brand" id={b.id} size="sm" />
             </Link>
@@ -71,7 +72,7 @@ export default function FavoritesPage() {
         <Section title="Series">
           {series.map(s => (
             <Link key={s.id} to={`/brands/${s.brand?.slug}/series/${s.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
-              <Avatar logoUrl={s.brand?.logo_url} color={s.brand?.color} name={s.brand?.name} />
+              <EntityIcon iconUrl={s.icon_url || s.brand?.logo_url} iconName={s.icon_name || s.brand?.icon_name} fallbackText={s.name || s.brand?.name} fallbackColor={s.brand?.color} size={40} />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">{s.name}</div>
                 <div className="text-xs text-ink-400">{s.brand?.name}</div>
@@ -86,7 +87,7 @@ export default function FavoritesPage() {
         <Section title="Events">
           {events.map(e => (
             <Link key={e.id} to={`/brands/${e.series?.brand?.slug}/series/${e.series?.slug}/events/${e.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
-              <Avatar color={e.series?.brand?.color} name={e.series?.brand?.name} />
+              <EntityIcon iconUrl={e.icon_url || e.series?.brand?.logo_url} iconName={e.icon_name || e.series?.brand?.icon_name} fallbackText={e.name || e.series?.brand?.name} fallbackColor={e.series?.brand?.color} size={40} />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">{e.name}</div>
                 <div className="text-xs text-ink-400 truncate">

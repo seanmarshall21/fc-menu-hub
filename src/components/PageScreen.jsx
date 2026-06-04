@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import EntityIcon from './EntityIcon'
 
 /**
  * Page chrome:
@@ -29,6 +30,8 @@ export default function PageScreen({
   breadcrumbs = [],
   back = false,
   icon,
+  iconName,
+  iconColor,
   actions,
   below,
   children,
@@ -81,11 +84,21 @@ export default function PageScreen({
               </button>
             )}
             {showLogo && (
-              <img
-                src={icon || '/logo-tile.svg'}
-                alt=""
-                className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex-shrink-0 object-contain bg-surface-50 border border-surface-100"
-              />
+              icon || iconName ? (
+                <EntityIcon
+                  iconUrl={icon}
+                  iconName={iconName}
+                  fallbackText={effectiveTitle}
+                  fallbackColor={iconColor || '#6366f1'}
+                  size={44}
+                />
+              ) : (
+                <img
+                  src="/logo-tile.svg"
+                  alt=""
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex-shrink-0 object-contain bg-surface-50 border border-surface-100"
+                />
+              )
             )}
             <div className="flex-1 min-w-0">
               <h1 className="text-base sm:text-lg font-semibold text-ink-900 tracking-tight truncate leading-tight">

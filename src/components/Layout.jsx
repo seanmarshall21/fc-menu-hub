@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
 import VersionWatcher from '@/components/VersionWatcher'
 import EntityIconPicker from '@/components/EntityIconPicker'
+import EntityIcon from '@/components/EntityIcon'
 import clsx from 'clsx'
 
 function IconHelp() {
@@ -206,11 +207,14 @@ export default function Layout() {
           </div>
           {brands.map(brand => (
             <NavLink key={brand.id} to={`/brands/${brand.slug}`} className={navLinkClass}>
-              {brand.logo_url ? (
-                <img src={brand.logo_url} alt="" className="w-5 h-5 rounded object-contain flex-shrink-0 bg-surface-50" />
-              ) : (
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brand.color || '#6366f1' }} />
-              )}
+              <EntityIcon
+                iconUrl={brand.logo_url}
+                iconName={brand.icon_name}
+                fallbackText={brand.name}
+                fallbackColor={brand.color}
+                size={20}
+                rounded="md"
+              />
               <span className="truncate">{brand.name}</span>
             </NavLink>
           ))}

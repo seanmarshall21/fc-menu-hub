@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
+import EntityIcon from '@/components/EntityIcon'
 
 export default function MenusListPage() {
   const [menus, setMenus] = useState([])
@@ -13,8 +14,8 @@ export default function MenusListPage() {
     supabase
       .from('menus')
       .select(`
-        id, name, slug, category, size, phase, updated_at, last_synced_at,
-        event:events(name, slug, series:series(name, slug, brand:brands(name, slug, color, logo_url)))
+        id, name, slug, category, size, phase, updated_at, last_synced_at, icon_url, icon_name,
+        event:events(name, slug, series:series(name, slug, brand:brands(name, slug, color, logo_url, icon_name)))
       `)
       .order('updated_at', { ascending: false })
       .then(({ data }) => {
@@ -58,13 +59,13 @@ export default function MenusListPage() {
                   to={`/brands/${brand?.slug}/series/${series?.slug}/events/${m.event?.slug}/menus/${m.slug}`}
                   className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group"
                 >
-                  {brand?.logo_url ? (
-                    <img src={brand.logo_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-surface-50 border border-surface-200 flex-shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-xs flex-shrink-0" style={{ backgroundColor: brand?.color || '#6366f1' }}>
-                      {brand?.name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                  )}
+                  <EntityIcon
+                    iconUrl={m.icon_url || brand?.logo_url}
+                    iconName={m.icon_name || brand?.icon_name}
+                    fallbackText={m.name || brand?.name}
+                    fallbackColor={brand?.color}
+                    size={40}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">{m.name}</span>

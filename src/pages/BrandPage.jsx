@@ -179,6 +179,8 @@ export default function BrandPage() {
       breadcrumbs={[{ label: brand.name }]}
       back
       icon={brand.logo_url || undefined}
+      iconName={brand.icon_name || undefined}
+      iconColor={brand.color}
       actions={<>
         <FavoriteButton type="brand" id={brand.id} />
         {isAdmin && (

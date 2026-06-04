@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import EntityIcon from '@/components/EntityIcon'
 
 const TYPE_ORDER = ['brand', 'series', 'event', 'menu', 'item']
 const TYPE_LABELS = {
@@ -38,11 +39,11 @@ const LIMITS = {
 }
 
 const SELECT = {
-  brand:  'id, name, slug, color, logo_url, created_at',
-  series: 'id, name, slug, created_at, brand:brands(name, slug, color, logo_url)',
-  event:  'id, name, slug, event_date, venue, created_at, series:series(slug, brand:brands(slug, name, color, logo_url))',
-  menu:   'id, name, slug, category, size, created_at, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url)))',
-  item:   'id, title, description, created_at, menu:menus(name, slug, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url))))',
+  brand:  'id, name, slug, color, logo_url, icon_name, created_at',
+  series: 'id, name, slug, created_at, icon_url, icon_name, brand:brands(name, slug, color, logo_url, icon_name)',
+  event:  'id, name, slug, event_date, venue, created_at, icon_url, icon_name, series:series(slug, brand:brands(slug, name, color, logo_url, icon_name))',
+  menu:   'id, name, slug, category, size, created_at, icon_url, icon_name, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url, icon_name)))',
+  item:   'id, title, description, created_at, menu:menus(name, slug, icon_url, icon_name, event:events(slug, series:series(slug, brand:brands(slug, name, color, logo_url, icon_name))))',
 }
 
 const NAME_KEY = { brand: 'name', series: 'name', event: 'name', menu: 'name', item: 'title' }
@@ -277,13 +278,19 @@ function ResultRow({ hit }) {
       to={to}
       className="card flex items-center gap-3 px-3 py-2.5 hover:border-brand-200 hover:shadow-sm transition-all group"
     >
-      {brand?.logo_url ? (
-        <img src={brand.logo_url} alt="" className="w-9 h-9 rounded-lg object-contain bg-surface-50 border border-surface-200 flex-shrink-0" />
-      ) : (
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-semibold text-xs flex-shrink-0" style={{ backgroundColor: brand?.color || '#6366f1' }}>
-          {(brand?.name?.[0] || title?.[0] || '?').toUpperCase()}
-        </div>
-      )}
+      <EntityIcon
+        iconUrl={
+          type === 'brand' ? raw.logo_url :
+          raw.icon_url || brand?.logo_url
+        }
+        iconName={
+          type === 'brand' ? raw.icon_name :
+          raw.icon_name || brand?.icon_name
+        }
+        fallbackText={title || brand?.name}
+        fallbackColor={brand?.color}
+        size={36}
+      />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-ink-900 group-hover:text-brand-600 truncate">{title}</div>
         {subtitle && <div className="text-xs text-ink-400 truncate">{subtitle}</div>}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import EntityIcon from '@/components/EntityIcon'
 
 export default function EditsListPage() {
   const [items, setItems] = useState([])
@@ -14,8 +15,8 @@ export default function EditsListPage() {
       .select(`
         id, title, last_edited_at, last_edited_by,
         menu:menus(
-          id, name, slug,
-          event:events(slug, series:series(slug, brand:brands(slug, color, logo_url, name)))
+          id, name, slug, icon_url, icon_name,
+          event:events(slug, series:series(slug, brand:brands(slug, color, logo_url, icon_name, name)))
         )
       `)
       .eq('edit_status', 'pending_approval')
@@ -70,13 +71,13 @@ export default function EditsListPage() {
                   className="card block px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    {brand?.logo_url ? (
-                      <img src={brand.logo_url} alt="" className="w-8 h-8 rounded-lg object-contain bg-surface-50 border border-surface-200 flex-shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-[10px] flex-shrink-0" style={{ backgroundColor: brand?.color || '#6366f1' }}>
-                        {brand?.name?.[0]?.toUpperCase() || '?'}
-                      </div>
-                    )}
+                    <EntityIcon
+                      iconUrl={g.menu?.icon_url || brand?.logo_url}
+                      iconName={g.menu?.icon_name || brand?.icon_name}
+                      fallbackText={g.menu?.name || brand?.name}
+                      fallbackColor={brand?.color}
+                      size={32}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-ink-900 group-hover:text-brand-600 truncate">{g.menu.name}</div>
                       <div className="text-[11px] text-ink-400 truncate">{brand?.name}</div>
