@@ -340,7 +340,7 @@ export default function MenuPage() {
         { label: menu.name },
       ]}
       actions={<>
-        <PhaseBadge phase={menu.phase} />
+        <PhaseBadge phase={menu.phase} hasPendingEdits={pendingCount > 0} />
         {syncNeeded && (
           <span
             title={menu.last_synced_at
@@ -404,6 +404,56 @@ export default function MenuPage() {
         </div>
       )}
     >
+      {showEditMenu ? (
+        <PageBody className="max-w-2xl">
+          <h2 className="text-base font-semibold text-ink-900 mb-1">Edit Menu</h2>
+          <p className="text-xs text-ink-400 mb-5">Update the menu name and icon. Tap Save to apply.</p>
+          <form onSubmit={async e => {
+            e.preventDefault()
+            setEditMenuSaving(true); setEditMenuError(null)
+            try {
+              const { error } = await supabase.from('menus')
+                .update({
+                  name: editMenuName.trim(),
+                  icon_url: editMenuIconUrl,
+                  icon_name: editMenuIconName,
+                })
+                .eq('id', menu.id)
+              if (error) throw error
+              setShowEditMenu(false)
+              loadMenu()
+            } catch (err) {
+              setEditMenuError(err?.message || String(err))
+            } finally {
+              setEditMenuSaving(false)
+            }
+          }} className="card p-5 space-y-4">
+            <div>
+              <label className="label">Menu Name</label>
+              <input className="input" value={editMenuName} onChange={e => setEditMenuName(e.target.value)} required autoFocus />
+            </div>
+            <div>
+              <label className="label">Icon</label>
+              <ErrorBoundary>
+                <EntityIconPicker
+                  iconUrl={editMenuIconUrl}
+                  iconName={editMenuIconName}
+                  onChange={({ icon_url, icon_name }) => { setEditMenuIconUrl(icon_url); setEditMenuIconName(icon_name) }}
+                  uploadBucket="series-assets"
+                  uploadPathPrefix={`${menu.id}/icons`}
+                  fallbackText={editMenuName}
+                  fallbackColor={brand?.color}
+                />
+              </ErrorBoundary>
+            </div>
+            {editMenuError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editMenuError}</p>}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
+              <button type="button" onClick={() => setShowEditMenu(false)} className="btn-secondary btn-sm">Cancel</button>
+              <button type="submit" className="btn-primary btn-sm" disabled={editMenuSaving}>{editMenuSaving ? 'Saving…' : 'Save Changes'}</button>
+            </div>
+          </form>
+        </PageBody>
+      ) : (
       <PageBody>
       {/* Menu meta + CSV controls */}
       <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
@@ -740,62 +790,6 @@ export default function MenuPage() {
         </div>
       )}
       </PageBody>
-
-      {showEditMenu && (
-        <ErrorBoundary fallback={({ error, reset }) => (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50" onClick={() => setShowEditMenu(false)}>
-            <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
-              <h3 className="text-sm font-semibold text-red-700 mb-2">Edit Menu modal failed to render</h3>
-              <p className="text-xs font-mono text-red-600 mb-3 break-all">{String(error?.message || error)}</p>
-              <div className="flex justify-end gap-2">
-                <button onClick={reset} className="btn-secondary btn-sm">Retry</button>
-                <button onClick={() => setShowEditMenu(false)} className="btn-primary btn-sm">Close</button>
-              </div>
-            </div>
-          </div>
-        )}>
-        <Modal title="Edit Menu" onClose={() => setShowEditMenu(false)}>
-          <form onSubmit={async e => {
-            e.preventDefault()
-            setEditMenuSaving(true); setEditMenuError(null)
-            const { error } = await supabase.from('menus')
-              .update({
-                name: editMenuName.trim(),
-                icon_url: editMenuIconUrl,
-                icon_name: editMenuIconName,
-              })
-              .eq('id', menu.id)
-            setEditMenuSaving(false)
-            if (error) { setEditMenuError(error.message); return }
-            setShowEditMenu(false)
-            loadMenu()
-          }} className="space-y-4">
-            <div>
-              <label className="label">Menu Name</label>
-              <input className="input" value={editMenuName} onChange={e => setEditMenuName(e.target.value)} required autoFocus />
-            </div>
-            <div>
-              <label className="label">Icon</label>
-              <ErrorBoundary>
-                <EntityIconPicker
-                  iconUrl={editMenuIconUrl}
-                  iconName={editMenuIconName}
-                  onChange={({ icon_url, icon_name }) => { setEditMenuIconUrl(icon_url); setEditMenuIconName(icon_name) }}
-                  uploadBucket="series-assets"
-                  uploadPathPrefix={`${menu.id}/icons`}
-                  fallbackText={editMenuName}
-                  fallbackColor={brand?.color}
-                />
-              </ErrorBoundary>
-            </div>
-            {editMenuError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editMenuError}</p>}
-            <div className="flex items-center justify-end gap-3 pt-1">
-              <button type="button" onClick={() => setShowEditMenu(false)} className="btn-secondary btn-sm">Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={editMenuSaving}>{editMenuSaving ? 'Saving…' : 'Save Changes'}</button>
-            </div>
-          </form>
-        </Modal>
-        </ErrorBoundary>
       )}
     </PageScreen>
   )

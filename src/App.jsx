@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import Layout from '@/components/Layout'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import Login from '@/pages/Login'
 import PendingPage from '@/pages/PendingPage'
 import Dashboard from '@/pages/Dashboard'
@@ -27,7 +28,18 @@ function ProtectedRoute({ children }) {
   )
   if (!session) return <Navigate to="/login" replace />
   if (isPending) return <PendingPage />
-  return children
+  return <ErrorBoundary fallback={({ error, reset }) => (
+    <div className="p-6 max-w-xl mx-auto">
+      <div className="card p-5 border-red-200 bg-red-50">
+        <h2 className="text-base font-semibold text-red-800 mb-1">Page crashed</h2>
+        <p className="text-sm text-red-700 mb-3 break-all font-mono text-xs">{String(error?.message || error)}</p>
+        <div className="flex gap-2">
+          <button onClick={reset} className="btn-secondary btn-sm">Try again</button>
+          <button onClick={() => { window.location.href = '/' }} className="btn-primary btn-sm">Go home</button>
+        </div>
+      </div>
+    </div>
+  )}>{children}</ErrorBoundary>
 }
 
 function App() {

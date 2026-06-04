@@ -234,8 +234,11 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
           <div style={{
             ...roleStyle(spec.section_label, fonts),
             color: colors.section,
+            // writingMode: 'vertical-rl' adds +90° on its own, so we
+            // subtract 90° from the user-entered rotation so what they
+            // see in the preview matches the value they type.
             writingMode: 'vertical-rl',
-            transform: spec.section_label.rotate ? `rotate(${spec.section_label.rotate}deg)` : 'rotate(-180deg)',
+            transform: `rotate(${(spec.section_label.rotate ?? -90) - 90}deg)`,
             whiteSpace: 'nowrap',
           }}>
             {group.section}

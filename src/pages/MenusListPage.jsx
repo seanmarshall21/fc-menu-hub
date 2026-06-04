@@ -15,6 +15,7 @@ export default function MenusListPage() {
       .from('menus')
       .select(`
         id, name, slug, category, size, phase, updated_at, last_synced_at, icon_url, icon_name,
+        pending_items:menu_items(id, edit_status),
         event:events(name, slug, series:series(name, slug, brand:brands(name, slug, color, logo_url, icon_name)))
       `)
       .order('updated_at', { ascending: false })
@@ -78,7 +79,7 @@ export default function MenusListPage() {
                   {syncNeeded && (
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">Sync</span>
                   )}
-                  <PhaseBadge phase={m.phase} />
+                  <PhaseBadge phase={m.phase} hasPendingEdits={(m.pending_items || []).some(i => i.edit_status === 'pending_approval')} />
                 </Link>
               )
             })}

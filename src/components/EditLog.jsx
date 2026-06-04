@@ -20,7 +20,18 @@ export default function EditLog({ menuId }) {
       .eq('menu_id', menuId)
       .order('created_at', { ascending: false })
       .limit(200)
-    setLogs(data || [])
+    const rows = data || []
+    // Hydrate display names from user_profiles (fall back to email if no name)
+    const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))]
+    if (ids.length) {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email')
+        .in('id', ids)
+      const map = new Map((profiles || []).map(p => [p.id, p]))
+      rows.forEach(r => { r.user_profile = map.get(r.user_id) || null })
+    }
+    setLogs(rows)
     setLoading(false)
   }, [menuId])
 
@@ -94,10 +105,16 @@ export default function EditLog({ menuId }) {
               const isBusy = busyId === log.menu_item?.id
               return (
                 <tr key={log.id} className="table-row-hover align-top">
-                  <td className="px-3 sm:px-4 py-2.5 text-xs text-ink-400 whitespace-nowrap">
-                    {format(new Date(log.created_at), 'MMM d, h:mma')}
+                  <td className="px-3 sm:px-4 py-2.5 text-xs text-ink-500 whitespace-nowrap">
+                    <div className="font-medium text-ink-700">{format(new Date(log.created_at), 'MMM d, yyyy')}</div>
+                    <div className="text-ink-400 text-[11px]">{format(new Date(log.created_at), 'h:mma').toLowerCase()}</div>
                   </td>
-                  <td className="px-3 sm:px-4 py-2.5 text-xs text-ink-500 whitespace-nowrap">{log.user_email}</td>
+                  <td className="px-3 sm:px-4 py-2.5 text-xs whitespace-nowrap">
+                    <div className="text-ink-700 font-medium">{log.user_profile?.full_name || log.user_email || '—'}</div>
+                    {log.user_profile?.full_name && log.user_email && (
+                      <div className="text-ink-400 text-[11px]">{log.user_email}</div>
+                    )}
+                  </td>
                   <td className="px-3 sm:px-4 py-2.5 font-medium text-ink-900 whitespace-nowrap">
                     {log.menu_item?.title ?? <span className="text-ink-300 italic">deleted item</span>}
                   </td>
