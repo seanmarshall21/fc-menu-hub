@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 import FavoriteButton from '@/components/FavoriteButton'
-import BrandLogoUploader from '@/components/BrandLogoUploader'
+import EntityIconPicker from '@/components/EntityIconPicker'
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -29,12 +29,15 @@ export default function BrandPage() {
   const [editBrandName, setEditBrandName] = useState('')
   const [editBrandColor, setEditBrandColor] = useState('#6366f1')
   const [editBrandLogoUrl, setEditBrandLogoUrl] = useState(null)
+  const [editBrandIconName, setEditBrandIconName] = useState(null)
   const [editBrandSaving, setEditBrandSaving] = useState(false)
   const [editBrandError, setEditBrandError] = useState(null)
 
   // Edit-series modal
   const [editingSeries, setEditingSeries] = useState(null) // series object being edited
   const [editSeriesName, setEditSeriesName] = useState('')
+  const [editSeriesIconUrl, setEditSeriesIconUrl] = useState(null)
+  const [editSeriesIconName, setEditSeriesIconName] = useState(null)
   const [editSeriesSaving, setEditSeriesSaving] = useState(false)
   const [editSeriesError, setEditSeriesError] = useState(null)
 
@@ -98,6 +101,7 @@ export default function BrandPage() {
     setEditBrandName(brand.name || '')
     setEditBrandColor(brand.color || '#6366f1')
     setEditBrandLogoUrl(brand.logo_url || null)
+    setEditBrandIconName(brand.icon_name || null)
     setEditBrandError(null)
     setShowEditBrand(true)
   }
@@ -111,6 +115,7 @@ export default function BrandPage() {
         name: editBrandName.trim(),
         color: editBrandColor,
         logo_url: editBrandLogoUrl,
+        icon_name: editBrandIconName,
       })
       .eq('id', brand.id)
     setEditBrandSaving(false)
@@ -122,6 +127,8 @@ export default function BrandPage() {
   function openEditSeries(s) {
     setEditingSeries(s)
     setEditSeriesName(s.name || '')
+    setEditSeriesIconUrl(s.icon_url || null)
+    setEditSeriesIconName(s.icon_name || null)
     setEditSeriesError(null)
     setOpenMenuSeriesId(null)
   }
@@ -131,7 +138,11 @@ export default function BrandPage() {
     setEditSeriesSaving(true)
     setEditSeriesError(null)
     const { error } = await supabase.from('series')
-      .update({ name: editSeriesName.trim() })
+      .update({
+        name: editSeriesName.trim(),
+        icon_url: editSeriesIconUrl,
+        icon_name: editSeriesIconName,
+      })
       .eq('id', editingSeries.id)
     setEditSeriesSaving(false)
     if (error) { setEditSeriesError(error.message); return }
@@ -280,6 +291,21 @@ export default function BrandPage() {
               <input className="input bg-surface-50 text-ink-400 font-mono text-sm" value={editingSeries.slug} disabled />
               <p className="text-xs text-ink-400 mt-1">Slug can't be changed — it's baked into bookmarks and the Figma plugin.</p>
             </div>
+            <div>
+              <label className="label">Icon</label>
+              <EntityIconPicker
+                iconUrl={editSeriesIconUrl}
+                iconName={editSeriesIconName}
+                onChange={({ icon_url, icon_name }) => {
+                  setEditSeriesIconUrl(icon_url)
+                  setEditSeriesIconName(icon_name)
+                }}
+                uploadBucket="series-assets"
+                uploadPathPrefix={`${editingSeries.id}/icons`}
+                fallbackText={editSeriesName}
+                fallbackColor={brand?.color}
+              />
+            </div>
             {editSeriesError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editSeriesError}</p>
             )}
@@ -342,11 +368,18 @@ export default function BrandPage() {
               </div>
             </div>
             <div>
-              <label className="label">Logo</label>
-              <BrandLogoUploader
-                value={editBrandLogoUrl}
-                onChange={setEditBrandLogoUrl}
-                pathKey={brand.slug}
+              <label className="label">Icon</label>
+              <EntityIconPicker
+                iconUrl={editBrandLogoUrl}
+                iconName={editBrandIconName}
+                onChange={({ icon_url, icon_name }) => {
+                  setEditBrandLogoUrl(icon_url)
+                  setEditBrandIconName(icon_name)
+                }}
+                uploadBucket="brand-logos"
+                uploadPathPrefix={brand.slug}
+                fallbackText={editBrandName || brand.name}
+                fallbackColor={editBrandColor}
               />
             </div>
             {editBrandError && (

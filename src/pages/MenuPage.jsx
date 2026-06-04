@@ -10,6 +10,7 @@ import CsvExport from '@/components/CsvExport'
 import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
+import EntityIconPicker from '@/components/EntityIconPicker'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -122,6 +123,14 @@ export default function MenuPage() {
   const [addingToSection, setAddingToSection] = useState(null) // section name | '__new__' | null
   const [exporting, setExporting] = useState(false)
   const canvasRef = useRef(null)
+
+  // Edit menu modal
+  const [showEditMenu, setShowEditMenu] = useState(false)
+  const [editMenuName, setEditMenuName] = useState('')
+  const [editMenuIconUrl, setEditMenuIconUrl] = useState(null)
+  const [editMenuIconName, setEditMenuIconName] = useState(null)
+  const [editMenuSaving, setEditMenuSaving] = useState(false)
+  const [editMenuError, setEditMenuError] = useState(null)
 
   const loadMenu = useCallback(async () => {
     const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
@@ -311,6 +320,20 @@ export default function MenuPage() {
             </button>
             <CsvExport menu={menu} items={items} />
           </>
+        )}
+        {canEdit && (
+          <button
+            onClick={() => {
+              setEditMenuName(menu.name)
+              setEditMenuIconUrl(menu.icon_url || null)
+              setEditMenuIconName(menu.icon_name || null)
+              setEditMenuError(null)
+              setShowEditMenu(true)
+            }}
+            className="btn-secondary btn-sm"
+          >
+            Edit
+          </button>
         )}
       </>}
       below={(
@@ -624,6 +647,48 @@ export default function MenuPage() {
         </div>
       )}
       </PageBody>
+
+      {showEditMenu && (
+        <Modal title="Edit Menu" onClose={() => setShowEditMenu(false)}>
+          <form onSubmit={async e => {
+            e.preventDefault()
+            setEditMenuSaving(true); setEditMenuError(null)
+            const { error } = await supabase.from('menus')
+              .update({
+                name: editMenuName.trim(),
+                icon_url: editMenuIconUrl,
+                icon_name: editMenuIconName,
+              })
+              .eq('id', menu.id)
+            setEditMenuSaving(false)
+            if (error) { setEditMenuError(error.message); return }
+            setShowEditMenu(false)
+            loadMenu()
+          }} className="space-y-4">
+            <div>
+              <label className="label">Menu Name</label>
+              <input className="input" value={editMenuName} onChange={e => setEditMenuName(e.target.value)} required autoFocus />
+            </div>
+            <div>
+              <label className="label">Icon</label>
+              <EntityIconPicker
+                iconUrl={editMenuIconUrl}
+                iconName={editMenuIconName}
+                onChange={({ icon_url, icon_name }) => { setEditMenuIconUrl(icon_url); setEditMenuIconName(icon_name) }}
+                uploadBucket="series-assets"
+                uploadPathPrefix={`${menu.id}/icons`}
+                fallbackText={editMenuName}
+                fallbackColor={brand?.color}
+              />
+            </div>
+            {editMenuError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editMenuError}</p>}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button type="button" onClick={() => setShowEditMenu(false)} className="btn-secondary btn-sm">Cancel</button>
+              <button type="submit" className="btn-primary btn-sm" disabled={editMenuSaving}>{editMenuSaving ? 'Saving…' : 'Save Changes'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </PageScreen>
   )
 }

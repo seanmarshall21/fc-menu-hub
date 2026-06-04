@@ -5,7 +5,7 @@ import { useBrands } from '@/hooks/useBrands'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
 import VersionWatcher from '@/components/VersionWatcher'
-import BrandLogoUploader from '@/components/BrandLogoUploader'
+import EntityIconPicker from '@/components/EntityIconPicker'
 import clsx from 'clsx'
 
 function IconHelp() {
@@ -117,6 +117,7 @@ export default function Layout() {
   const [brandSlugField, setBrandSlugField] = useState('')
   const [brandColor, setBrandColor] = useState('#6366f1')
   const [brandLogoUrl, setBrandLogoUrl] = useState(null)
+  const [brandIconName, setBrandIconName] = useState(null)
   const [brandTmpPathKey] = useState(() => `new-${Date.now()}`)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -127,7 +128,7 @@ export default function Layout() {
   }
 
   function openNewBrand() {
-    setBrandName(''); setBrandSlugField(''); setBrandColor('#6366f1'); setBrandLogoUrl(null); setSaveError(null)
+    setBrandName(''); setBrandSlugField(''); setBrandColor('#6366f1'); setBrandLogoUrl(null); setBrandIconName(null); setSaveError(null)
     setShowNewBrand(true)
     setDrawerOpen(false)
   }
@@ -140,6 +141,7 @@ export default function Layout() {
       slug: brandSlugField.trim(),
       color: brandColor,
       logo_url: brandLogoUrl,
+      icon_name: brandIconName,
     })
     setSaving(false)
     if (error) { setSaveError(error.message); return }
@@ -409,11 +411,18 @@ export default function Layout() {
               </div>
             </div>
             <div>
-              <label className="label">Logo <span className="text-ink-300 font-normal">(optional)</span></label>
-              <BrandLogoUploader
-                value={brandLogoUrl}
-                onChange={setBrandLogoUrl}
-                pathKey={brandSlugField || brandTmpPathKey}
+              <label className="label">Icon <span className="text-ink-300 font-normal">(optional)</span></label>
+              <EntityIconPicker
+                iconUrl={brandLogoUrl}
+                iconName={brandIconName}
+                onChange={({ icon_url, icon_name }) => {
+                  setBrandLogoUrl(icon_url)
+                  setBrandIconName(icon_name)
+                }}
+                uploadBucket="brand-logos"
+                uploadPathPrefix={brandSlugField || brandTmpPathKey}
+                fallbackText={brandName}
+                fallbackColor={brandColor}
               />
             </div>
             {saveError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>}

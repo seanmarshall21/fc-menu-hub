@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
+import EntityIconPicker from '@/components/EntityIconPicker'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -529,6 +530,8 @@ export default function EventPage() {
   const [editPhase, setEditPhase]           = useState('')
   const [editFigmaUrl, setEditFigmaUrl]     = useState('')
   const [editFigmaPage, setEditFigmaPage]   = useState('')
+  const [editIconUrl, setEditIconUrl]       = useState(null)
+  const [editIconName, setEditIconName]     = useState(null)
   const [editSaving, setEditSaving]         = useState(false)
   const [editError, setEditError]           = useState(null)
 
@@ -657,6 +660,8 @@ export default function EventPage() {
     setEditPhase(event.phase || 'build')
     setEditFigmaUrl(event.figma_file_url || '')
     setEditFigmaPage(event.figma_page_name || '')
+    setEditIconUrl(event.icon_url || null)
+    setEditIconName(event.icon_name || null)
     setEditError(null)
     setShowEditEvent(true)
   }
@@ -672,6 +677,8 @@ export default function EventPage() {
       phase:           editPhase,
       figma_file_url:  editFigmaUrl.trim() || null,
       figma_page_name: editFigmaPage.trim() || null,
+      icon_url:        editIconUrl,
+      icon_name:       editIconName,
     }
     const { error } = await supabase.from('events').update(patch).eq('id', event.id)
     setEditSaving(false)
@@ -1017,6 +1024,18 @@ export default function EventPage() {
               <input className="input font-mono text-sm" value={editFigmaPage}
                 onChange={e => setEditFigmaPage(e.target.value)}
                 placeholder="e.g. CF Spring 26" />
+            </div>
+            <div>
+              <label className="label">Icon</label>
+              <EntityIconPicker
+                iconUrl={editIconUrl}
+                iconName={editIconName}
+                onChange={({ icon_url, icon_name }) => { setEditIconUrl(icon_url); setEditIconName(icon_name) }}
+                uploadBucket="series-assets"
+                uploadPathPrefix={`${event.id}/icons`}
+                fallbackText={editName}
+                fallbackColor={brand?.color}
+              />
             </div>
             {editError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editError}</p>}
             <div className="flex items-center justify-end gap-3 pt-1">
