@@ -43,13 +43,13 @@ export default function PageScreen({
   const showBack = back || breadcrumbs.length > 1
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 overscroll-none">
       <header
-        className="sticky top-0 z-30 bg-white border-b border-surface-200 flex-shrink-0"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        className="z-30 bg-white border-b border-surface-200 flex-shrink-0"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="px-4 sm:px-8 max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 py-3 sm:py-4">
+          <div className="flex items-center gap-3 pt-7 pb-3 sm:pt-8 sm:pb-4">
             {showBack && (
               <button
                 onClick={() => navigate(-1)}
@@ -65,7 +65,7 @@ export default function PageScreen({
               <img
                 src="/logo-tile.svg"
                 alt=""
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex-shrink-0"
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex-shrink-0"
               />
             )}
             <div className="flex-1 min-w-0">
@@ -85,14 +85,17 @@ export default function PageScreen({
             )}
           </div>
           {below && (
-            <div className="pb-1">{below}</div>
+            <div className="pb-1 -mt-1">{below}</div>
           )}
         </div>
       </header>
 
       <div
-        className="flex-1 overflow-y-auto min-h-0"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)' }}
+        className="flex-1 overflow-y-auto min-h-0 overscroll-contain"
+        style={{
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)',
+          WebkitOverflowScrolling: 'touch',
+        }}
       >
         {children}
       </div>
