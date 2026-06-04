@@ -6,6 +6,7 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
+import SeriesSponsorsTab from '@/components/SeriesSponsorsTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import { format } from 'date-fns'
 
@@ -79,7 +80,7 @@ export default function SeriesPage() {
       actions={<FavoriteButton type="series" id={series.id} />}
       below={(
         <div className="flex items-center gap-1">
-          {[{ key: 'events', label: 'Events' }, { key: 'styles', label: 'Styles' }].map(t => (
+          {[{ key: 'events', label: 'Events' }, { key: 'sponsors', label: 'Sponsors' }, { key: 'styles', label: 'Styles' }].map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -99,6 +100,8 @@ export default function SeriesPage() {
 
       {tab === 'styles' ? (
         <SeriesStylesTab series={series} canEdit={isAdmin || isInternal} onSaved={loadData} />
+      ) : tab === 'sponsors' ? (
+        <SeriesSponsorsTab series={series} canEdit={isAdmin || isInternal} />
       ) : (
       <div className="card overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-surface-200 flex items-center justify-between">
