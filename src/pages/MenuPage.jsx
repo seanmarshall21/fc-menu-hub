@@ -742,6 +742,18 @@ export default function MenuPage() {
       </PageBody>
 
       {showEditMenu && (
+        <ErrorBoundary fallback={({ error, reset }) => (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50" onClick={() => setShowEditMenu(false)}>
+            <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+              <h3 className="text-sm font-semibold text-red-700 mb-2">Edit Menu modal failed to render</h3>
+              <p className="text-xs font-mono text-red-600 mb-3 break-all">{String(error?.message || error)}</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={reset} className="btn-secondary btn-sm">Retry</button>
+                <button onClick={() => setShowEditMenu(false)} className="btn-primary btn-sm">Close</button>
+              </div>
+            </div>
+          </div>
+        )}>
         <Modal title="Edit Menu" onClose={() => setShowEditMenu(false)}>
           <form onSubmit={async e => {
             e.preventDefault()
@@ -783,6 +795,7 @@ export default function MenuPage() {
             </div>
           </form>
         </Modal>
+        </ErrorBoundary>
       )}
     </PageScreen>
   )

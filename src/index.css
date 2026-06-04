@@ -5,13 +5,11 @@
 @tailwind utilities;
 
 @layer base {
-  html, body {
+  html, body, #root {
     overscroll-behavior: none;
     overflow: hidden;
-    position: fixed;
-    inset: 0;
-    width: 100%;
     height: 100%;
+    width: 100%;
   }
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -24,6 +22,11 @@
 
   #root {
     @apply h-full;
+  }
+
+  /* Anything React-Router's portal puts into document.body */
+  body > * {
+    /* nothing — portal modals position themselves */
   }
 }
 
