@@ -171,13 +171,44 @@ export default function MenuPage() {
           .order('sort_order')
         setItems(itemsData || [])
 
-        // Event sponsor pool
+        // Event sponsor pool — join to library + series_sponsors so we can
+        // resolve effective svg + tint without re-querying in the renderer.
         const { data: esponsors } = await supabase
           .from('event_sponsors')
-          .select('*')
+          .select(`
+            id, name, slug, logo_url, active, sort_order, tint_color_override,
+            sponsor:sponsors(id, name, slug, svg_url, figma_layer_name)
+          `)
           .eq('event_id', eventData.id)
           .order('sort_order')
-        setEventSponsors(esponsors || [])
+
+        // Pull series-level tints in one shot, key by sponsor_id.
+        const { data: seriesTints } = await supabase
+          .from('series_sponsors')
+          .select('sponsor_id, tint_color')
+          .eq('series_id', seriesData.id)
+        const tintBySponsorId = new Map((seriesTints || []).map(r => [r.sponsor_id, r.tint_color]))
+
+        // Resolve each event_sponsor to a single shape TemplateCanvas understands:
+        //   { id, name, slug, active, logo_url, tint_color }
+        const eventTint = eventData?.sponsor_tint_color || null
+        const resolved = (esponsors || []).map(es => {
+          const lib = es.sponsor
+          const svg = lib?.svg_url || es.logo_url || null
+          const tint = es.tint_color_override
+            || eventTint
+            || (lib?.id ? tintBySponsorId.get(lib.id) : null)
+            || null
+          return {
+            id: es.id,
+            name: lib?.name || es.name,
+            slug: lib?.slug || es.slug,
+            active: es.active !== false,
+            logo_url: svg,
+            tint_color: tint,
+          }
+        })
+        setEventSponsors(resolved)
 
         // Which event sponsors are toggled onto this menu
         const { data: msponsors } = await supabase

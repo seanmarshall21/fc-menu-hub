@@ -340,15 +340,48 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
 
 // ── Sponsor strip ────────────────────────────────────────────────────────────
 
+function SponsorLogo({ sponsor, fallbackColor }) {
+  const tint = sponsor.tint_color || fallbackColor
+  if (!sponsor.logo_url) {
+    return (
+      <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: tint }}>
+        {sponsor.name}
+      </span>
+    )
+  }
+  // Inline-fetch so currentColor SVGs can be tinted via parent color.
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 64, color: tint, opacity: 0.95 }}>
+      <InlineSvgFromUrl url={sponsor.logo_url} fallbackAlt={sponsor.name} maxHeight={64} />
+    </span>
+  )
+}
+
+function InlineSvgFromUrl({ url, maxHeight = 64, fallbackAlt = '' }) {
+  const [markup, setMarkup] = useState(null)
+  useEffect(() => {
+    if (!url) return
+    let aborted = false
+    fetch(url).then(r => r.text()).then(t => { if (!aborted) setMarkup(t) }).catch(() => {})
+    return () => { aborted = true }
+  }, [url])
+  if (!url) return null
+  if (!markup) {
+    return <img src={url} alt={fallbackAlt} style={{ height: maxHeight, objectFit: 'contain' }} />
+  }
+  return (
+    <span
+      style={{ height: maxHeight, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+      dangerouslySetInnerHTML={{ __html: markup }}
+    />
+  )
+}
+
 function SponsorStrip({ sponsors, color }) {
   if (!sponsors.length) return null
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 48 }}>
-      {sponsors.map(sp => (
-        sp.logo_url
-          ? <img key={sp.id} src={sp.logo_url} alt={sp.name} style={{ height: 64, objectFit: 'contain', opacity: 0.9 }} />
-          : <span key={sp.id} style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color }}>{sp.name}</span>
-      ))}
+      {sponsors.map(sp => <SponsorLogo key={sp.id} sponsor={sp} fallbackColor={color} />)}
     </div>
   )
 }
