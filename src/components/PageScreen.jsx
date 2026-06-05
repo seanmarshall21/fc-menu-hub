@@ -33,6 +33,7 @@ export default function PageScreen({
   iconName,
   iconColor,
   actions,
+  secondaryActions,
   below,
   children,
 }) {
@@ -117,6 +118,11 @@ export default function PageScreen({
             )}
           </div>
 
+          {secondaryActions && (
+            <div className="flex items-center gap-2 flex-wrap pb-3 -mt-1">
+              {secondaryActions}
+            </div>
+          )}
           {below && (
             <div className="pb-1 -mt-1">{below}</div>
           )}

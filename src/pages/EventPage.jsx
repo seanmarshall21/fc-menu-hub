@@ -755,15 +755,17 @@ export default function EventPage() {
         { label: event.name },
       ]}
       actions={<>
-        <FavoriteButton type="event" id={event.id} />
+        <FavoriteButton type="event" id={event.id} size="sm" />
         <PhaseBadge phase={event.phase} />
+      </>}
+      secondaryActions={(<>
         {event.figma_file_url && (
-          <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm hidden sm:inline-flex">Open Figma</a>
+          <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">Open Figma</a>
         )}
         {canEdit && (
-          <button onClick={openEditEvent} className="btn-secondary btn-sm">Edit</button>
+          <button onClick={openEditEvent} className="btn-secondary btn-sm">Edit Event</button>
         )}
-      </>}
+      </>)}
       below={(
         <div className="flex items-center gap-0 overflow-x-auto">
           {[

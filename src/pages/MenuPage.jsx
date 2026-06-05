@@ -12,6 +12,7 @@ import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import FavoriteButton from '@/components/FavoriteButton'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -340,6 +341,7 @@ export default function MenuPage() {
         { label: menu.name },
       ]}
       actions={<>
+        <FavoriteButton type="menu" id={menu.id} size="sm" />
         <PhaseBadge phase={menu.phase} hasPendingEdits={pendingCount > 0} />
         {syncNeeded && (
           <span
@@ -352,24 +354,24 @@ export default function MenuPage() {
             Sync
           </span>
         )}
-        {(isAdmin || isInternal) && (
-          isApproved ? (
-            <button
-              onClick={unapproveMenu}
-              className="text-xs px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium"
-              title="Click to move back to Proof"
-            >
-              ✓ Approved
-            </button>
-          ) : (
-            <button
-              onClick={approveMenu}
-              className="text-xs px-3 py-1 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium"
-              title="Mark this menu as Approved"
-            >
-              Approve Menu
-            </button>
-          )
+      </>}
+      secondaryActions={(isAdmin || isInternal) && (<>
+        {isApproved ? (
+          <button
+            onClick={unapproveMenu}
+            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium"
+            title="Click to move back to Proof"
+          >
+            ✓ Approved
+          </button>
+        ) : (
+          <button
+            onClick={approveMenu}
+            className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium"
+            title="Mark this menu as Approved"
+          >
+            Approve Menu
+          </button>
         )}
         {canEdit && (
           <button
@@ -385,7 +387,7 @@ export default function MenuPage() {
             Edit
           </button>
         )}
-      </>}
+      </>)}
       below={(
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map(t => (

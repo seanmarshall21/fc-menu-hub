@@ -12,6 +12,7 @@ export default function FavoritesPage() {
   const [brands, setBrands]   = useState([])
   const [series, setSeries]   = useState([])
   const [events, setEvents]   = useState([])
+  const [menus,  setMenus]    = useState([])
   const [hydrating, setHydrating] = useState(false)
 
   useEffect(() => {
@@ -19,9 +20,10 @@ export default function FavoritesPage() {
       const brandIds  = favorites.filter(f => f.target_type === 'brand') .map(f => f.target_id)
       const seriesIds = favorites.filter(f => f.target_type === 'series').map(f => f.target_id)
       const eventIds  = favorites.filter(f => f.target_type === 'event') .map(f => f.target_id)
+      const menuIds   = favorites.filter(f => f.target_type === 'menu')  .map(f => f.target_id)
 
       setHydrating(true)
-      const [bRes, sRes, eRes] = await Promise.all([
+      const [bRes, sRes, eRes, mRes] = await Promise.all([
         brandIds.length
           ? supabase.from('brands').select('id, name, slug, logo_url, icon_name, color').in('id', brandIds)
           : Promise.resolve({ data: [] }),
@@ -31,10 +33,14 @@ export default function FavoritesPage() {
         eventIds.length
           ? supabase.from('events').select('id, name, slug, event_date, venue, phase, icon_url, icon_name, series:series(name, slug, brand:brands(name, slug, color, logo_url, icon_name))').in('id', eventIds)
           : Promise.resolve({ data: [] }),
+        menuIds.length
+          ? supabase.from('menus').select('id, name, slug, category, size, icon_url, icon_name, event:events(name, slug, series:series(name, slug, brand:brands(name, slug, color, logo_url, icon_name)))').in('id', menuIds)
+          : Promise.resolve({ data: [] }),
       ])
       setBrands(bRes.data || [])
       setSeries(sRes.data || [])
       setEvents(eRes.data || [])
+      setMenus(mRes.data || [])
       setHydrating(false)
     }
     hydrate()
@@ -98,6 +104,29 @@ export default function FavoritesPage() {
               <FavoriteButton type="event" id={e.id} size="sm" />
             </Link>
           ))}
+        </Section>
+      )}
+
+      {menus.length > 0 && (
+        <Section title="Menus">
+          {menus.map(m => {
+            const brand = m.event?.series?.brand
+            return (
+              <Link key={m.id} to={`/brands/${brand?.slug}/series/${m.event?.series?.slug}/events/${m.event?.slug}/menus/${m.slug}`} className="card flex items-center gap-3 px-4 py-3 hover:border-brand-200 hover:shadow-sm transition-all group">
+                <EntityIcon iconUrl={m.icon_url || brand?.logo_url} iconName={m.icon_name || brand?.icon_name} fallbackText={m.name || brand?.name} fallbackColor={brand?.color} size={40} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-ink-900 group-hover:text-brand-600 transition-colors truncate">{m.name}</span>
+                    {m.size && <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 font-mono uppercase flex-shrink-0">{m.size}</span>}
+                  </div>
+                  <div className="text-xs text-ink-400 truncate capitalize">
+                    {m.category?.replace('_', ' ')} · {brand?.name} · {m.event?.name}
+                  </div>
+                </div>
+                <FavoriteButton type="menu" id={m.id} size="sm" />
+              </Link>
+            )
+          })}
         </Section>
       )}
       </PageBody>
