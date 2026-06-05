@@ -32,7 +32,11 @@ const DEFAULT_ROLE = {
   size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary', align: 'left',
 }
 const DEFAULT_GAP_BLOCK = {
-  logo_to_title: 80, title_to_items: 100, items_to_footer: 100, section_gap: 'auto', item_gap: 'auto',
+  logo_to_title: 80, title_to_items: 100, items_to_footer: 100,
+  section_gap: 'auto', item_gap: 'auto',
+  item_title_to_description: 12,
+  item_content_to_price: 40,
+  item_price_stack: 12,
 }
 
 function ensureSpec(spec) {
@@ -385,6 +389,11 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
           <NumberField label="Items → Footer" value={spec.gaps[activeSize].items_to_footer} onChange={n => setGapField(activeSize, 'items_to_footer', n)} suffix="px" disabled={readOnly} />
           <GapField label="Section gap" value={spec.gaps[activeSize].section_gap} onChange={v => setGapField(activeSize, 'section_gap', v)} disabled={readOnly} />
           <GapField label="Item gap"    value={spec.gaps[activeSize].item_gap}    onChange={v => setGapField(activeSize, 'item_gap', v)}    disabled={readOnly} />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
+          <NumberField label="Title → Description" value={spec.gaps[activeSize].item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly} />
+          <NumberField label="Content → Price"     value={spec.gaps[activeSize].item_content_to_price ?? 40} onChange={n => setGapField(activeSize, 'item_content_to_price', n)} suffix="px" disabled={readOnly} />
+          <NumberField label="Stacked price gap"   value={spec.gaps[activeSize].item_price_stack ?? 12} onChange={n => setGapField(activeSize, 'item_price_stack', n)} suffix="px" disabled={readOnly} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
           <NumberField label="Dietary icon size" value={spec.dietary_icon_size} onChange={n => setSpec(p => ({ ...p, dietary_icon_size: n }))} suffix="px" disabled={readOnly} />

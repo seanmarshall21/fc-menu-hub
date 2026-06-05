@@ -15,7 +15,17 @@ export const SIZE_CONFIGS = {
 const ROLES = ['menu_title', 'section_label', 'item_title', 'item_description', 'item_size', 'item_price', 'footer_dietary', 'footer_price_details']
 
 const DEFAULT_ROLE = { size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary', align: 'left' }
-const DEFAULT_GAP_BLOCK = { logo_to_title: 80, title_to_items: 100, items_to_footer: 100, section_gap: 'auto', item_gap: 'auto' }
+const DEFAULT_GAP_BLOCK = {
+  logo_to_title: 80,
+  title_to_items: 100,
+  items_to_footer: 100,
+  section_gap: 'auto',
+  item_gap: 'auto',
+  item_title_to_description: 12,   // gap between item title and its description
+  item_content_to_price: 40,       // horizontal gap between content column and price column
+  item_price_stack: 12,            // when two prices stacked vertically
+  item_price_row: 24,              // when two prices side-by-side
+}
 const FALLBACK_DIET_ICONS = {
   vegetarian: { url: null, color: '#4a8054' },
   vegan:      { url: null, color: '#a05a3e' },
@@ -185,26 +195,29 @@ function DietaryIcons({ item, icons, size }) {
 function PriceBlock({ size, price, sizeRole, priceRole, fonts, colorSize, colorPrice }) {
   if (!price) return null
   return (
-    <div style={{ textAlign: 'right' }}>
+    <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
       {size && (
-        <div style={{ ...roleStyle(sizeRole, fonts), color: colorSize }}>{size}</div>
+        <div style={{ ...roleStyle(sizeRole, fonts), color: colorSize, whiteSpace: 'nowrap' }}>{size}</div>
       )}
-      <div style={{ ...roleStyle(priceRole, fonts), color: colorPrice }}>{price}</div>
+      <div style={{ ...roleStyle(priceRole, fonts), color: colorPrice, whiteSpace: 'nowrap' }}>{price}</div>
     </div>
   )
 }
 
-function ItemRow({ item, spec, fonts, colors }) {
+function ItemRow({ item, spec, fonts, colors, gapBlock }) {
   const isAlt = item.layout === 'alt'
+  const titleToDesc   = gapBlock?.item_title_to_description ?? 12
+  const contentToPrice = gapBlock?.item_content_to_price ?? 40
+  const priceStackGap  = gapBlock?.item_price_stack ?? titleToDesc
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 40, width: '100%' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: contentToPrice, width: '100%' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ ...roleStyle(spec.item_title, fonts), color: colors.title }}>{item.title}</span>
           <DietaryIcons item={item} icons={spec.dietary_icons} size={spec.dietary_icon_size} />
         </div>
         {!isAlt && item.description && (
-          <div style={{ ...roleStyle(spec.item_description, fonts), color: colors.description, marginTop: spec.item_title.size * 0.15 }}>
+          <div style={{ ...roleStyle(spec.item_description, fonts), color: colors.description, marginTop: titleToDesc }}>
             {item.description}
           </div>
         )}
@@ -214,7 +227,7 @@ function ItemRow({ item, spec, fonts, colors }) {
           sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
           colorSize={colors.sizeLabel} colorPrice={colors.price} />
         {item.two_sizes && item.price2 && (
-          <div style={{ marginTop: spec.item_size.size * 0.3 }}>
+          <div style={{ marginTop: priceStackGap }}>
             <PriceBlock size={item.size2} price={item.price2}
               sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
               colorSize={colors.sizeLabel} colorPrice={colors.price} />
@@ -298,7 +311,7 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
         gap: itemGap === 'auto' ? 0 : itemGap,
       }}>
         {group.items.map(item => (
-          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} />
+          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
         ))}
       </div>
     </div>
@@ -468,25 +481,25 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
             </div>
           )}
 
-          {/* Boiler head row: diet key + tax text */}
+          {/* Boiler head row: diet key + tax text — both align end to bottom of row */}
           {(showDietKey || showTaxText || customFooter) && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 60, marginBottom: footerUrl ? 30 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 60, marginBottom: footerUrl ? 30 : 0, whiteSpace: 'nowrap' }}>
               {showDietKey ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: spec.dietary_icon_size * 0.6 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: spec.dietary_icon_size * 0.6, whiteSpace: 'nowrap' }}>
                   {[
                     { url: spec.dietary_icons.vegetarian?.url, color: spec.dietary_icons.vegetarian?.color, label: 'Vegetarian' },
                     { url: spec.dietary_icons.vegan?.url,      color: spec.dietary_icons.vegan?.color,      label: 'Vegan' },
                     { url: spec.dietary_icons.gf?.url,         color: spec.dietary_icons.gf?.color,         label: 'Gluten Free' },
                   ].filter(x => x.url).map(({ url, color, label }) => (
-                    <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: spec.dietary_icon_size * 0.3 }}>
-                      <span style={{ ...roleStyle(spec.footer_dietary, fonts), color: colors.description }}>{label}</span>
+                    <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: spec.dietary_icon_size * 0.3, whiteSpace: 'nowrap' }}>
+                      <span style={{ ...roleStyle(spec.footer_dietary, fonts), color: colors.description, whiteSpace: 'nowrap' }}>{label}</span>
                       <InlineSvg url={url} size={spec.dietary_icon_size * 0.7} color={color} />
                     </span>
                   ))}
                 </div>
               ) : <span />}
               {(showTaxText || customFooter) && (
-                <span style={{ ...roleStyle(spec.footer_price_details, fonts), color: colors.description }}>
+                <span style={{ ...roleStyle(spec.footer_price_details, fonts), color: colors.description, whiteSpace: 'nowrap' }}>
                   {customFooter || 'Prices do not include sales tax · Cashless event'}
                 </span>
               )}

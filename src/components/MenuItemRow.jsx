@@ -21,6 +21,7 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [descExpanded, setDescExpanded] = useState(false)
 
   async function save() {
     setSaving(true)
@@ -139,7 +140,18 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
           </div>
         </td>
         <td className="px-4 py-3 text-ink-500 max-w-xs">
-          {item.layout === 'main' ? (item.description || '—') : <span className="text-ink-300 italic text-xs">alt layout</span>}
+          {item.layout === 'main' ? (
+            item.description ? (
+              <button
+                type="button"
+                onClick={() => setDescExpanded(v => !v)}
+                className={`text-left w-full ${descExpanded ? '' : 'line-clamp-2'}`}
+                title={descExpanded ? 'Collapse' : 'Tap to expand'}
+              >
+                {item.description}
+              </button>
+            ) : '—'
+          ) : <span className="text-ink-300 italic text-xs">alt layout</span>}
         </td>
         <td className="px-4 py-3 text-center whitespace-nowrap">
           {item.layout === 'main' && (

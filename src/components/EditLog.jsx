@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 
-export default function EditLog({ menuId }) {
+export default function EditLog({ menuId, onApproveAll, onChange }) {
   const { isAdmin, isInternal } = useAuth()
   const canApprove = isAdmin || isInternal
 
@@ -81,13 +81,16 @@ export default function EditLog({ menuId }) {
   const rejected    = logs.filter(l => l.menu_item?.edit_status === 'rejected')
   const historical  = logs.filter(l => !['pending_approval', 'approved', 'rejected'].includes(l.menu_item?.edit_status))
 
-  function renderTable(rows, headingLabel, colorClass) {
+  function renderTable(rows, headingLabel, colorClass, extra = null) {
     if (rows.length === 0) return null
     return (
       <div className="card overflow-hidden">
-        <div className={`px-4 py-2.5 border-b border-surface-100 flex items-center justify-between ${colorClass}`}>
+        <div className={`px-4 py-2.5 border-b border-surface-100 flex items-center justify-between gap-2 ${colorClass}`}>
           <h3 className="text-xs font-semibold uppercase tracking-wider">{headingLabel}</h3>
-          <span className="text-xs opacity-70">{rows.length}</span>
+          <div className="flex items-center gap-2">
+            {extra}
+            <span className="text-xs opacity-70">{rows.length}</span>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[760px]">
@@ -195,7 +198,14 @@ export default function EditLog({ menuId }) {
 
   return (
     <div className="space-y-4">
-      {renderTable(pending,    'Pending approval', 'bg-amber-50 text-amber-800')}
+      {renderTable(pending, 'Pending approval', 'bg-amber-50 text-amber-800', onApproveAll && (
+        <button
+          onClick={async () => { await onApproveAll(); onChange?.() }}
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+        >
+          ✓ Approve all
+        </button>
+      ))}
       {renderTable(approved,   'Approved',         'bg-emerald-50 text-emerald-800')}
       {renderTable(rejected,   'Rejected',         'bg-red-50 text-red-800')}
       {renderTable(historical, 'History',          'bg-surface-100 text-ink-600')}

@@ -291,7 +291,7 @@ export default function MenuPage() {
   const tabs = [
     { key: 'items', label: 'Items' },
     { key: 'preview', label: 'Preview' },
-    ...(isInternal ? [{ key: 'log', label: 'Edit Log' }] : []),
+    ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
@@ -395,13 +395,18 @@ export default function MenuPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+              className={`relative px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
                 tab === t.key
                   ? 'border-brand-500 text-brand-600'
                   : 'border-transparent text-ink-500 hover:text-ink-700'
               }`}
             >
               {t.label}
+              {t.badge != null && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+                  {t.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -472,27 +477,37 @@ export default function MenuPage() {
         )}
       </div>
 
-      {/* Sync helper banner */}
-      {syncNeeded && (
-        <div className="mb-6 card border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-amber-900">Sync needed</div>
-            <p className="text-xs text-amber-800 mt-0.5">
-              {menu.last_synced_at
-                ? `Items have been edited since the last sync (${new Date(menu.last_synced_at).toLocaleString()}).`
-                : 'This menu has never been synced to Figma.'}
-              {' '}Open the Figma file and run the Menu Hub plugin to push these changes.
-            </p>
-          </div>
-          {event?.figma_file_url && (
+      {/* Compact CTA strip — sync + pending edits */}
+      {(syncNeeded || pendingCount > 0) && (
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          {syncNeeded && event?.figma_file_url && (
             <a
               href={event.figma_file_url}
               target="_blank"
               rel="noreferrer"
-              className="btn-primary btn-sm flex-shrink-0 self-start sm:self-auto"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100"
+              title={menu.last_synced_at
+                ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since`
+                : 'Never synced to Figma. Open the Figma file and run the Menu Hub plugin.'}
             >
-              Open Figma →
+              <svg viewBox="0 0 38 57" className="w-3 h-3" fill="currentColor">
+                <path d="M19 28.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19zm0-19h9.5a9.5 9.5 0 1 1 0 19H19v-19zm-9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19zM19 0h9.5a9.5 9.5 0 1 1 0 19H19V0zM9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19z"/>
+              </svg>
+              Sync needed
             </a>
+          )}
+          {syncNeeded && !event?.figma_file_url && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+              ● Sync needed
+            </span>
+          )}
+          {pendingCount > 0 && (isAdmin || isInternal) && (
+            <button
+              onClick={() => setTab('log')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100"
+            >
+              {pendingCount} edit{pendingCount === 1 ? '' : 's'} pending
+            </button>
           )}
         </div>
       )}
@@ -517,28 +532,6 @@ export default function MenuPage() {
               >
                 Undo
               </button>
-            </div>
-          )}
-          {pendingCount > 0 && (isAdmin || isInternal) && (
-            <div className="card border-amber-200 bg-amber-50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="text-sm">
-                <span className="font-semibold text-amber-900">{pendingCount} pending edit{pendingCount === 1 ? '' : 's'}</span>
-                <span className="text-amber-800 ml-2">— review one-by-one or approve in bulk.</span>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => setTab('log')}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-white text-amber-800 border border-amber-300 hover:bg-amber-100"
-                >
-                  Review individually
-                </button>
-                <button
-                  onClick={() => { if (confirm(`Approve all ${pendingCount} pending edits at once?`)) approveAllPending() }}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-                >
-                  ✓ Approve all
-                </button>
-              </div>
             </div>
           )}
           {sectionGroups.length === 0 && !canEdit && (
@@ -776,7 +769,15 @@ export default function MenuPage() {
       })()}
 
       {/* Edit log tab */}
-      {tab === 'log' && <EditLog menuId={menu.id} />}
+      {tab === 'log' && (
+        <EditLog
+          menuId={menu.id}
+          onChange={loadMenu}
+          onApproveAll={pendingCount > 0 && (isAdmin || isInternal)
+            ? async () => { if (confirm(`Approve all ${pendingCount} pending edits at once?`)) await approveAllPending() }
+            : null}
+        />
+      )}
 
       {/* Sponsors tab */}
       {tab === 'sponsors' && (
