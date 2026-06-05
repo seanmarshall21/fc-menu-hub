@@ -288,6 +288,10 @@ export default function MenuPage() {
   const sectionNames = [...new Set(items.map(i => i.section))] // unique names for datalist only
   const canEdit = (isAdmin || isInternal) && menu.phase !== 'approved'
 
+  const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
+  const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+  const isApproved = menu.phase === 'approved'
+
   const tabs = [
     { key: 'items', label: 'Items' },
     { key: 'preview', label: 'Preview' },
@@ -295,10 +299,6 @@ export default function MenuPage() {
     { key: 'sponsors', label: 'Sponsors' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
-
-  const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
-  const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
-  const isApproved = menu.phase === 'approved'
 
   async function approveAllPending() {
     if (!pendingCount) return
