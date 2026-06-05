@@ -137,6 +137,8 @@ export default function MenuPage() {
   // Edit menu modal
   const [showEditMenu, setShowEditMenu] = useState(false)
   const [editMenuName, setEditMenuName] = useState('')
+  const [editMenuSize, setEditMenuSize] = useState('lg')
+  const [editMenuCategory, setEditMenuCategory] = useState('bar')
   const [editMenuIconUrl, setEditMenuIconUrl] = useState(null)
   const [editMenuIconName, setEditMenuIconName] = useState(null)
   const [editMenuSaving, setEditMenuSaving] = useState(false)
@@ -388,6 +390,8 @@ export default function MenuPage() {
           <button
             onClick={() => {
               setEditMenuName(menu.name)
+              setEditMenuSize(menu.size || 'lg')
+              setEditMenuCategory(menu.category || 'bar')
               setEditMenuIconUrl(menu.icon_url || null)
               setEditMenuIconName(menu.icon_name || null)
               setEditMenuError(null)
@@ -433,6 +437,8 @@ export default function MenuPage() {
               const { error } = await supabase.from('menus')
                 .update({
                   name: editMenuName.trim(),
+                  size: editMenuSize,
+                  category: editMenuCategory,
                   icon_url: editMenuIconUrl,
                   icon_name: editMenuIconName,
                 })
@@ -449,6 +455,26 @@ export default function MenuPage() {
             <div>
               <label className="label">Menu Name</label>
               <input className="input" value={editMenuName} onChange={e => setEditMenuName(e.target.value)} required autoFocus />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Size</label>
+                <select className="input" value={editMenuSize} onChange={e => setEditMenuSize(e.target.value)}>
+                  <option value="sm">Small  — 23.5" × 23.5"</option>
+                  <option value="md">Medium — 23.5" × 35.25"</option>
+                  <option value="lg">Large  — 23.5" × 47.5"</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Category</label>
+                <select className="input" value={editMenuCategory} onChange={e => setEditMenuCategory(e.target.value)}>
+                  <option value="bar">Bar</option>
+                  <option value="food">Food</option>
+                  <option value="vip">VIP</option>
+                  <option value="happy_hour">Happy Hour</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className="label">Icon</label>
