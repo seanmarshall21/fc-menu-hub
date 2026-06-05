@@ -17,6 +17,7 @@ import ApproversPanel from '@/components/ApproversPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
+import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -202,6 +203,7 @@ export default function MenuPage() {
   }, [brandSlug, seriesSlug, eventSlug, menuSlug])
 
   useEffect(() => { loadMenu() }, [loadMenu])
+  useFocusRefresh(loadMenu)
 
   async function toggleSponsor(sponsorId) {
     const sp = eventSponsors.find(s => s.id === sponsorId)

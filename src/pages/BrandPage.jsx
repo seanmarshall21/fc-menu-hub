@@ -6,6 +6,7 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
+import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -69,6 +70,7 @@ export default function BrandPage() {
   }
 
   useEffect(() => { loadData() }, [brandSlug])
+  useFocusRefresh(loadData)
 
   function openNewSeries() {
     setSeriesName('')

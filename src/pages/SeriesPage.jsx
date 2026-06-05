@@ -8,6 +8,7 @@ import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
 import SeriesSponsorsTab from '@/components/SeriesSponsorsTab'
 import FavoriteButton from '@/components/FavoriteButton'
+import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { format } from 'date-fns'
 
 const PHASES = [
@@ -55,6 +56,7 @@ export default function SeriesPage() {
   }
 
   useEffect(() => { loadData() }, [brandSlug, seriesSlug])
+  useFocusRefresh(loadData)
 
   async function handleCreateEvent(e) {
     e.preventDefault()

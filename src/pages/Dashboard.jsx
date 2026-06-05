@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -21,33 +22,33 @@ export default function Dashboard() {
   const [favEvents, setFavEvents]   = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      const [brandsRes, eventsRes, menusRes, pendingRes] = await Promise.all([
-        supabase.from('brands').select('id'),
-        supabase.from('events').select('id'),
-        supabase.from('menus').select('id'),
-        supabase.from('menu_items').select('id').eq('edit_status', 'pending_approval'),
-      ])
+  const load = useCallback(async () => {
+    const [brandsRes, eventsRes, menusRes, pendingRes] = await Promise.all([
+      supabase.from('brands').select('id'),
+      supabase.from('events').select('id'),
+      supabase.from('menus').select('id'),
+      supabase.from('menu_items').select('id').eq('edit_status', 'pending_approval'),
+    ])
 
-      setStats({
-        brands: brandsRes.data?.length || 0,
-        events: eventsRes.data?.length || 0,
-        menus: menusRes.data?.length || 0,
-        pendingEdits: pendingRes.data?.length || 0,
-      })
+    setStats({
+      brands: brandsRes.data?.length || 0,
+      events: eventsRes.data?.length || 0,
+      menus: menusRes.data?.length || 0,
+      pendingEdits: pendingRes.data?.length || 0,
+    })
 
-      const { data: events } = await supabase
-        .from('events')
-        .select('*, series(name, slug, brand:brands(name, slug, color))')
-        .order('created_at', { ascending: false })
-        .limit(8)
+    const { data: events } = await supabase
+      .from('events')
+      .select('*, series(name, slug, brand:brands(name, slug, color))')
+      .order('created_at', { ascending: false })
+      .limit(8)
 
-      setRecentEvents(events || [])
-      setLoading(false)
-    }
-    load()
+    setRecentEvents(events || [])
+    setLoading(false)
   }, [])
+
+  useEffect(() => { load() }, [load])
+  useFocusRefresh(load)
 
   useEffect(() => {
     async function hydrateFavs() {

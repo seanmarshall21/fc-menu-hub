@@ -14,6 +14,7 @@ import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
 import FigmaLogo from '@/components/FigmaLogo'
 import EventSponsorsTab from '@/components/EventSponsorsTab'
+import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -590,6 +591,7 @@ export default function EventPage() {
   }
 
   useEffect(() => { loadData() }, [brandSlug, seriesSlug, eventSlug])
+  useFocusRefresh(loadData)
 
   // ── Menu create ──
   async function handleCreateMenu(e) {
