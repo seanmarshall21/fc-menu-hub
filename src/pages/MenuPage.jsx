@@ -119,6 +119,7 @@ export default function MenuPage() {
   const [menuSponsorIds, setMenuSponsorIds] = useState(new Set())
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [previewSize, setPreviewSize] = useState(null) // size active in preview tab
+  const [previewZoom, setPreviewZoom] = useState(1)    // 1 = fit-to-container; >1 zooms in
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('items')
   const [showImport, setShowImport] = useState(false)
@@ -687,7 +688,35 @@ export default function MenuPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Zoom controls */}
+                {hasTemplate && (
+                  <div className="inline-flex items-center rounded-md border border-surface-200 bg-white overflow-hidden">
+                    <button
+                      onClick={() => setPreviewZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                      className="px-2 py-1 text-ink-500 hover:bg-surface-100 disabled:opacity-30"
+                      disabled={previewZoom <= 0.5}
+                      title="Zoom out"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
+                    </button>
+                    <button
+                      onClick={() => setPreviewZoom(1)}
+                      className="px-2 py-1 text-xs text-ink-600 hover:bg-surface-100 font-mono min-w-[42px]"
+                      title="Reset zoom"
+                    >
+                      {Math.round(previewZoom * 100)}%
+                    </button>
+                    <button
+                      onClick={() => setPreviewZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}
+                      className="px-2 py-1 text-ink-500 hover:bg-surface-100 disabled:opacity-30"
+                      disabled={previewZoom >= 4}
+                      title="Zoom in"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                  </div>
+                )}
                 {hasTemplate && (
                   <button
                     onClick={() => exportPng(activeSize)}
@@ -706,9 +735,9 @@ export default function MenuPage() {
               </div>
             </div>
 
-            {/* Template canvas */}
+            {/* Template canvas — wrapped in a scrollable viewport so zoomed-in content can pan */}
             {hasTemplate ? (
-              <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm">
+              <div className="rounded-xl overflow-auto border border-surface-200 shadow-sm bg-surface-50" style={{ maxHeight: '75dvh' }}>
                 <TemplateCanvas
                   ref={canvasRef}
                   template={template}
@@ -719,6 +748,7 @@ export default function MenuPage() {
                   items={items}
                   eventSponsors={eventSponsors}
                   menuSponsorIds={menuSponsorIds}
+                  zoom={previewZoom}
                 />
               </div>
             ) : (

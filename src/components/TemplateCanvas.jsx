@@ -278,15 +278,16 @@ function SponsorStrip({ sponsors, color }) {
 // ── Main export ──────────────────────────────────────────────────────────────
 
 const TemplateCanvas = forwardRef(function TemplateCanvas({
-  template, series, event, size, menu, items, eventSponsors, menuSponsorIds,
+  template, series, event, size, menu, items, eventSponsors, menuSponsorIds, zoom = 1,
 }, innerRef) {
   const containerRef = useRef(null)
-  const [scale, setScale] = useState(1)
+  const [fitScale, setFitScale] = useState(1)
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
+  const scale = fitScale * (zoom || 1)
 
   useEffect(() => {
     const update = () => {
-      if (containerRef.current) setScale(containerRef.current.offsetWidth / sizeConfig.w)
+      if (containerRef.current) setFitScale(containerRef.current.offsetWidth / sizeConfig.w)
     }
     update()
     const ro = new ResizeObserver(update)
@@ -338,8 +339,14 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const sectionsGapPx   = gapBlock.section_gap === 'auto' ? 0 : gapBlock.section_gap
 
   return (
-    <div ref={containerRef} style={{ width: '100%', position: 'relative', height: sizeConfig.h * scale }}>
+    <div ref={containerRef} style={{ width: '100%' }}>
       <FontLoader fonts={fonts} />
+      <div style={{
+        position: 'relative',
+        width: sizeConfig.w * scale,
+        height: sizeConfig.h * scale,
+        minWidth: '100%',
+      }}>
       <div ref={innerRef} style={{
         position: 'absolute', top: 0, left: 0,
         width: sizeConfig.w, height: sizeConfig.h,
@@ -441,6 +448,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
             <img src={footerUrl} alt="" style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: 80, alignSelf: 'stretch' }} />
           )}
         </div>
+      </div>
       </div>
     </div>
   )
