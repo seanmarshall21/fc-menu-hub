@@ -53,29 +53,40 @@ function normalizeSpec(spec) {
   return s
 }
 
-function resolveSpec(series, event) {
-  const seriesSpec = normalizeSpec(series?.style_spec)
-  const eventSpec  = event?.style_spec || {}
-  const merged = { ...seriesSpec }
-  for (const r of ROLES) merged[r] = { ...seriesSpec[r], ...(eventSpec[r] || {}) }
+function mergeOverride(base, override) {
+  if (!override) return base
+  const merged = { ...base }
+  for (const r of ROLES) merged[r] = { ...base[r], ...(override[r] || {}) }
   merged.gaps = {
-    sm: { ...seriesSpec.gaps.sm, ...(eventSpec.gaps?.sm || {}) },
-    md: { ...seriesSpec.gaps.md, ...(eventSpec.gaps?.md || {}) },
-    lg: { ...seriesSpec.gaps.lg, ...(eventSpec.gaps?.lg || {}) },
+    sm: { ...base.gaps.sm, ...(override.gaps?.sm || {}) },
+    md: { ...base.gaps.md, ...(override.gaps?.md || {}) },
+    lg: { ...base.gaps.lg, ...(override.gaps?.lg || {}) },
   }
-  if (eventSpec.dietary_icons)      merged.dietary_icons    = eventSpec.dietary_icons
-  if (eventSpec.dietary_icon_size != null) merged.dietary_icon_size = eventSpec.dietary_icon_size
-  if (eventSpec.logo_max_height   != null) merged.logo_max_height   = eventSpec.logo_max_height
+  if (override.dietary_icons)             merged.dietary_icons     = override.dietary_icons
+  if (override.dietary_icon_size != null) merged.dietary_icon_size = override.dietary_icon_size
+  if (override.logo_max_height   != null) merged.logo_max_height   = override.logo_max_height
   return merged
 }
 
-function resolveFonts(series, event) {
-  const arr = Array.isArray(event?.fonts) && event.fonts.length ? event.fonts : (series?.fonts || [])
-  return Array.isArray(arr) ? arr : []
+function resolveSpec(series, event, menu) {
+  const seriesSpec = normalizeSpec(series?.style_spec)
+  const withEvent  = mergeOverride(seriesSpec, event?.style_spec)
+  const withMenu   = mergeOverride(withEvent,  menu?.style_spec)
+  return withMenu
 }
 
-function resolveHeaderLogo(series, event) { return event?.header_logo_url ?? series?.header_logo_url ?? null }
-function resolveFooterUrl(series, event)  { return event?.footer_url      ?? series?.footer_url      ?? null }
+function resolveFonts(series, event, menu) {
+  if (Array.isArray(menu?.fonts)  && menu.fonts.length)  return menu.fonts
+  if (Array.isArray(event?.fonts) && event.fonts.length) return event.fonts
+  return Array.isArray(series?.fonts) ? series.fonts : []
+}
+
+function resolveHeaderLogo(series, event, menu) {
+  return menu?.header_logo_url ?? event?.header_logo_url ?? series?.header_logo_url ?? null
+}
+function resolveFooterUrl(series, event, menu) {
+  return menu?.footer_url ?? event?.footer_url ?? series?.footer_url ?? null
+}
 
 // ── Build the font-family string for a role lookup ────────────────────────────
 
@@ -406,11 +417,11 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
     return () => ro.disconnect()
   }, [sizeConfig.w])
 
-  const spec     = useMemo(() => resolveSpec(series, event),         [series, event])
-  const fonts    = useMemo(() => resolveFonts(series, event),        [series, event])
-  const currency = useMemo(() => resolveCurrencySpec(series, event), [series, event])
-  const headerLogoUrl = resolveHeaderLogo(series, event)
-  const footerUrl     = resolveFooterUrl(series, event)
+  const spec     = useMemo(() => resolveSpec(series, event, menu),         [series, event, menu])
+  const fonts    = useMemo(() => resolveFonts(series, event, menu),        [series, event, menu])
+  const currency = useMemo(() => resolveCurrencySpec(series, event, menu), [series, event, menu])
+  const headerLogoUrl = resolveHeaderLogo(series, event, menu)
+  const footerUrl     = resolveFooterUrl(series, event, menu)
   // Per-menu spacing override wins over series/event gaps for the active size only.
   const baseGap = spec.gaps[size] || spec.gaps.md
   const gapBlock = useMemo(

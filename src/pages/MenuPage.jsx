@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
@@ -18,6 +18,8 @@ import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
+import { downloadMenuCsv } from '@/lib/downloadMenuCsv'
+import MenuStylesTab from '@/components/MenuStylesTab'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -113,6 +115,7 @@ function AddItemRow({ menuId, sections, defaultSection, onSaved, nextSortOrder }
 
 export default function MenuPage() {
   const { brandSlug, seriesSlug, eventSlug, menuSlug } = useParams()
+  const navigate = useNavigate()
   const { isAdmin, isInternal } = useAuth()
 
   const [brand, setBrand]   = useState(null)
@@ -145,6 +148,12 @@ export default function MenuPage() {
   const [editMenuIconName, setEditMenuIconName] = useState(null)
   const [editMenuSaving, setEditMenuSaving] = useState(false)
   const [editMenuError, setEditMenuError] = useState(null)
+  // Delete menu modal state
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteBackupDone, setDeleteBackupDone] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   const loadMenu = useCallback(async () => {
     const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
@@ -331,13 +340,14 @@ export default function MenuPage() {
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
   const isApproved = menu.phase === 'approved'
-  const currency = resolveCurrencySpec(series, event)
+  const currency = resolveCurrencySpec(series, event, menu)
 
   const tabs = [
     { key: 'items', label: 'Items' },
     { key: 'preview', label: 'Preview' },
     ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
+    ...((isAdmin || isInternal) ? [{ key: 'styles', label: 'Styles' }] : []),
     { key: 'signoff', label: 'Sign-off' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
@@ -531,6 +541,24 @@ export default function MenuPage() {
               <button type="submit" className="btn-primary btn-sm" disabled={editMenuSaving}>{editMenuSaving ? 'Saving…' : 'Save Changes'}</button>
             </div>
           </form>
+
+          {/* Danger zone */}
+          {(isAdmin || isInternal) && (
+            <section className="card border-red-200 mt-8 p-5">
+              <h3 className="text-sm font-semibold text-red-700">Delete menu</h3>
+              <p className="text-xs text-ink-500 mt-1 mb-3">
+                Permanently removes this menu and all of its items, edit log, and sponsor toggles. This can't be undone.
+                A CSV backup is offered in the confirmation step.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setDeleteConfirmText(''); setDeleteBackupDone(false); setDeleteError(null); setShowDeleteMenu(true) }}
+                className="text-xs font-medium px-3 py-1.5 rounded-md bg-white text-red-700 border border-red-300 hover:bg-red-50"
+              >
+                Delete this menu…
+              </button>
+            </section>
+          )}
         </PageBody>
       ) : (
       <PageBody>
@@ -849,6 +877,16 @@ export default function MenuPage() {
         <ApproversPanel targetType="menu" targetId={menu.id} title="Menu sign-off" />
       )}
 
+      {tab === 'styles' && (isAdmin || isInternal) && (
+        <MenuStylesTab
+          menu={menu}
+          event={event}
+          series={series}
+          canEdit={canEdit}
+          onSaved={loadMenu}
+        />
+      )}
+
       {/* Sponsors tab */}
       {tab === 'sponsors' && (
         <div className="card p-6">
@@ -944,6 +982,92 @@ export default function MenuPage() {
           </div>
         )
       })()}
+
+      {/* Delete menu confirm modal */}
+      {showDeleteMenu && (
+        <Modal title="Delete this menu?" onClose={() => { if (!deleting) setShowDeleteMenu(false) }}>
+          <div className="space-y-4">
+            <p className="text-sm text-ink-700">
+              <strong>{menu.name}</strong> and all of its items, edit log, and sponsor toggles will be permanently removed.
+              This can't be undone.
+            </p>
+
+            <div className="rounded-lg border border-surface-200 bg-surface-50 p-3">
+              <div className="text-xs font-semibold text-ink-700 mb-1">Backup first</div>
+              <p className="text-[11px] text-ink-500 mb-2">
+                Download a CSV of every item, section, and price so you can re-import later if you change your mind.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const ok = downloadMenuCsv(menu, items, { useCurrency: true })
+                  if (ok) setDeleteBackupDone(true)
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-md bg-white border border-surface-300 hover:bg-surface-100 inline-flex items-center gap-1.5"
+              >
+                {deleteBackupDone ? '↻ Re-download CSV' : '↓ Download CSV backup'}
+              </button>
+              {deleteBackupDone && (
+                <span className="ml-2 text-[11px] text-emerald-700">CSV downloaded ✓</span>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink-700 mb-1">
+                Type <code className="bg-surface-100 px-1 rounded text-red-600">DELETE</code> to confirm
+              </label>
+              <input
+                type="text"
+                className="input input-error"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                autoFocus
+              />
+            </div>
+
+            {deleteError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{deleteError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowDeleteMenu(false)}
+                disabled={deleting}
+                className="btn-secondary btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting || deleteConfirmText !== 'DELETE'}
+                onClick={async () => {
+                  setDeleting(true); setDeleteError(null)
+                  try {
+                    // Items, menu_sponsors, and edit_log cascade via FK from menus (assumed); fall back
+                    // to explicit deletes if needed.
+                    await supabase.from('menu_items').delete().eq('menu_id', menu.id)
+                    await supabase.from('menu_sponsors').delete().eq('menu_id', menu.id)
+                    await supabase.from('edit_log').delete().eq('menu_id', menu.id)
+                    const { error } = await supabase.from('menus').delete().eq('id', menu.id)
+                    if (error) throw error
+                    setShowDeleteMenu(false)
+                    navigate(`/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`, { replace: true })
+                  } catch (e) {
+                    setDeleteError(e?.message || String(e))
+                  } finally {
+                    setDeleting(false)
+                  }
+                }}
+                className="btn-sm bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg px-4 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </PageScreen>
   )
 }

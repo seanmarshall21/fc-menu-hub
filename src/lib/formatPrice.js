@@ -28,10 +28,10 @@ export function formatPrice(raw, { symbol = '$', decimals = 0, show = true } = {
  * Pull the resolved currency spec from a series + event pair. Event values
  * override series defaults when set.
  */
-export function resolveCurrencySpec(series, event) {
+export function resolveCurrencySpec(series, event, menu) {
   return {
-    symbol:   event?.currency_symbol  ?? series?.currency_symbol  ?? '$',
-    decimals: event?.decimal_places   ?? series?.decimal_places   ?? 0,
-    show:     event?.show_currency    ?? series?.show_currency    ?? true,
+    symbol:   menu?.currency_symbol  ?? event?.currency_symbol  ?? series?.currency_symbol  ?? '$',
+    decimals: menu?.decimal_places   ?? event?.decimal_places   ?? series?.decimal_places   ?? 0,
+    show:     menu?.show_currency    ?? event?.show_currency    ?? series?.show_currency    ?? true,
   }
 }
