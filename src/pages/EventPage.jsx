@@ -13,6 +13,7 @@ import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
 import FigmaLogo from '@/components/FigmaLogo'
+import EventSponsorsTab from '@/components/EventSponsorsTab'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -906,65 +907,12 @@ export default function EventPage() {
 
       {/* ── SPONSORS TAB ── */}
       {tab === 'sponsors' && (
-        <>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-ink-700">Event Sponsors</h2>
-              <p className="text-xs text-ink-400 mt-0.5">Sponsor pool for this event — toggle which appear on each menu from the menu's Sponsors tab.</p>
-            </div>
-            {canEdit && (
-              <button
-                onClick={() => { setSpName(''); setSpSlug(''); setSpLogoUrl(''); setSpSortOrder(sponsors.length); setSpError(null); setShowNewSponsor(true) }}
-                className="btn-secondary btn-sm gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Add Sponsor
-              </button>
-            )}
-          </div>
-
-          {sponsors.length === 0 ? (
-            <div className="card px-6 py-8 text-center">
-              <p className="text-sm text-ink-400 mb-3">No sponsors added yet for this event.</p>
-              {canEdit && (
-                <button onClick={() => setShowNewSponsor(true)} className="btn-primary btn-sm">Add First Sponsor</button>
-              )}
-            </div>
-          ) : (
-            <div className="card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[640px]">
-                  <thead>
-                    <tr className="border-b border-surface-200 bg-surface-50">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-ink-500 uppercase tracking-wide">Name</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-ink-500 uppercase tracking-wide">Figma Layer (sponsor--slug)</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-ink-500 uppercase tracking-wide">Logo URL</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-ink-500 uppercase tracking-wide w-20">Order</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-ink-500 uppercase tracking-wide">Status</th>
-                      <th className="px-4 py-2.5 w-28" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-100">
-                    {sponsors.map((sp, idx) => (
-                      <SponsorRow
-                        key={sp.id}
-                        sponsor={sp}
-                        canEdit={canEdit}
-                        onSave={handleSaveSponsor}
-                        onDelete={handleDeleteSponsor}
-                        isFirst={idx === 0}
-                        isLast={idx === sponsors.length - 1}
-                        onMoveUp={() => moveSponsor(sp.id, 'up')}
-                        onMoveDown={() => moveSponsor(sp.id, 'down')}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </>
+        <EventSponsorsTab
+          event={event}
+          series={series}
+          canEdit={canEdit}
+          onChange={loadData}
+        />
       )}
 
       {/* ── TEMPLATES TAB ── */}
