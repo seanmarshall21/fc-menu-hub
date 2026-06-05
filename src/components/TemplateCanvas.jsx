@@ -25,6 +25,8 @@ const DEFAULT_GAP_BLOCK = {
   item_content_to_price: 40,       // horizontal gap between content column and price column
   item_price_stack: 12,            // when two prices stacked vertically
   item_price_row: 24,              // when two prices side-by-side
+  item_size_price_layout: 'stacked', // 'stacked' = size above price (default); 'row' = size beside price
+  item_two_prices_layout: 'stacked', // 'stacked' = price1 above price2; 'row' = side-by-side
 }
 const FALLBACK_DIET_ICONS = {
   vegetarian: { url: null, color: '#4a8054' },
@@ -192,8 +194,18 @@ function DietaryIcons({ item, icons, size }) {
   )
 }
 
-function PriceBlock({ size, price, sizeRole, priceRole, fonts, colorSize, colorPrice }) {
+function PriceBlock({ size, price, sizeRole, priceRole, fonts, colorSize, colorPrice, layout = 'stacked' }) {
   if (!price) return null
+  if (layout === 'row') {
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10, whiteSpace: 'nowrap' }}>
+        {size && (
+          <span style={{ ...roleStyle(sizeRole, fonts), color: colorSize, whiteSpace: 'nowrap' }}>{size}</span>
+        )}
+        <span style={{ ...roleStyle(priceRole, fonts), color: colorPrice, whiteSpace: 'nowrap' }}>{price}</span>
+      </div>
+    )
+  }
   return (
     <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
       {size && (
@@ -209,8 +221,11 @@ function ItemRow({ item, spec, fonts, colors, gapBlock }) {
   const titleToDesc   = gapBlock?.item_title_to_description ?? 12
   const contentToPrice = gapBlock?.item_content_to_price ?? 40
   const priceStackGap  = gapBlock?.item_price_stack ?? titleToDesc
+  const priceRowGap    = gapBlock?.item_price_row ?? 24
+  const sizePriceLayout = gapBlock?.item_size_price_layout || 'stacked'
+  const twoPricesLayout = gapBlock?.item_two_prices_layout || 'stacked'
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: contentToPrice, width: '100%' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: contentToPrice, width: '100%' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ ...roleStyle(spec.item_title, fonts), color: colors.title }}>{item.title}</span>
@@ -222,16 +237,20 @@ function ItemRow({ item, spec, fonts, colors, gapBlock }) {
           </div>
         )}
       </div>
-      <div style={{ flexShrink: 0 }}>
+      <div style={{
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: twoPricesLayout === 'row' ? 'row' : 'column',
+        alignItems: twoPricesLayout === 'row' ? 'baseline' : 'flex-end',
+        gap: twoPricesLayout === 'row' ? priceRowGap : priceStackGap,
+      }}>
         <PriceBlock size={item.size1} price={item.price1}
           sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
-          colorSize={colors.sizeLabel} colorPrice={colors.price} />
+          colorSize={colors.sizeLabel} colorPrice={colors.price} layout={sizePriceLayout} />
         {item.two_sizes && item.price2 && (
-          <div style={{ marginTop: priceStackGap }}>
-            <PriceBlock size={item.size2} price={item.price2}
-              sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
-              colorSize={colors.sizeLabel} colorPrice={colors.price} />
-          </div>
+          <PriceBlock size={item.size2} price={item.price2}
+            sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
+            colorSize={colors.sizeLabel} colorPrice={colors.price} layout={sizePriceLayout} />
         )}
       </div>
     </div>

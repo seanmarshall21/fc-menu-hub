@@ -12,6 +12,7 @@ import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
+import FigmaLogo from '@/components/FigmaLogo'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -757,11 +758,17 @@ export default function EventPage() {
       ]}
       actions={<>
         <FavoriteButton type="event" id={event.id} size="sm" />
-        <PhaseBadge phase={event.phase} />
+        <PhaseBadge
+          phase={event.phase}
+          onChange={canEdit ? async (next) => { await supabase.from('events').update({ phase: next }).eq('id', event.id); loadData() } : null}
+        />
       </>}
       secondaryActions={(<>
         {event.figma_file_url && (
-          <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">Open Figma</a>
+          <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5">
+            <FigmaLogo size={12} />
+            Open Figma
+          </a>
         )}
         {canEdit && (
           <button onClick={openEditEvent} className="btn-secondary btn-sm">Edit Event</button>

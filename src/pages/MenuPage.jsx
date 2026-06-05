@@ -15,6 +15,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
+import FigmaLogo from '@/components/FigmaLogo'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -121,7 +122,8 @@ export default function MenuPage() {
   const [menuSponsorIds, setMenuSponsorIds] = useState(new Set())
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
-  const [previewZoom, setPreviewZoom] = useState(1)    // 1 = fit-to-container; >1 zooms in
+  const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('items')
   const [showImport, setShowImport] = useState(false)
@@ -346,7 +348,12 @@ export default function MenuPage() {
       ]}
       actions={<>
         <FavoriteButton type="menu" id={menu.id} size="sm" />
-        <PhaseBadge phase={menu.phase} hasPendingEdits={pendingCount > 0} />
+        <PhaseBadge
+          phase={menu.phase}
+          hasPendingEdits={pendingCount > 0}
+          options={['build', 'proof', 'print_prep', 'approved']}
+          onChange={canEdit ? async (next) => { await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu() } : null}
+        />
         {syncNeeded && (
           <span
             title={menu.last_synced_at
@@ -493,9 +500,7 @@ export default function MenuPage() {
                 ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since`
                 : 'Never synced to Figma. Open the Figma file and run the Menu Hub plugin.'}
             >
-              <svg viewBox="0 0 38 57" className="w-3 h-3" fill="currentColor">
-                <path d="M19 28.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19zm0-19h9.5a9.5 9.5 0 1 1 0 19H19v-19zm-9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19zM19 0h9.5a9.5 9.5 0 1 1 0 19H19V0zM9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19z"/>
-              </svg>
+              <FigmaLogo variant="line" size={12} />
               Sync needed
             </a>
           )}
@@ -504,10 +509,11 @@ export default function MenuPage() {
               href={PLUGIN_INSTALL_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-500 text-[11px] font-medium hover:text-ink-700"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-700 text-[11px] font-medium hover:bg-surface-50"
               title="Install the Menu Hub Figma plugin"
             >
-              + plugin
+              <FigmaLogo size={12} />
+              Plugin
             </a>
           )}
           {syncNeeded && !event?.figma_file_url && (
@@ -702,33 +708,17 @@ export default function MenuPage() {
                 ))}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Zoom controls */}
                 {hasTemplate && (
-                  <div className="inline-flex items-center rounded-md border border-surface-200 bg-white overflow-hidden">
-                    <button
-                      onClick={() => setPreviewZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                      className="px-2 py-1 text-ink-500 hover:bg-surface-100 disabled:opacity-30"
-                      disabled={previewZoom <= 0.5}
-                      title="Zoom out"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
-                    </button>
-                    <button
-                      onClick={() => setPreviewZoom(1)}
-                      className="px-2 py-1 text-xs text-ink-600 hover:bg-surface-100 font-mono min-w-[42px]"
-                      title="Reset zoom"
-                    >
-                      {Math.round(previewZoom * 100)}%
-                    </button>
-                    <button
-                      onClick={() => setPreviewZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}
-                      className="px-2 py-1 text-ink-500 hover:bg-surface-100 disabled:opacity-30"
-                      disabled={previewZoom >= 4}
-                      title="Zoom in"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setLightboxOpen(true)}
+                    className="btn-secondary btn-sm text-xs gap-1.5"
+                    title="Zoom in to inspect details"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16zM8 11h6M11 8v6" />
+                    </svg>
+                    Zoom
+                  </button>
                 )}
                 {hasTemplate && (
                   <button
@@ -748,9 +738,9 @@ export default function MenuPage() {
               </div>
             </div>
 
-            {/* Template canvas — wrapped in a scrollable viewport so zoomed-in content can pan */}
+            {/* Inline canvas — always fits to container as a single solid piece */}
             {hasTemplate ? (
-              <div className="rounded-xl overflow-auto border border-surface-200 shadow-sm bg-surface-50" style={{ maxHeight: '75dvh' }}>
+              <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
                 <TemplateCanvas
                   ref={canvasRef}
                   template={template}
@@ -761,7 +751,6 @@ export default function MenuPage() {
                   items={items}
                   eventSponsors={eventSponsors}
                   menuSponsorIds={menuSponsorIds}
-                  zoom={previewZoom}
                 />
               </div>
             ) : (
@@ -849,6 +838,50 @@ export default function MenuPage() {
       )}
       </PageBody>
       )}
+
+      {/* Zoom lightbox */}
+      {lightboxOpen && (() => {
+        const activeSize = previewSize || menu.size || 'lg'
+        const template = templates[activeSize]
+        return (
+          <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <div className="flex items-center justify-between px-4 py-3 text-white">
+              <div className="text-sm font-semibold">{menu.name} <span className="text-white/60 font-normal">— {activeSize.toUpperCase()}</span></div>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center rounded-md bg-white/10 backdrop-blur-sm overflow-hidden">
+                  <button onClick={() => setPreviewZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))} className="px-2 py-1 text-white hover:bg-white/10 disabled:opacity-30" disabled={previewZoom <= 0.5}>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
+                  </button>
+                  <button onClick={() => setPreviewZoom(1)} className="px-2 py-1 text-xs text-white hover:bg-white/10 font-mono min-w-[42px]">{Math.round(previewZoom * 100)}%</button>
+                  <button onClick={() => setPreviewZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} className="px-2 py-1 text-white hover:bg-white/10 disabled:opacity-30" disabled={previewZoom >= 4}>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                  </button>
+                </div>
+                <button onClick={() => setLightboxOpen(false)} className="text-white p-1.5 hover:bg-white/10 rounded-md" aria-label="Close">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+              <div className="bg-surface-50 rounded-lg overflow-hidden">
+                <TemplateCanvas
+                  template={template}
+                  series={series}
+                  event={event}
+                  size={activeSize}
+                  menu={menu}
+                  items={items}
+                  eventSponsors={eventSponsors}
+                  menuSponsorIds={menuSponsorIds}
+                  zoom={previewZoom}
+                />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </PageScreen>
   )
 }

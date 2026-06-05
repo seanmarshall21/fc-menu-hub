@@ -394,6 +394,9 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
           <NumberField label="Title → Description" value={spec.gaps[activeSize].item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly} />
           <NumberField label="Content → Price"     value={spec.gaps[activeSize].item_content_to_price ?? 40} onChange={n => setGapField(activeSize, 'item_content_to_price', n)} suffix="px" disabled={readOnly} />
           <NumberField label="Stacked price gap"   value={spec.gaps[activeSize].item_price_stack ?? 12} onChange={n => setGapField(activeSize, 'item_price_stack', n)} suffix="px" disabled={readOnly} />
+          <NumberField label="Row price gap"       value={spec.gaps[activeSize].item_price_row ?? 24} onChange={n => setGapField(activeSize, 'item_price_row', n)} suffix="px" disabled={readOnly} />
+          <SelectField label="Size & Price"      value={spec.gaps[activeSize].item_size_price_layout || 'stacked'} onChange={v => setGapField(activeSize, 'item_size_price_layout', v)} options={['stacked', 'row']} disabled={readOnly} />
+          <SelectField label="Two-price layout"  value={spec.gaps[activeSize].item_two_prices_layout || 'stacked'} onChange={v => setGapField(activeSize, 'item_two_prices_layout', v)} options={['stacked', 'row']} disabled={readOnly} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
           <NumberField label="Dietary icon size" value={spec.dietary_icon_size} onChange={n => setSpec(p => ({ ...p, dietary_icon_size: n }))} suffix="px" disabled={readOnly} />

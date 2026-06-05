@@ -48,6 +48,7 @@ function Code({ children }) {
 
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import { PLUGIN_INSTALL_URL, PLUGIN_LOCAL_INSTALL_DOC } from '@/lib/figmaPlugin'
+import FigmaLogo from '@/components/FigmaLogo'
 
 export default function HelpPage() {
   return (
@@ -135,9 +136,7 @@ export default function HelpPage() {
             rel="noreferrer"
             className="btn-primary btn-sm gap-2 inline-flex"
           >
-            <svg viewBox="0 0 38 57" className="w-3.5 h-3.5" fill="currentColor">
-              <path d="M19 28.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19zm0-19h9.5a9.5 9.5 0 1 1 0 19H19v-19zm-9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19zM19 0h9.5a9.5 9.5 0 1 1 0 19H19V0zM9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19z"/>
-            </svg>
+            <FigmaLogo size={14} />
             Install Menu Hub Figma plugin
           </a>
           <a
