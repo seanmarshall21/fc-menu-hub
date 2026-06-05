@@ -12,9 +12,9 @@ export const SIZE_CONFIGS = {
   lg: { w: 1600, h: 3235,  label: 'LG',  print: '23.5" × 47.5"' },
 }
 
-const ROLES = ['menu_title', 'section_label', 'item_title', 'item_description', 'item_size', 'item_price']
+const ROLES = ['menu_title', 'section_label', 'item_title', 'item_description', 'item_size', 'item_price', 'footer_dietary', 'footer_price_details']
 
-const DEFAULT_ROLE = { size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary' }
+const DEFAULT_ROLE = { size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary', align: 'left' }
 const DEFAULT_GAP_BLOCK = { logo_to_title: 80, title_to_items: 100, items_to_footer: 100, section_gap: 'auto', item_gap: 'auto' }
 const FALLBACK_DIET_ICONS = {
   vegetarian: { url: null, color: '#4a8054' },
@@ -69,6 +69,13 @@ function resolveFooterUrl(series, event)  { return event?.footer_url      ?? ser
 function fontFamilyFor(role, fonts) {
   const slot = fonts.find(f => f.key === role.font) || fonts[0]
   return slot?.family || 'sans-serif'
+}
+
+function alignToFlex(align) {
+  if (align === 'center')  return 'center'
+  if (align === 'right')   return 'flex-end'
+  if (align === 'justify') return 'stretch'
+  return 'flex-start'
 }
 
 // ── Inject Adobe/Google links + @font-face for uploads ───────────────────────
@@ -148,6 +155,7 @@ function roleStyle(role, fonts, colorMap) {
     letterSpacing: `${role.tracking}em`,
     lineHeight: role.lineHeight,
     textTransform: role.transform || 'none',
+    textAlign: role.align || 'left',
     fontFamily: fontFamilyFor(role, fonts),
     color: colorMap || undefined,
   }
@@ -221,32 +229,69 @@ function ItemRow({ item, spec, fonts, colors }) {
 
 function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
   const itemGap = gapBlock.item_gap
-  return (
-    <div style={{ display: 'flex', gap: 36, alignItems: 'stretch' }}>
-      {group.section && (
+  const labelSpec = spec.section_label
+  const linePos = labelSpec.line_position || 'below'
+  const lineDir = labelSpec.line_direction || 'vertical'
+  const lineGap = labelSpec.line_gap ?? 24
+
+  const labelEl = group.section ? (
+    <div style={{
+      ...roleStyle(labelSpec, fonts),
+      color: colors.section,
+      writingMode: 'vertical-rl',
+      transform: `rotate(${(labelSpec.rotate ?? -90) - 90}deg)`,
+      whiteSpace: 'nowrap',
+    }}>
+      {group.section}
+    </div>
+  ) : null
+
+  const lineEl = (linePos === 'none' || !group.section) ? null : (
+    lineDir === 'vertical'
+      ? <div style={{ flex: 1, width: 1, backgroundColor: colors.section || colors.divider, opacity: 0.8 }} />
+      : <div style={{ flex: 1, height: 1, backgroundColor: colors.section || colors.divider, opacity: 0.8 }} />
+  )
+
+  // Build the label column based on line position
+  let labelColumn = null
+  if (group.section) {
+    if (linePos === 'below' || linePos === 'above') {
+      labelColumn = (
         <div style={{
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 24,
+          gap: lineGap,
         }}>
-          <div style={{
-            ...roleStyle(spec.section_label, fonts),
-            color: colors.section,
-            // writingMode: 'vertical-rl' adds +90° on its own, so we
-            // subtract 90° from the user-entered rotation so what they
-            // see in the preview matches the value they type.
-            writingMode: 'vertical-rl',
-            transform: `rotate(${(spec.section_label.rotate ?? -90) - 90}deg)`,
-            whiteSpace: 'nowrap',
-          }}>
-            {group.section}
-          </div>
-          {/* Vertical line under the rotated label, fills remaining height of the section */}
-          <div style={{ flex: 1, width: 1, backgroundColor: colors.section || colors.divider, opacity: 0.8 }} />
+          {linePos === 'above' && lineEl}
+          {labelEl}
+          {linePos === 'below' && lineEl}
         </div>
-      )}
+      )
+    } else if (linePos === 'left' || linePos === 'right') {
+      labelColumn = (
+        <div style={{
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'stretch',
+          gap: lineGap,
+        }}>
+          {linePos === 'left' && lineEl}
+          {labelEl}
+          {linePos === 'right' && lineEl}
+        </div>
+      )
+    } else {
+      // line: 'none'
+      labelColumn = <div style={{ flexShrink: 0 }}>{labelEl}</div>
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 36, alignItems: 'stretch' }}>
+      {labelColumn}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: itemGap === 'auto' ? 'space-between' : 'flex-start',
@@ -358,15 +403,15 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           top: padT, right: padR, bottom: padB, left: padL,
           display: 'flex', flexDirection: 'column',
         }}>
-          {/* Header logo */}
+          {/* Header logo — alignment follows menu_title.align so they stay coordinated */}
           {headerLogoUrl && (
-            <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: 'center' }} />
+            <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: alignToFlex(spec.menu_title.align) }} />
           )}
           {headerLogoUrl && <div style={{ height: gapBlock.logo_to_title }} />}
 
           {/* Menu title */}
           {menu?.name && (
-            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title, textAlign: 'center' }}>{menu.name}</div>
+            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.name}</div>
           )}
           <div style={{ height: gapBlock.title_to_items }} />
 
@@ -429,14 +474,14 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
                     { url: spec.dietary_icons.gf?.url,         color: spec.dietary_icons.gf?.color,         label: 'Gluten Free' },
                   ].filter(x => x.url).map(({ url, color, label }) => (
                     <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: spec.dietary_icon_size * 0.3 }}>
-                      <span style={{ ...roleStyle(spec.item_size, fonts), color: colors.description }}>{label}</span>
+                      <span style={{ ...roleStyle(spec.footer_dietary, fonts), color: colors.description }}>{label}</span>
                       <InlineSvg url={url} size={spec.dietary_icon_size * 0.7} color={color} />
                     </span>
                   ))}
                 </div>
               ) : <span />}
               {(showTaxText || customFooter) && (
-                <span style={{ ...roleStyle(spec.item_size, fonts), color: colors.description, textAlign: 'right' }}>
+                <span style={{ ...roleStyle(spec.footer_price_details, fonts), color: colors.description }}>
                   {customFooter || 'Prices do not include sales tax · Cashless event'}
                 </span>
               )}

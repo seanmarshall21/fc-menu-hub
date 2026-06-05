@@ -2,15 +2,20 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const ROLES = [
-  { key: 'menu_title',       label: 'Menu Title',       hasRotate: false },
-  { key: 'section_label',    label: 'Section Label',    hasRotate: true  },
-  { key: 'item_title',       label: 'Menu Item Title',  hasRotate: false },
-  { key: 'item_description', label: 'Item Description', hasRotate: false },
-  { key: 'item_size',        label: 'Item Size',        hasRotate: false },
-  { key: 'item_price',       label: 'Item Price',       hasRotate: false },
+  { key: 'menu_title',          label: 'Menu Title',          hasRotate: false, hasSectionLine: false },
+  { key: 'section_label',       label: 'Section Label',       hasRotate: true,  hasSectionLine: true  },
+  { key: 'item_title',          label: 'Menu Item Title',     hasRotate: false, hasSectionLine: false },
+  { key: 'item_description',    label: 'Item Description',    hasRotate: false, hasSectionLine: false },
+  { key: 'item_size',           label: 'Item Size',           hasRotate: false, hasSectionLine: false },
+  { key: 'item_price',          label: 'Item Price',          hasRotate: false, hasSectionLine: false },
+  { key: 'footer_dietary',      label: 'Footer Dietary Key',  hasRotate: false, hasSectionLine: false },
+  { key: 'footer_price_details',label: 'Footer Price Details',hasRotate: false, hasSectionLine: false },
 ]
 
 const TRANSFORMS = ['none', 'uppercase', 'lowercase', 'capitalize']
+const ALIGNS = ['left', 'center', 'right', 'justify']
+const LINE_POSITIONS = ['below', 'above', 'left', 'right', 'none']
+const LINE_DIRECTIONS = ['vertical', 'horizontal']
 const SIZES = [
   { key: 'sm', label: 'Small'  },
   { key: 'md', label: 'Medium' },
@@ -24,7 +29,7 @@ const FONT_SOURCES = [
 ]
 
 const DEFAULT_ROLE = {
-  size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary',
+  size: 40, weight: 400, tracking: 0, transform: 'none', lineHeight: 1.2, font: 'primary', align: 'left',
 }
 const DEFAULT_GAP_BLOCK = {
   logo_to_title: 80, title_to_items: 100, items_to_footer: 100, section_gap: 'auto', item_gap: 'auto',
@@ -337,13 +342,21 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
                   <SelectField label="Font"      value={v.font}      onChange={s => setRoleField(role.key, 'font', s)}      options={fontKeys.length ? fontKeys : ['primary']} disabled={readOnly} />
                   <SelectField label="Transform" value={v.transform} onChange={s => setRoleField(role.key, 'transform', s)} options={TRANSFORMS} disabled={readOnly} />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                  <SelectField label="Align"        value={v.align || 'left'} onChange={s => setRoleField(role.key, 'align', s)} options={ALIGNS} disabled={readOnly} />
                   <NumberField label="Width (wdth)" value={v.width}  onChange={n => setRoleField(role.key, 'width',  n)} step={1}   min={25} max={200} allowEmpty disabled={readOnly} />
                   <NumberField label="Slant (slnt)" value={v.slant}  onChange={n => setRoleField(role.key, 'slant',  n)} step={1}   min={-15} max={15} allowEmpty disabled={readOnly} />
                   {role.hasRotate && (
                     <NumberField label="Rotate" value={v.rotate || 0} onChange={n => setRoleField(role.key, 'rotate', n)} step={15} suffix="°" disabled={readOnly} />
                   )}
                 </div>
+                {role.hasSectionLine && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 pt-2 border-t border-surface-100">
+                    <SelectField label="Line position"  value={v.line_position  || 'below'}    onChange={s => setRoleField(role.key, 'line_position',  s)} options={LINE_POSITIONS}  disabled={readOnly} />
+                    <SelectField label="Line direction" value={v.line_direction || 'vertical'} onChange={s => setRoleField(role.key, 'line_direction', s)} options={LINE_DIRECTIONS} disabled={readOnly} />
+                    <NumberField label="Line gap" value={v.line_gap ?? 24} onChange={n => setRoleField(role.key, 'line_gap', n)} suffix="px" disabled={readOnly} />
+                  </div>
+                )}
               </div>
             )
           })}
