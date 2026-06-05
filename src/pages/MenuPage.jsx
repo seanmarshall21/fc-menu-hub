@@ -16,6 +16,7 @@ import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
+import { resolveCurrencySpec } from '@/lib/formatPrice'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -297,6 +298,7 @@ export default function MenuPage() {
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
   const isApproved = menu.phase === 'approved'
+  const currency = resolveCurrencySpec(series, event)
 
   const tabs = [
     { key: 'items', label: 'Items' },
@@ -632,6 +634,7 @@ export default function MenuPage() {
                           canEdit={canEdit}
                           onUpdated={loadMenu}
                           sections={sectionNames}
+                          currency={currency}
                           isFirst={itemIdx === 0}
                           isLast={itemIdx === group.items.length - 1}
                           onMoveUp={() => moveItemInSection(item.id, group.items, 'up')}

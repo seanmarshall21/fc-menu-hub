@@ -76,6 +76,9 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
   const [footerUrl,     setFooterUrl]     = useState(series.footer_url      || '')
   const [spec,          setSpec]          = useState(ensureSpec(series.style_spec))
   const [activeSize,    setActiveSize]    = useState('md')
+  const [currencySymbol, setCurrencySymbol] = useState(series.currency_symbol ?? '$')
+  const [decimalPlaces,  setDecimalPlaces]  = useState(series.decimal_places  ?? 0)
+  const [showCurrency,   setShowCurrency]   = useState(series.show_currency   ?? true)
   const [saving, setSaving]               = useState(false)
   const [savedAt, setSavedAt]             = useState(null)
   const [error, setError]                 = useState(null)
@@ -86,6 +89,9 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
     setHeaderLogoUrl(series.header_logo_url || '')
     setFooterUrl(series.footer_url || '')
     setSpec(ensureSpec(series.style_spec))
+    setCurrencySymbol(series.currency_symbol ?? '$')
+    setDecimalPlaces(series.decimal_places ?? 0)
+    setShowCurrency(series.show_currency ?? true)
   }, [series.id])
 
   const fontKeys = fonts.filter(f => f.key).map(f => f.key)
@@ -176,6 +182,9 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
         header_logo_url: headerLogoUrl || null,
         footer_url:      footerUrl     || null,
         style_spec:      spec,
+        currency_symbol: currencySymbol || '$',
+        decimal_places:  decimalPlaces,
+        show_currency:   showCurrency,
       })
       .eq('id', series.id)
     setSaving(false)
@@ -268,6 +277,40 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
               )}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Currency */}
+      <section className="card p-5 space-y-3">
+        <header>
+          <h3 className="text-sm font-semibold text-ink-900">Currency</h3>
+          <p className="text-xs text-ink-400 mt-0.5">How prices render across every menu in this series. Events can override.</p>
+        </header>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+          <div>
+            <label className="block text-[11px] font-medium text-ink-500 mb-1">Symbol</label>
+            <input className="input input-sm" value={currencySymbol} disabled={readOnly}
+              onChange={e => setCurrencySymbol(e.target.value)} maxLength={3} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-ink-500 mb-1">Decimal places</label>
+            <select className="input input-sm" value={decimalPlaces} disabled={readOnly}
+              onChange={e => setDecimalPlaces(parseInt(e.target.value, 10))}>
+              <option value={0}>0 ($14)</option>
+              <option value={2}>2 ($14.00)</option>
+              <option value={1}>1 ($14.5)</option>
+              <option value={3}>3</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer sm:col-span-2">
+            <input type="checkbox" className="rounded" checked={showCurrency}
+              onChange={e => setShowCurrency(e.target.checked)} disabled={readOnly} />
+            <span className="text-xs text-ink-700">Show currency symbol</span>
+          </label>
+        </div>
+        <div className="text-[11px] text-ink-400">
+          Preview: <span className="font-mono text-ink-700">{showCurrency ? currencySymbol : ''}{(14).toFixed(decimalPlaces)}</span>
+          <span className="ml-1">— price field that already contains letters (e.g. "Market") passes through untouched.</span>
         </div>
       </section>
 

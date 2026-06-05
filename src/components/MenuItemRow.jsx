@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { formatPrice } from '@/lib/formatPrice'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
 const STATUS_LABELS  = { active: 'Active', not_added: 'Not Added', draft: 'Draft' }
@@ -14,7 +15,7 @@ const LAYOUT_OPTIONS = [
   { value: 'alt',  label: 'Alt — title and price only' },
 ]
 
-export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast }) {
+export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast, currency }) {
   const { profile } = useAuth()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ ...item })
@@ -164,9 +165,9 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
         </td>
         <td className="px-4 py-3 text-ink-700 text-xs whitespace-nowrap">
           {item.two_sizes ? (
-            <span>{item.size1} <b>{item.price1}</b> / {item.size2} <b>{item.price2}</b></span>
+            <span>{item.size1} <b>{formatPrice(item.price1, currency)}</b> / {item.size2} <b>{formatPrice(item.price2, currency)}</b></span>
           ) : (
-            <span>{item.size1} <b>{item.price1}</b></span>
+            <span>{item.size1} <b>{formatPrice(item.price1, currency)}</b></span>
           )}
         </td>
         <td className="px-4 py-3 whitespace-nowrap">

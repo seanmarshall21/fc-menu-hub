@@ -5,6 +5,7 @@
  */
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { buildSectionGroups } from './MenuPreview'
+import { formatPrice, resolveCurrencySpec } from '@/lib/formatPrice'
 
 export const SIZE_CONFIGS = {
   sm: { w: 1600, h: 1600,  label: 'SM',  print: '23.5" × 23.5"' },
@@ -216,7 +217,7 @@ function PriceBlock({ size, price, sizeRole, priceRole, fonts, colorSize, colorP
   )
 }
 
-function ItemRow({ item, spec, fonts, colors, gapBlock }) {
+function ItemRow({ item, spec, fonts, colors, gapBlock, currency }) {
   const isAlt = item.layout === 'alt'
   const titleToDesc   = gapBlock?.item_title_to_description ?? 12
   const contentToPrice = gapBlock?.item_content_to_price ?? 40
@@ -244,11 +245,11 @@ function ItemRow({ item, spec, fonts, colors, gapBlock }) {
         alignItems: twoPricesLayout === 'row' ? 'baseline' : 'flex-end',
         gap: twoPricesLayout === 'row' ? priceRowGap : priceStackGap,
       }}>
-        <PriceBlock size={item.size1} price={item.price1}
+        <PriceBlock size={item.size1} price={formatPrice(item.price1, currency)}
           sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
           colorSize={colors.sizeLabel} colorPrice={colors.price} layout={sizePriceLayout} />
         {item.two_sizes && item.price2 && (
-          <PriceBlock size={item.size2} price={item.price2}
+          <PriceBlock size={item.size2} price={formatPrice(item.price2, currency)}
             sizeRole={spec.item_size} priceRole={spec.item_price} fonts={fonts}
             colorSize={colors.sizeLabel} colorPrice={colors.price} layout={sizePriceLayout} />
         )}
@@ -259,7 +260,7 @@ function ItemRow({ item, spec, fonts, colors, gapBlock }) {
 
 // ── Section block ────────────────────────────────────────────────────────────
 
-function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
+function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
   const itemGap = gapBlock.item_gap
   const labelSpec = spec.section_label
   const linePos = labelSpec.line_position || 'below'
@@ -330,7 +331,7 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock }) {
         gap: itemGap === 'auto' ? 0 : itemGap,
       }}>
         {group.items.map(item => (
-          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
+          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
         ))}
       </div>
     </div>
@@ -372,8 +373,9 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
     return () => ro.disconnect()
   }, [sizeConfig.w])
 
-  const spec   = useMemo(() => resolveSpec(series, event),   [series, event])
-  const fonts  = useMemo(() => resolveFonts(series, event),  [series, event])
+  const spec     = useMemo(() => resolveSpec(series, event),         [series, event])
+  const fonts    = useMemo(() => resolveFonts(series, event),        [series, event])
+  const currency = useMemo(() => resolveCurrencySpec(series, event), [series, event])
   const headerLogoUrl = resolveHeaderLogo(series, event)
   const footerUrl     = resolveFooterUrl(series, event)
   // Per-menu spacing override wins over series/event gaps for the active size only.
@@ -471,7 +473,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
                     minHeight: 0,
                   }}>
                     {colGroups.map(group => (
-                      <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
+                      <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
                     ))}
                   </div>
                 )
@@ -486,7 +488,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
               minHeight: 0,
             }}>
               {sectionGroups.map(group => (
-                <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} />
+                <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
               ))}
             </div>
           )}
