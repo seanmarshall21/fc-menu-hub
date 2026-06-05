@@ -56,25 +56,30 @@ export default function EditLog({ menuId }) {
     }
   }
 
-  async function revertItem(menuItemId) {
-    // 'revert' here means: leave it pending but visually note the user rejected.
-    // For now we just mark it clean (back to baseline) — equivalent to a soft reject.
-    if (!confirm('Mark this edit as not approved? The item stays as-is but the pending flag clears.')) return
+  async function rejectItem(menuItemId) {
+    if (!confirm('Mark this edit as rejected? The item stays as-is and the change is logged as not approved.')) return
     setBusyId(menuItemId)
     try {
-      await supabase.from('menu_items').update({ edit_status: 'clean' }).eq('id', menuItemId)
+      await supabase.from('menu_items').update({ edit_status: 'rejected' }).eq('id', menuItemId)
       await load()
     } finally {
       setBusyId(null)
     }
   }
 
+  async function saveNote(logId, note) {
+    await supabase.from('edit_log').update({ note: note || null }).eq('id', logId)
+    setLogs(prev => prev.map(l => l.id === logId ? { ...l, note: note || null } : l))
+  }
+
   if (loading) return <div className="text-sm text-ink-400">Loading log…</div>
   if (logs.length === 0) return <div className="text-sm text-ink-400">No edits logged yet.</div>
 
-  // Group by pending vs approved/historical
-  const pending = logs.filter(l => l.menu_item?.edit_status === 'pending_approval')
-  const historical = logs.filter(l => l.menu_item?.edit_status !== 'pending_approval')
+  // Group: pending / approved / rejected / other
+  const pending     = logs.filter(l => l.menu_item?.edit_status === 'pending_approval')
+  const approved    = logs.filter(l => l.menu_item?.edit_status === 'approved')
+  const rejected    = logs.filter(l => l.menu_item?.edit_status === 'rejected')
+  const historical  = logs.filter(l => !['pending_approval', 'approved', 'rejected'].includes(l.menu_item?.edit_status))
 
   function renderTable(rows, headingLabel, colorClass) {
     if (rows.length === 0) return null
@@ -134,6 +139,14 @@ export default function EditLog({ menuId }) {
                         {log.new_value || <span className="text-ink-300">—</span>}
                       </div>
                     </button>
+                    {isOpen && canApprove && (
+                      <NoteEditor logId={log.id} initial={log.note || ''} onSave={(v) => saveNote(log.id, v)} />
+                    )}
+                    {!isOpen && log.note && (
+                      <div className="mt-1 text-[11px] text-ink-500 italic truncate max-w-[260px]" title={log.note}>
+                        📝 {log.note}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 sm:px-4 py-2.5 text-xs capitalize text-ink-400 whitespace-nowrap">
                     {log.phase_at_edit?.replace('_', ' ')}
@@ -152,16 +165,18 @@ export default function EditLog({ menuId }) {
                             ✓ Approve
                           </button>
                           <button
-                            onClick={() => revertItem(log.menu_item.id)}
+                            onClick={() => rejectItem(log.menu_item.id)}
                             disabled={isBusy}
                             className="text-xs px-2 py-0.5 rounded-md bg-white border border-surface-200 text-ink-500 hover:text-red-600"
-                            title="Mark as not approved (clears the pending flag)"
+                            title="Reject this edit"
                           >
                             ✕
                           </button>
                         </div>
                       ) : itemApproved ? (
                         <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">approved</span>
+                      ) : log.menu_item?.edit_status === 'rejected' ? (
+                        <span className="text-[10px] font-medium text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">rejected</span>
                       ) : (
                         <span className="text-[10px] text-ink-300">clean</span>
                       )}
@@ -181,7 +196,49 @@ export default function EditLog({ menuId }) {
   return (
     <div className="space-y-4">
       {renderTable(pending,    'Pending approval', 'bg-amber-50 text-amber-800')}
-      {renderTable(historical, 'Approved & history', 'bg-emerald-50 text-emerald-800')}
+      {renderTable(approved,   'Approved',         'bg-emerald-50 text-emerald-800')}
+      {renderTable(rejected,   'Rejected',         'bg-red-50 text-red-800')}
+      {renderTable(historical, 'History',          'bg-surface-100 text-ink-600')}
+    </div>
+  )
+}
+
+function NoteEditor({ logId, initial, onSave }) {
+  const [value, setValue] = useState(initial)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const dirty = value !== initial
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await onSave(value)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <label className="block text-[10px] text-ink-400 uppercase tracking-wider mb-1">Reviewer note</label>
+      <textarea
+        className="input input-sm text-xs w-full"
+        rows={2}
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        placeholder="Why is this edit being made? Or why is it rejected?"
+      />
+      {dirty && (
+        <div className="flex items-center gap-2 mt-1">
+          <button onClick={handleSave} disabled={saving} className="text-[11px] text-brand-600 hover:text-brand-700 font-medium">
+            {saving ? 'Saving…' : 'Save note'}
+          </button>
+          <button onClick={() => setValue(initial)} className="text-[11px] text-ink-400">Cancel</button>
+        </div>
+      )}
+      {saved && !dirty && <span className="text-[11px] text-emerald-600">Saved.</span>}
     </div>
   )
 }

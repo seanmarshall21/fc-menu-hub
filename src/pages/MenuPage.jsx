@@ -118,7 +118,7 @@ export default function MenuPage() {
   const [eventSponsors, setEventSponsors] = useState([])
   const [menuSponsorIds, setMenuSponsorIds] = useState(new Set())
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
-  const [previewSize, setPreviewSize] = useState(null) // size active in preview tab
+  const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
   const [previewZoom, setPreviewZoom] = useState(1)    // 1 = fit-to-container; >1 zooms in
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('items')
@@ -670,6 +670,12 @@ export default function MenuPage() {
         const hasTemplate = !!template?.background_url
         return (
           <div>
+            <SpacingOverridePanel
+              menu={menu}
+              size={activeSize}
+              canEdit={canEdit}
+              onSaved={loadMenu}
+            />
             {/* Size switcher + Figma sync badge */}
             <div className="flex items-center justify-between mb-5 gap-4 flex-wrap">
               <div className="flex items-center gap-1">
@@ -824,5 +830,117 @@ export default function MenuPage() {
       </PageBody>
       )}
     </PageScreen>
+  )
+}
+
+function SpacingOverridePanel({ menu, size, canEdit, onSaved }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const override = (menu.spacing_override || {})[size] || {}
+  const hasAny = Object.keys(override).length > 0
+
+  async function setField(field, value) {
+    setSaving(true)
+    try {
+      const all = { ...(menu.spacing_override || {}) }
+      const next = { ...(all[size] || {}) }
+      if (value === null || value === '') delete next[field]
+      else next[field] = value
+      if (Object.keys(next).length === 0) delete all[size]
+      else all[size] = next
+      await supabase.from('menus').update({ spacing_override: Object.keys(all).length ? all : null }).eq('id', menu.id)
+      onSaved()
+    } finally { setSaving(false) }
+  }
+
+  async function clearAll() {
+    setSaving(true)
+    try {
+      const all = { ...(menu.spacing_override || {}) }
+      delete all[size]
+      await supabase.from('menus').update({ spacing_override: Object.keys(all).length ? all : null }).eq('id', menu.id)
+      onSaved()
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="mb-4 card overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-surface-50"
+      >
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-medium text-ink-700">Spacing override</span>
+          <span className="text-xs text-ink-400">{size.toUpperCase()}</span>
+          {hasAny && <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">{Object.keys(override).length} field{Object.keys(override).length === 1 ? '' : 's'} overridden</span>}
+        </div>
+        <svg className={`w-4 h-4 text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-surface-100">
+          <p className="text-[11px] text-ink-400 my-3">Tweak gaps for just this menu at the {size.toUpperCase()} size. Leave blank to inherit from series/event. Changes save instantly.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <OverrideNumber label="Logo → Title"   value={override.logo_to_title}   onChange={v => setField('logo_to_title', v)}   disabled={!canEdit || saving} />
+            <OverrideNumber label="Title → Items"  value={override.title_to_items}  onChange={v => setField('title_to_items', v)}  disabled={!canEdit || saving} />
+            <OverrideNumber label="Items → Footer" value={override.items_to_footer} onChange={v => setField('items_to_footer', v)} disabled={!canEdit || saving} />
+            <OverrideGap   label="Section gap" value={override.section_gap} onChange={v => setField('section_gap', v)} disabled={!canEdit || saving} />
+            <OverrideGap   label="Item gap"    value={override.item_gap}    onChange={v => setField('item_gap', v)}    disabled={!canEdit || saving} />
+          </div>
+          {hasAny && canEdit && (
+            <div className="flex justify-end mt-3">
+              <button onClick={clearAll} disabled={saving} className="text-xs text-red-500 hover:text-red-700">Clear overrides for {size.toUpperCase()}</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OverrideNumber({ label, value, onChange, disabled }) {
+  return (
+    <div>
+      <label className="block text-[11px] text-ink-500 mb-1">{label}</label>
+      <input
+        type="number"
+        className="input input-sm"
+        value={value ?? ''}
+        placeholder="inherit"
+        onChange={e => onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))}
+        disabled={disabled}
+      />
+    </div>
+  )
+}
+
+function OverrideGap({ label, value, onChange, disabled }) {
+  const isAuto = value === 'auto'
+  return (
+    <div>
+      <label className="block text-[11px] text-ink-500 mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(isAuto ? null : 'auto')}
+          disabled={disabled}
+          className={`text-[10px] px-2 py-1 rounded font-medium ${isAuto ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-ink-500'}`}
+        >
+          auto
+        </button>
+        {!isAuto && (
+          <input
+            type="number"
+            className="input input-sm flex-1"
+            value={typeof value === 'number' ? value : ''}
+            placeholder="inherit"
+            onChange={e => onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))}
+            disabled={disabled}
+            step={10}
+          />
+        )}
+      </div>
+    </div>
   )
 }

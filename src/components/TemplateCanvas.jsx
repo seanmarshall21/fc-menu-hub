@@ -344,7 +344,12 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const fonts  = useMemo(() => resolveFonts(series, event),  [series, event])
   const headerLogoUrl = resolveHeaderLogo(series, event)
   const footerUrl     = resolveFooterUrl(series, event)
-  const gapBlock = spec.gaps[size] || spec.gaps.md
+  // Per-menu spacing override wins over series/event gaps for the active size only.
+  const baseGap = spec.gaps[size] || spec.gaps.md
+  const gapBlock = useMemo(
+    () => ({ ...baseGap, ...((menu?.spacing_override?.[size]) || {}) }),
+    [baseGap, menu?.spacing_override, size]
+  )
 
   const colors = {
     section:     template?.color_section     || '#1a1a1a',

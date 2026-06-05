@@ -386,7 +386,7 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
           <GapField label="Section gap" value={spec.gaps[activeSize].section_gap} onChange={v => setGapField(activeSize, 'section_gap', v)} disabled={readOnly} />
           <GapField label="Item gap"    value={spec.gaps[activeSize].item_gap}    onChange={v => setGapField(activeSize, 'item_gap', v)}    disabled={readOnly} />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
           <NumberField label="Dietary icon size" value={spec.dietary_icon_size} onChange={n => setSpec(p => ({ ...p, dietary_icon_size: n }))} suffix="px" disabled={readOnly} />
           <NumberField label="Logo max height"   value={spec.logo_max_height}   onChange={n => setSpec(p => ({ ...p, logo_max_height: n }))}   suffix="px" disabled={readOnly} />
         </div>
