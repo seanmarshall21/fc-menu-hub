@@ -11,6 +11,7 @@ import { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
+import ApproversPanel from '@/components/ApproversPanel'
 
 const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
@@ -773,6 +774,7 @@ export default function EventPage() {
             { id: 'sponsors', label: `Sponsors (${sponsors.length})` },
             { id: 'templates', label: 'Templates' },
             { id: 'styles', label: 'Styles' },
+            { id: 'signoff', label: 'Sign-off' },
           ].map(t => (
             <button
               key={t.id}
@@ -978,6 +980,11 @@ export default function EventPage() {
           canEdit={canEdit}
           onSaved={loadData}
         />
+      )}
+
+      {/* ── SIGN-OFF TAB ── */}
+      {tab === 'signoff' && (
+        <ApproversPanel targetType="event" targetId={event.id} title="Event sign-off" />
       )}
 
       {/* ── Edit Event Modal ── */}

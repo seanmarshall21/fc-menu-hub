@@ -47,6 +47,7 @@ function Code({ children }) {
 }
 
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import { PLUGIN_INSTALL_URL, PLUGIN_LOCAL_INSTALL_DOC } from '@/lib/figmaPlugin'
 
 export default function HelpPage() {
   return (
@@ -123,6 +124,36 @@ export default function HelpPage() {
       </Section>
 
       {/* ── Figma Plugin Workflow ── */}
+      <Section title="Install the Menu Hub Figma plugin">
+        <p className="text-sm text-ink-500 mb-3">
+          The plugin runs inside Figma and reads menu data from this app to populate your templates. Install it once per Figma account.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <a
+            href={PLUGIN_INSTALL_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary btn-sm gap-2 inline-flex"
+          >
+            <svg viewBox="0 0 38 57" className="w-3.5 h-3.5" fill="currentColor">
+              <path d="M19 28.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19zm0-19h9.5a9.5 9.5 0 1 1 0 19H19v-19zm-9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19zM19 0h9.5a9.5 9.5 0 1 1 0 19H19V0zM9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19z"/>
+            </svg>
+            Install Menu Hub Figma plugin
+          </a>
+          <a
+            href={PLUGIN_LOCAL_INSTALL_DOC}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary btn-sm"
+          >
+            Manual install (ask an admin)
+          </a>
+        </div>
+        <p className="text-xs text-ink-400 mt-3">
+          If the install button leads to a 404, the plugin hasn't been published to Figma Community yet — ask an admin for the zipped plugin folder and import it via Figma → Menu → Plugins → Development → Import plugin from manifest.
+        </p>
+      </Section>
+
       <Section title="Syncing to Figma">
         <Step n={1} title="Open the menu template frame in Figma">
           <p>Select the frame you want to populate. It should use the Menu Sync component structure (prefixed layer names).</p>

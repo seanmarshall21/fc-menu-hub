@@ -13,6 +13,8 @@ import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
+import ApproversPanel from '@/components/ApproversPanel'
+import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -297,6 +299,7 @@ export default function MenuPage() {
     { key: 'preview', label: 'Preview' },
     ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
+    { key: 'signoff', label: 'Sign-off' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
 
@@ -494,6 +497,17 @@ export default function MenuPage() {
                 <path d="M19 28.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19zm0-19h9.5a9.5 9.5 0 1 1 0 19H19v-19zm-9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19zM19 0h9.5a9.5 9.5 0 1 1 0 19H19V0zM9.5 0H19v19H9.5a9.5 9.5 0 1 1 0-19z"/>
               </svg>
               Sync needed
+            </a>
+          )}
+          {syncNeeded && (
+            <a
+              href={PLUGIN_INSTALL_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-500 text-[11px] font-medium hover:text-ink-700"
+              title="Install the Menu Hub Figma plugin"
+            >
+              + plugin
             </a>
           )}
           {syncNeeded && !event?.figma_file_url && (
@@ -777,6 +791,11 @@ export default function MenuPage() {
             ? async () => { if (confirm(`Approve all ${pendingCount} pending edits at once?`)) await approveAllPending() }
             : null}
         />
+      )}
+
+      {/* Sign-off tab */}
+      {tab === 'signoff' && (
+        <ApproversPanel targetType="menu" targetId={menu.id} title="Menu sign-off" />
       )}
 
       {/* Sponsors tab */}
