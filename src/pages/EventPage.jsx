@@ -886,6 +886,8 @@ export default function EventPage() {
               )}
             </div>
           ) : (
+            // Compact, scannable list of menu titles + meta. Visual previews
+            // live on the "Preview all" tab to keep this view uncluttered.
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {menus.map(menu => {
                 const items = menu.menu_items || []
@@ -896,59 +898,27 @@ export default function EventPage() {
                   <Link
                     key={menu.id}
                     to={`${baseUrl}/menus/${menu.slug}`}
-                    className="card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col"
+                    className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col"
                   >
-                    {/* Thumbnail (or placeholder strip) */}
-                    {menu.preview_image_url ? (
-                      <div className="relative w-full aspect-[4/5] bg-surface-50 border-b border-surface-100 overflow-hidden">
-                        <img
-                          src={menu.preview_image_url}
-                          alt=""
-                          className="w-full h-full object-cover object-top"
-                          loading="lazy"
-                        />
-                        {/* Top-right overlay: sync + edits chips */}
-                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                          {pendingCount > 0 && (
-                            <span
-                              className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
-                              title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
-                            >
-                              {pendingCount}
-                            </span>
-                          )}
-                          <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative w-full h-1.5 bg-gradient-to-r from-surface-100 to-surface-50" />
-                    )}
-
-                    {/* Body */}
-                    <div className="p-5 flex-1 flex flex-col">
-                      <div className="flex items-start justify-between mb-3 gap-2">
-                        <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
-                        <PhaseBadge phase={menu.phase} />
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-ink-400">
-                        <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
-                        <span>·</span>
-                        <span>{items.length} items</span>
-                        {/* When there's no thumbnail, the chips live inline at the bottom of the card so they're still visible. */}
-                        {!menu.preview_image_url && (
-                          <span className="ml-auto flex items-center gap-1.5">
-                            {pendingCount > 0 && (
-                              <span
-                                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold"
-                                title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
-                              >
-                                {pendingCount}
-                              </span>
-                            )}
-                            <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+                    <div className="flex items-start justify-between mb-3 gap-2">
+                      <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
+                      <PhaseBadge phase={menu.phase} />
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-ink-400">
+                      <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
+                      <span>·</span>
+                      <span>{items.length} items</span>
+                      <span className="ml-auto flex items-center gap-1.5">
+                        {pendingCount > 0 && (
+                          <span
+                            className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold"
+                            title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
+                          >
+                            {pendingCount}
                           </span>
                         )}
-                      </div>
+                        <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+                      </span>
                     </div>
                   </Link>
                 )
