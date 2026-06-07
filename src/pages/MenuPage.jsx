@@ -259,6 +259,10 @@ export default function MenuPage() {
   useEffect(() => { loadMenu() }, [loadMenu])
   useFocusRefresh(loadMenu)
 
+  // Column prefs need to be a top-level hook so the order/count is stable
+  // across renders — must NOT live after the early returns below.
+  const [itemColumns, setItemColumnOrder, setItemColumnWidth] = useTableColumns('menu_items_v1', DEFAULT_ITEM_COLUMNS)
+
   async function toggleSponsor(sponsorId) {
     const sp = eventSponsors.find(s => s.id === sponsorId)
     if (menuSponsorIds.has(sponsorId)) {
@@ -375,8 +379,6 @@ export default function MenuPage() {
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
   const isApproved = menu.phase === 'approved'
   const currency = resolveCurrencySpec(series, event, menu)
-
-  const [itemColumns, setItemColumnOrder, setItemColumnWidth] = useTableColumns('menu_items_v1', DEFAULT_ITEM_COLUMNS)
 
   const tabs = [
     { key: 'items', label: 'Items' },
