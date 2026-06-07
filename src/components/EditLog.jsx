@@ -4,13 +4,15 @@ import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function EditLog({ menuId, onApproveAll, onChange }) {
-  const { isAdmin, isInternal } = useAuth()
+  const { session, isAdmin, isInternal } = useAuth()
+  const user = session?.user
   const canApprove = isAdmin || isInternal
 
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set())
   const [busyId, setBusyId] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -92,14 +94,43 @@ export default function EditLog({ menuId, onApproveAll, onChange }) {
     setLogs(prev => prev.map(l => l.id === logId ? { ...l, note: note || null } : l))
   }
 
+  async function archiveLog(logId) {
+    await supabase.from('edit_log').update({
+      archived_at: new Date().toISOString(),
+      archived_by: user?.id || null,
+    }).eq('id', logId)
+    await load()
+  }
+  async function unarchiveLog(logId) {
+    await supabase.from('edit_log').update({ archived_at: null, archived_by: null }).eq('id', logId)
+    await load()
+  }
+  async function deleteLog(logId) {
+    if (!confirm('Permanently delete this log entry? This cannot be undone.')) return
+    await supabase.from('edit_log').delete().eq('id', logId)
+    await load()
+  }
+  async function redactLog(logId) {
+    if (!confirm('Redact your own values from this log entry? The row stays but old/new values + note are blanked.')) return
+    await supabase.from('edit_log').update({
+      old_value: null, new_value: null, note: null,
+      redacted_at: new Date().toISOString(),
+      redacted_by: user?.id || null,
+    }).eq('id', logId)
+    await load()
+  }
+
   if (loading) return <div className="text-sm text-ink-400">Loading log…</div>
   if (logs.length === 0) return <div className="text-sm text-ink-400">No edits logged yet.</div>
 
-  // Group: pending / approved / rejected / other
-  const pending     = logs.filter(l => l.menu_item?.edit_status === 'pending_approval')
-  const approved    = logs.filter(l => l.menu_item?.edit_status === 'approved')
-  const rejected    = logs.filter(l => l.menu_item?.edit_status === 'rejected')
-  const historical  = logs.filter(l => !['pending_approval', 'approved', 'rejected'].includes(l.menu_item?.edit_status))
+  // Group: active by status, plus archived bucket. Archived rows never appear
+  // in the status buckets — they live in their own collapsible section.
+  const active      = logs.filter(l => !l.archived_at)
+  const archived    = logs.filter(l => l.archived_at)
+  const pending     = active.filter(l => l.menu_item?.edit_status === 'pending_approval')
+  const approved    = active.filter(l => l.menu_item?.edit_status === 'approved')
+  const rejected    = active.filter(l => l.menu_item?.edit_status === 'rejected')
+  const historical  = active.filter(l => !['pending_approval', 'approved', 'rejected'].includes(l.menu_item?.edit_status))
 
   function renderTable(rows, headingLabel, colorClass, extra = null) {
     if (rows.length === 0) return null
@@ -162,12 +193,38 @@ export default function EditLog({ menuId, onApproveAll, onChange }) {
                         {log.new_value || <span className="text-ink-300">—</span>}
                       </div>
                     </button>
-                    {isOpen && canApprove && (
+                    {log.redacted_at && (
+                      <div className="mt-1 text-[10px] text-ink-400 italic">redacted by author</div>
+                    )}
+                    {isOpen && canApprove && !log.redacted_at && (
                       <NoteEditor logId={log.id} initial={log.note || ''} onSave={(v) => saveNote(log.id, v)} />
                     )}
                     {!isOpen && log.note && (
                       <div className="mt-1 text-[11px] text-ink-500 italic truncate max-w-[260px]" title={log.note}>
                         📝 {log.note}
+                      </div>
+                    )}
+                    {isOpen && canApprove && (
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                        {!log.archived_at ? (
+                          <button onClick={() => archiveLog(log.id)} className="text-ink-500 hover:text-ink-700">
+                            Archive
+                          </button>
+                        ) : (
+                          <button onClick={() => unarchiveLog(log.id)} className="text-ink-500 hover:text-ink-700">
+                            Unarchive
+                          </button>
+                        )}
+                        {log.user_id === user?.id && !itemApproved && !log.redacted_at && (
+                          <button onClick={() => redactLog(log.id)} className="text-amber-700 hover:text-amber-900" title="Blank out your own old/new values + note">
+                            Redact mine
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button onClick={() => deleteLog(log.id)} className="text-red-600 hover:text-red-800">
+                            Delete
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
@@ -229,6 +286,21 @@ export default function EditLog({ menuId, onApproveAll, onChange }) {
       {renderTable(approved,   'Approved',         'bg-emerald-50 text-emerald-800')}
       {renderTable(rejected,   'Rejected',         'bg-red-50 text-red-800')}
       {renderTable(historical, 'History',          'bg-surface-100 text-ink-600')}
+      {archived.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowArchived(s => !s)}
+            className="text-[11px] text-ink-500 hover:text-ink-700 underline-offset-2 hover:underline"
+          >
+            {showArchived ? '▾ Hide' : '▸ Show'} archived ({archived.length})
+          </button>
+          {showArchived && (
+            <div className="mt-2">
+              {renderTable(archived, 'Archived', 'bg-surface-200 text-ink-500')}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

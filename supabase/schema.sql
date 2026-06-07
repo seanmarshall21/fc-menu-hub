@@ -119,6 +119,11 @@ create table if not exists edit_log (
   old_value       text,
   new_value       text,
   phase_at_edit   text,
+  note            text,                              -- reviewer note explaining the edit / approval / rejection
+  archived_at     timestamptz,                       -- soft-archive (anyone w/ log access can archive)
+  archived_by     uuid references auth.users(id),
+  redacted_at     timestamptz,                       -- author redaction (only if item not yet approved)
+  redacted_by     uuid references auth.users(id),
   created_at      timestamptz default now()
 );
 
@@ -207,6 +212,10 @@ create policy "internal_items_rw" on menu_items for all using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
 create policy "internal_read_log" on edit_log for select using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+-- Internal users can also update edit_log (to archive / add reviewer notes / redact own).
+create policy "internal_update_log" on edit_log for update using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
 
