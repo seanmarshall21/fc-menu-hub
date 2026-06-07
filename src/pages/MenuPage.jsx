@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import MenuItemRow from '@/components/MenuItemRow'
+import MenuItemCard from '@/components/MenuItemCard'
 import CsvImport from '@/components/CsvImport'
 import CsvExport from '@/components/CsvExport'
 import EditLog from '@/components/EditLog'
@@ -739,7 +740,7 @@ export default function MenuPage() {
           )}
 
           {canEdit && sectionGroups.length > 0 && (
-            <div className="flex items-center justify-end -mt-3 -mb-4">
+            <div className="hidden md:flex items-center justify-end -mt-3 -mb-4">
               <button
                 onClick={() => { if (confirm('Reset column order and widths to the default?')) resetItemColumns() }}
                 className="text-[11px] text-ink-400 hover:text-ink-700 underline-offset-2 hover:underline"
@@ -777,7 +778,50 @@ export default function MenuPage() {
                   </div>
                 )}
               </div>
-              <div className="card overflow-hidden">
+              {/* Mobile: stacked cards (tap to edit in modal) */}
+              <div className="md:hidden space-y-2">
+                {group.items.map(it => (
+                  <MenuItemCard
+                    key={it.id}
+                    item={it}
+                    menu={menu}
+                    canEdit={canEdit}
+                    currency={currency}
+                    sections={sectionNames}
+                    onUpdated={loadMenu}
+                  />
+                ))}
+                {canEdit && (
+                  addingToSection === group.key ? (
+                    <div className="card overflow-hidden">
+                      <table className="w-full text-sm">
+                        <tbody>
+                          <AddItemRow
+                            menuId={menu.id}
+                            sections={sectionNames}
+                            defaultSection={group.section || ''}
+                            nextSortOrder={sectionMaxSort + 1}
+                            onSaved={() => { setAddingToSection(null); loadMenu() }}
+                          />
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddingToSection(group.key)}
+                      className="w-full border border-dashed border-surface-300 rounded-lg px-3 py-2.5 text-xs text-brand-500 hover:text-brand-700 hover:border-brand-300 font-medium flex items-center justify-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add item to {group.section || 'this section'}
+                    </button>
+                  )
+                )}
+              </div>
+
+              {/* Desktop: full sortable/resizable table */}
+              <div className="hidden md:block card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="text-sm" style={{ tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
                     <ItemsTableHeader
