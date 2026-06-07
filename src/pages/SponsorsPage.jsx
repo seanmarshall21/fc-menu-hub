@@ -23,6 +23,8 @@ export default function SponsorsPage() {
   const [slug, setSlug]             = useState('')
   const [figmaLayer, setFigmaLayer] = useState('')
   const [svgUrl, setSvgUrl]         = useState('')
+  const [scale, setScale]           = useState(1)
+  const [maxWidth, setMaxWidth]     = useState('')
   const [uploading, setUploading]   = useState(false)
   const [saving, setSaving]         = useState(false)
   const [modalError, setModalError] = useState(null)
@@ -43,7 +45,7 @@ export default function SponsorsPage() {
   useEffect(() => { load() }, [])
 
   function openNew() {
-    setEditingId(null); setName(''); setSlug(''); setFigmaLayer(''); setSvgUrl('')
+    setEditingId(null); setName(''); setSlug(''); setFigmaLayer(''); setSvgUrl(''); setScale(1); setMaxWidth('')
     setModalError(null)
     setShowModal(true)
   }
@@ -54,6 +56,8 @@ export default function SponsorsPage() {
     setSlug(s.slug || '')
     setFigmaLayer(s.figma_layer_name || s.slug || '')
     setSvgUrl(s.svg_url || '')
+    setScale(s.scale ?? 1)
+    setMaxWidth(s.max_width != null ? String(s.max_width) : '')
     setModalError(null)
     setShowModal(true)
   }
@@ -95,6 +99,8 @@ export default function SponsorsPage() {
         slug: slug.trim(),
         figma_layer_name: figmaLayer.trim() || slug.trim(),
         svg_url: svgUrl || null,
+        scale: Number(scale) || 1,
+        max_width: maxWidth ? parseInt(maxWidth, 10) : null,
       }
       let result
       if (editingId) {
@@ -222,6 +228,35 @@ export default function SponsorsPage() {
                 )}
               </div>
               <p className="mt-1 text-[11px] text-ink-400">Use <code>currentColor</code> fills so the series tint can recolor the logo.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Size scale</label>
+                <input
+                  type="number"
+                  step="0.05"
+                  min="0.25"
+                  max="3"
+                  className="input"
+                  value={scale}
+                  onChange={e => setScale(e.target.value)}
+                />
+                <p className="mt-1 text-[11px] text-ink-400">Multiplier on the series sponsor height. <code>1.0</code> = match the rest; <code>1.3</code> = 30% taller.</p>
+              </div>
+              <div>
+                <label className="label">Max width <span className="text-ink-300 font-normal">(optional)</span></label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    className="input pr-9"
+                    value={maxWidth}
+                    onChange={e => setMaxWidth(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="auto"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-ink-400 pointer-events-none">px</span>
+                </div>
+                <p className="mt-1 text-[11px] text-ink-400">Cap an unusually wide logo. Width = auto by default (preserves aspect ratio).</p>
+              </div>
             </div>
             {modalError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{modalError}</p>

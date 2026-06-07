@@ -186,7 +186,7 @@ export default function MenuPage() {
           .from('event_sponsors')
           .select(`
             id, name, slug, logo_url, active, sort_order, tint_color_override,
-            sponsor:sponsors(id, name, slug, svg_url, figma_layer_name)
+            sponsor:sponsors(id, name, slug, svg_url, figma_layer_name, scale, max_width)
           `)
           .eq('event_id', eventData.id)
           .order('sort_order')
@@ -215,6 +215,8 @@ export default function MenuPage() {
             active: es.active !== false,
             logo_url: svg,
             tint_color: tint,
+            scale: lib?.scale ?? 1,
+            max_width: lib?.max_width ?? null,
           }
         })
         setEventSponsors(resolved)

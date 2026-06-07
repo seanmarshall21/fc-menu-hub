@@ -351,8 +351,12 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
 
 // ── Sponsor strip ────────────────────────────────────────────────────────────
 
-function SponsorLogo({ sponsor, fallbackColor }) {
-  const tint = sponsor.tint_color || fallbackColor
+function SponsorLogo({ sponsor, fallbackColor, baseMaxHeight = 100 }) {
+  const tint   = sponsor.tint_color || fallbackColor
+  const scale  = sponsor.scale ?? 1
+  const height = baseMaxHeight * scale
+  const maxW   = sponsor.max_width || undefined
+
   if (!sponsor.logo_url) {
     return (
       <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: tint }}>
@@ -362,13 +366,13 @@ function SponsorLogo({ sponsor, fallbackColor }) {
   }
   // Inline-fetch so currentColor SVGs can be tinted via parent color.
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 64, color: tint, opacity: 0.95 }}>
-      <InlineSvgFromUrl url={sponsor.logo_url} fallbackAlt={sponsor.name} maxHeight={64} />
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height, maxWidth: maxW, color: tint, opacity: 0.95 }}>
+      <InlineSvgFromUrl url={sponsor.logo_url} fallbackAlt={sponsor.name} maxHeight={height} maxWidth={maxW} />
     </span>
   )
 }
 
-function InlineSvgFromUrl({ url, maxHeight = 64, fallbackAlt = '' }) {
+function InlineSvgFromUrl({ url, maxHeight = 100, maxWidth, fallbackAlt = '' }) {
   const [markup, setMarkup] = useState(null)
   useEffect(() => {
     if (!url) return
@@ -377,22 +381,29 @@ function InlineSvgFromUrl({ url, maxHeight = 64, fallbackAlt = '' }) {
     return () => { aborted = true }
   }, [url])
   if (!url) return null
+  // Native width: 'auto' + height: N preserves aspect ratio. Optional max-width clamp.
   if (!markup) {
-    return <img src={url} alt={fallbackAlt} style={{ height: maxHeight, objectFit: 'contain' }} />
+    return (
+      <img
+        src={url}
+        alt={fallbackAlt}
+        style={{ height: maxHeight, width: 'auto', maxWidth, objectFit: 'contain' }}
+      />
+    )
   }
   return (
     <span
-      style={{ height: maxHeight, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ height: maxHeight, maxWidth, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
       dangerouslySetInnerHTML={{ __html: markup }}
     />
   )
 }
 
-function SponsorStrip({ sponsors, color }) {
+function SponsorStrip({ sponsors, color, maxHeight = 100, gap = 48 }) {
   if (!sponsors.length) return null
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 48 }}>
-      {sponsors.map(sp => <SponsorLogo key={sp.id} sponsor={sp} fallbackColor={color} />)}
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap }}>
+      {sponsors.map(sp => <SponsorLogo key={sp.id} sponsor={sp} fallbackColor={color} baseMaxHeight={maxHeight} />)}
     </div>
   )
 }
@@ -542,7 +553,12 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           {/* Sponsors */}
           {activeSponsors.length > 0 && (
             <div style={{ marginBottom: footerUrl || showDietKey || showTaxText || customFooter ? 60 : 0 }}>
-              <SponsorStrip sponsors={activeSponsors} color={colors.description} />
+              <SponsorStrip
+                sponsors={activeSponsors}
+                color={colors.description}
+                maxHeight={spec.sponsor_max_height ?? 100}
+                gap={spec.sponsor_gap ?? 48}
+              />
             </div>
           )}
 

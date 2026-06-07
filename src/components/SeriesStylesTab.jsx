@@ -444,6 +444,8 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
           <NumberField label="Dietary icon size" value={spec.dietary_icon_size} onChange={n => setSpec(p => ({ ...p, dietary_icon_size: n }))} suffix="px" disabled={readOnly} />
           <NumberField label="Logo max height"   value={spec.logo_max_height}   onChange={n => setSpec(p => ({ ...p, logo_max_height: n }))}   suffix="px" disabled={readOnly} />
+          <NumberField label="Sponsor max height" value={spec.sponsor_max_height ?? 100} onChange={n => setSpec(p => ({ ...p, sponsor_max_height: n }))} suffix="px" disabled={readOnly} />
+          <NumberField label="Sponsor gap"       value={spec.sponsor_gap ?? 48}        onChange={n => setSpec(p => ({ ...p, sponsor_gap: n }))}        suffix="px" disabled={readOnly} />
         </div>
       </section>
 
