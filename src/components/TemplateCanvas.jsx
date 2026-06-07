@@ -234,8 +234,10 @@ function ItemRow({ item, spec, fonts, colors, gapBlock, currency }) {
   const contentToPrice = gapBlock?.item_content_to_price ?? 40
   const priceStackGap  = gapBlock?.item_price_stack ?? titleToDesc
   const priceRowGap    = gapBlock?.item_price_row ?? 24
-  const sizePriceLayout = gapBlock?.item_size_price_layout || 'stacked'
-  const twoPricesLayout = gapBlock?.item_two_prices_layout || 'stacked'
+  // Alt layout is always single-line: size next to price, multiple prices in a row.
+  // Main layout follows the spec defaults so per-series tweaks still apply.
+  const sizePriceLayout = isAlt ? 'row' : (gapBlock?.item_size_price_layout || 'stacked')
+  const twoPricesLayout = isAlt ? 'row' : (gapBlock?.item_two_prices_layout || 'stacked')
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: contentToPrice, width: '100%' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
