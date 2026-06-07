@@ -266,7 +266,7 @@ export default function MenuPage() {
 
   // Column prefs need to be a top-level hook so the order/count is stable
   // across renders — must NOT live after the early returns below.
-  const [itemColumns, setItemColumnOrder, setItemColumnWidth] = useTableColumns('menu_items_v1', DEFAULT_ITEM_COLUMNS)
+  const [itemColumns, setItemColumnOrder, setItemColumnWidth, resetItemColumns] = useTableColumns('menu_items_v1', DEFAULT_ITEM_COLUMNS)
 
   async function toggleSponsor(sponsorId) {
     const sp = eventSponsors.find(s => s.id === sponsorId)
@@ -736,6 +736,18 @@ export default function MenuPage() {
           )}
           {sectionGroups.length === 0 && !canEdit && (
             <p className="text-sm text-ink-400">No items yet.</p>
+          )}
+
+          {canEdit && sectionGroups.length > 0 && (
+            <div className="flex items-center justify-end -mt-3 -mb-4">
+              <button
+                onClick={() => { if (confirm('Reset column order and widths to the default?')) resetItemColumns() }}
+                className="text-[11px] text-ink-400 hover:text-ink-700 underline-offset-2 hover:underline"
+                title="Discard your column reorder/resize and restore the default layout"
+              >
+                Reset columns
+              </button>
+            </div>
           )}
 
           {sectionGroups.map((group, groupIdx) => {

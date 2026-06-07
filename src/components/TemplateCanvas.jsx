@@ -274,7 +274,11 @@ function ItemRow({ item, spec, fonts, colors, gapBlock, currency }) {
 // ── Section block ────────────────────────────────────────────────────────────
 
 function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
-  const itemGap = gapBlock.item_gap
+  // 'auto' with a min becomes "distribute leftover space but never less
+  // than the min between items". flexbox gap = min, justify space-between
+  // pushes ends apart so extra space pads out past the gap.
+  const itemGap = gapBlock.item_gap === 'auto' ? (gapBlock.item_gap_min ?? 0) : gapBlock.item_gap
+  const itemAuto = gapBlock.item_gap === 'auto'
   const labelSpec = spec.section_label
   const linePos = labelSpec.line_position || 'below'
   const lineDir = labelSpec.line_direction || 'vertical'
@@ -340,8 +344,8 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
       {labelColumn}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
-        justifyContent: itemGap === 'auto' ? 'space-between' : 'flex-start',
-        gap: itemGap === 'auto' ? 0 : itemGap,
+        justifyContent: itemAuto ? 'space-between' : 'flex-start',
+        gap: itemGap,
       }}>
         {group.items.map(item => (
           <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
@@ -502,8 +506,19 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const padR = template?.padding_right  ?? 120
   const padB = template?.padding_bottom ?? 100
   const padL = template?.padding_left   ?? 120
-  const sectionsJustify = gapBlock.section_gap === 'auto' ? 'space-between' : 'flex-start'
-  const sectionsGapPx   = gapBlock.section_gap === 'auto' ? 0 : gapBlock.section_gap
+  // Section gap: optional 'Item gap × multiplier' mode overrides direct value.
+  // Otherwise auto + min works the same way as item gap (min = floor, extra space distributes).
+  const useMult = !!gapBlock.use_section_gap_multiplier
+  const resolvedItemGap = gapBlock.item_gap === 'auto' ? (gapBlock.item_gap_min ?? 0) : gapBlock.item_gap
+  const multSectionGap  = useMult && typeof gapBlock.section_gap_multiplier === 'number'
+    ? Math.round(resolvedItemGap * gapBlock.section_gap_multiplier)
+    : null
+  const sectionGapResolved = multSectionGap != null
+    ? multSectionGap
+    : (gapBlock.section_gap === 'auto' ? (gapBlock.section_gap_min ?? 0) : gapBlock.section_gap)
+  const sectionsAuto    = !useMult && gapBlock.section_gap === 'auto'
+  const sectionsJustify = sectionsAuto ? 'space-between' : 'flex-start'
+  const sectionsGapPx   = sectionGapResolved
 
   return (
     <div ref={containerRef} style={{ width: '100%' }}>

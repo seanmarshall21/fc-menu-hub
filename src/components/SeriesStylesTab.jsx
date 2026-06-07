@@ -430,10 +430,20 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
           <NumberField label="Logo → Title"        value={spec.gaps[activeSize].logo_to_title}                  onChange={n => setGapField(activeSize, 'logo_to_title', n)}             suffix="px" disabled={readOnly} />
           <NumberField label="Title → Items"       value={spec.gaps[activeSize].title_to_items}                 onChange={n => setGapField(activeSize, 'title_to_items', n)}            suffix="px" disabled={readOnly} />
           <NumberField label="Items → Footer"      value={spec.gaps[activeSize].items_to_footer}                onChange={n => setGapField(activeSize, 'items_to_footer', n)}           suffix="px" disabled={readOnly} />
-          <GapField    label="Section gap"         value={spec.gaps[activeSize].section_gap}                    onChange={v => setGapField(activeSize, 'section_gap', v)}               disabled={readOnly} />
-          <GapField    label="Item gap"            value={spec.gaps[activeSize].item_gap}                       onChange={v => setGapField(activeSize, 'item_gap', v)}                  disabled={readOnly} />
+          <GapField    label="Section gap"         value={spec.gaps[activeSize].section_gap}                    onChange={v => setGapField(activeSize, 'section_gap', v)}               disabled={readOnly || !!spec.gaps[activeSize].use_section_gap_multiplier}
+                       minValue={spec.gaps[activeSize].section_gap_min}                                onMinChange={n => setGapField(activeSize, 'section_gap_min', n)} />
+          <GapField    label="Item gap"            value={spec.gaps[activeSize].item_gap}                       onChange={v => setGapField(activeSize, 'item_gap', v)}                  disabled={readOnly}
+                       minValue={spec.gaps[activeSize].item_gap_min}                                   onMinChange={n => setGapField(activeSize, 'item_gap_min', n)} />
           <NumberField label="Item Title → Description" value={spec.gaps[activeSize].item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly} />
         </div>
+        <MultiplierToggle
+          enabled={!!spec.gaps[activeSize].use_section_gap_multiplier}
+          multiplier={spec.gaps[activeSize].section_gap_multiplier ?? 2}
+          itemGap={spec.gaps[activeSize].item_gap}
+          onToggle={(v) => setGapField(activeSize, 'use_section_gap_multiplier', v)}
+          onMultiplierChange={(n) => setGapField(activeSize, 'section_gap_multiplier', n)}
+          disabled={readOnly}
+        />
         <div className="pt-3 border-t border-surface-100">
           <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wider mb-2">Item Pricing</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -526,18 +536,62 @@ function SelectField({ label, value, onChange, options, disabled }) {
   )
 }
 
-function GapField({ label, value, onChange, disabled }) {
+function MultiplierToggle({ enabled, multiplier, itemGap, onToggle, onMultiplierChange, disabled }) {
+  const derived = (typeof itemGap === 'number' && typeof multiplier === 'number')
+    ? Math.round(itemGap * multiplier)
+    : null
+  return (
+    <div className="pt-2 -mt-1 flex items-center gap-3 flex-wrap text-[11px] text-ink-500">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          className="rounded"
+          checked={enabled}
+          onChange={e => onToggle(e.target.checked)}
+          disabled={disabled}
+        />
+        <span>Set Section gap as Item gap × multiplier</span>
+      </label>
+      {enabled && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-ink-400">×</span>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={multiplier}
+            onChange={e => onMultiplierChange(parseFloat(e.target.value) || 0)}
+            className="input input-sm w-16 font-mono text-[11px]"
+            disabled={disabled}
+          />
+          {derived != null && (
+            <span className="text-ink-400">→ Section gap = <span className="text-ink-700 font-mono">{derived}px</span></span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GapField({ label, value, onChange, disabled, minValue, onMinChange }) {
   const isAuto = value === 'auto'
+  const minAllowed = onMinChange != null
   return (
     <div>
       <label className="block text-[11px] font-medium text-ink-500 mb-1">{label}</label>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button type="button" onClick={() => onChange(isAuto ? 60 : 'auto')} disabled={disabled}
           className={`text-[10px] px-2 py-1 rounded font-medium ${isAuto ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-ink-500'}`}>auto</button>
-        {!isAuto && (
+        {!isAuto ? (
           <input type="number" className="input input-sm flex-1" value={value}
             onChange={e => onChange(parseInt(e.target.value, 10) || 0)} disabled={disabled} step={10} />
-        )}
+        ) : minAllowed ? (
+          <label className="flex items-center gap-1 flex-1">
+            <span className="text-[10px] text-ink-400 whitespace-nowrap">min</span>
+            <input type="number" className="input input-sm flex-1 pr-7" value={minValue ?? 0}
+              onChange={e => onMinChange(parseInt(e.target.value, 10) || 0)} disabled={disabled} step={5} min={0} />
+          </label>
+        ) : null}
       </div>
     </div>
   )

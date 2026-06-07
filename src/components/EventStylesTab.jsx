@@ -418,8 +418,10 @@ export default function EventStylesTab({ event, series, canEdit, onSaved }) {
                 <NumberField label="Logo → Title"        value={v.logo_to_title}                  onChange={n => setGapField(activeSize, 'logo_to_title', n)}                  suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
                 <NumberField label="Title → Items"       value={v.title_to_items}                 onChange={n => setGapField(activeSize, 'title_to_items', n)}                 suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
                 <NumberField label="Items → Footer"      value={v.items_to_footer}                onChange={n => setGapField(activeSize, 'items_to_footer', n)}                suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
-                <GapField    label="Section gap"         value={v.section_gap}                    onChange={x => setGapField(activeSize, 'section_gap', x)}                    disabled={readOnly || !overrideGap[activeSize]} />
-                <GapField    label="Item gap"            value={v.item_gap}                       onChange={x => setGapField(activeSize, 'item_gap',    x)}                    disabled={readOnly || !overrideGap[activeSize]} />
+                <GapField    label="Section gap"         value={v.section_gap}                    onChange={x => setGapField(activeSize, 'section_gap', x)}                    disabled={readOnly || !overrideGap[activeSize]}
+                             minValue={v.section_gap_min}                            onMinChange={n => setGapField(activeSize, 'section_gap_min', n)} />
+                <GapField    label="Item gap"            value={v.item_gap}                       onChange={x => setGapField(activeSize, 'item_gap',    x)}                    disabled={readOnly || !overrideGap[activeSize]}
+                             minValue={v.item_gap_min}                               onMinChange={n => setGapField(activeSize, 'item_gap_min', n)} />
                 <NumberField label="Item Title → Description" value={v.item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
               </>
             )
@@ -560,17 +562,23 @@ function SelectField({ label, value, onChange, options, disabled }) {
     </div>
   )
 }
-function GapField({ label, value, onChange, disabled }) {
+function GapField({ label, value, onChange, disabled, minValue, onMinChange }) {
   const isAuto = value === 'auto'
+  const minAllowed = onMinChange != null
   return (
     <div>
       <label className="block text-[11px] font-medium text-ink-500 mb-1">{label}</label>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button type="button" onClick={() => onChange(isAuto ? 60 : 'auto')} disabled={disabled}
           className={`text-[10px] px-2 py-1 rounded font-medium ${isAuto ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-ink-500'}`}>auto</button>
-        {!isAuto && (
+        {!isAuto ? (
           <input type="number" className="input input-sm flex-1" value={value} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} disabled={disabled} step={10} />
-        )}
+        ) : minAllowed ? (
+          <label className="flex items-center gap-1 flex-1">
+            <span className="text-[10px] text-ink-400 whitespace-nowrap">min</span>
+            <input type="number" className="input input-sm flex-1" value={minValue ?? 0} onChange={e => onMinChange(parseInt(e.target.value, 10) || 0)} disabled={disabled} step={5} min={0} />
+          </label>
+        ) : null}
       </div>
     </div>
   )
