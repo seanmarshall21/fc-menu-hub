@@ -239,7 +239,7 @@ function ItemRow({ item, spec, fonts, colors, gapBlock, currency }) {
   const sizePriceLayout = isAlt ? 'row' : (gapBlock?.item_size_price_layout || 'stacked')
   const twoPricesLayout = isAlt ? 'row' : (gapBlock?.item_two_prices_layout || 'stacked')
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: contentToPrice, width: '100%' }}>
+    <div data-item="1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: contentToPrice, width: '100%' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ ...roleStyle(spec.item_title, fonts), color: colors.title }}>{item.title}</span>
@@ -340,15 +340,15 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 36, alignItems: 'stretch' }}>
+    <div data-section="1" style={{ display: 'flex', gap: 36, alignItems: 'stretch' }}>
       {labelColumn}
-      <div style={{
+      <div data-items-col="1" style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: itemAuto ? 'space-between' : 'flex-start',
         gap: itemGap,
       }}>
         {group.items.map(item => (
-          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
+          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={effectiveGapBlock} currency={currency} />
         ))}
       </div>
     </div>
@@ -446,7 +446,9 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   template, series, event, size, menu, items, eventSponsors, menuSponsorIds, zoom = 1,
 }, innerRef) {
   const containerRef = useRef(null)
+  const padBoxRef    = useRef(null)
   const [fitScale, setFitScale] = useState(1)
+  const [measuredItemGap, setMeasuredItemGap] = useState(null)
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
   const scale = fitScale * (zoom || 1)
 
@@ -509,16 +511,70 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   // Section gap: optional 'Item gap × multiplier' mode overrides direct value.
   // Otherwise auto + min works the same way as item gap (min = floor, extra space distributes).
   const useMult = !!gapBlock.use_section_gap_multiplier
-  const resolvedItemGap = gapBlock.item_gap === 'auto' ? (gapBlock.item_gap_min ?? 0) : gapBlock.item_gap
-  const multSectionGap  = useMult && typeof gapBlock.section_gap_multiplier === 'number'
-    ? Math.round(resolvedItemGap * gapBlock.section_gap_multiplier)
-    : null
+  const multiplier = typeof gapBlock.section_gap_multiplier === 'number' ? gapBlock.section_gap_multiplier : 2
+  const itemAutoMode = gapBlock.item_gap === 'auto'
+  // When multiplier mode is on AND item gap is auto, we can't let flexbox distribute
+  // item gap independently — we need a fixed numeric item gap so section gap = N×.
+  // measuredItemGap is computed in the layout effect below from real content heights.
+  const effectiveItemGap = (useMult && itemAutoMode && measuredItemGap != null)
+    ? measuredItemGap
+    : (itemAutoMode ? (gapBlock.item_gap_min ?? 0) : gapBlock.item_gap)
+  const effectiveGapBlock = useMult && itemAutoMode && measuredItemGap != null
+    ? { ...gapBlock, item_gap: effectiveItemGap }
+    : gapBlock
+  const multSectionGap = useMult ? Math.round(effectiveItemGap * multiplier) : null
   const sectionGapResolved = multSectionGap != null
     ? multSectionGap
     : (gapBlock.section_gap === 'auto' ? (gapBlock.section_gap_min ?? 0) : gapBlock.section_gap)
   const sectionsAuto    = !useMult && gapBlock.section_gap === 'auto'
   const sectionsJustify = sectionsAuto ? 'space-between' : 'flex-start'
   const sectionsGapPx   = sectionGapResolved
+
+  // Measure to compute item gap when multiplier mode is on with auto item gap.
+  // Per column: avail = column.clientHeight - sum(natural section content heights).
+  // Solve: avail = itemGaps*g + sectionGaps*g*mult  →  g = avail / (itemGaps + sectionGaps*mult).
+  // Take the smaller across columns (so neither overflows). Floor at item_gap_min.
+  useEffect(() => {
+    if (!(useMult && itemAutoMode)) { setMeasuredItemGap(null); return }
+    const min = gapBlock.item_gap_min ?? 0
+    const compute = () => {
+      const wrap = padBoxRef.current
+      if (!wrap) return
+      const cols = wrap.querySelectorAll('[data-sections-column="1"]')
+      if (!cols.length) return
+      let best = Infinity
+      cols.forEach(col => {
+        const sections = col.querySelectorAll('[data-section="1"]')
+        if (!sections.length) return
+        let contentH = 0
+        let itemGaps = 0
+        sections.forEach(sec => {
+          // Sum gap-independent natural heights: label column (if any) + each item row.
+          Array.from(sec.children).forEach(child => {
+            if (child.matches('[data-items-col="1"]')) {
+              child.querySelectorAll('[data-item="1"]').forEach(it => { contentH += it.offsetHeight })
+            } else {
+              contentH += child.offsetHeight
+            }
+          })
+          const itemCount = sec.querySelectorAll('[data-item="1"]').length
+          itemGaps += Math.max(0, itemCount - 1)
+        })
+        const sectionGaps = Math.max(0, sections.length - 1)
+        const denom = itemGaps + sectionGaps * multiplier
+        if (denom <= 0) return
+        const avail = col.clientHeight - contentH
+        const g = Math.max(min, Math.floor(avail / denom))
+        if (g < best) best = g
+      })
+      if (!isFinite(best)) best = min
+      setMeasuredItemGap(prev => (prev === best ? prev : best))
+    }
+    compute()
+    const ro = new ResizeObserver(compute)
+    if (padBoxRef.current) ro.observe(padBoxRef.current)
+    return () => ro.disconnect()
+  }, [useMult, itemAutoMode, multiplier, gapBlock.item_gap_min, sectionGroups.length, template?.columns, fitScale])
 
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
@@ -535,7 +591,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
         transform: `scale(${scale})`, transformOrigin: 'top left',
         ...backgroundStyle, overflow: 'hidden',
       }}>
-        <div style={{
+        <div ref={padBoxRef} style={{
           position: 'absolute',
           top: padT, right: padR, bottom: padB, left: padL,
           display: 'flex', flexDirection: 'column',
@@ -564,21 +620,21 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
               {[0, 1].map(colIdx => {
                 const colGroups = sectionGroups.filter((_, i) => i % 2 === colIdx)
                 return (
-                  <div key={colIdx} style={{
+                  <div key={colIdx} data-sections-column="1" style={{
                     flex: 1, display: 'flex', flexDirection: 'column',
                     justifyContent: sectionsJustify,
                     gap: sectionsGapPx,
                     minHeight: 0,
                   }}>
                     {colGroups.map(group => (
-                      <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
+                      <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={effectiveGapBlock} currency={currency} />
                     ))}
                   </div>
                 )
               })}
             </div>
           ) : (
-            <div style={{
+            <div data-sections-column="1" style={{
               flex: 1,
               display: 'flex', flexDirection: 'column',
               justifyContent: sectionsJustify,
@@ -586,7 +642,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
               minHeight: 0,
             }}>
               {sectionGroups.map(group => (
-                <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
+                <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={effectiveGapBlock} currency={currency} />
               ))}
             </div>
           )}
