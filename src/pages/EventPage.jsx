@@ -781,11 +781,15 @@ export default function EventPage() {
       below={(
         <div className="flex items-center gap-0 overflow-x-auto">
           {[
-            { id: 'menus', label: `Menus (${menus.length})` },
-            { id: 'preview', label: 'Preview all' },
-            { id: 'sponsors', label: `Sponsors (${sponsors.length})` },
-            { id: 'templates', label: 'Templates' },
-            { id: 'styles', label: 'Styles' },
+            { id: 'menus',     label: `Menus (${menus.length})` },
+            { id: 'preview',   label: 'Preview all' },
+            { id: 'sponsors',  label: `Sponsors (${sponsors.length})` },
+            // Templates + Styles are the design system / brand setup —
+            // editors only need menus + previews. Hide unless admin.
+            ...(isAdmin ? [
+              { id: 'templates', label: 'Templates' },
+              { id: 'styles',    label: 'Styles' },
+            ] : []),
             { id: 'signoff', label: 'Sign-off' },
           ].map(t => (
             <button
@@ -999,8 +1003,8 @@ export default function EventPage() {
         />
       )}
 
-      {/* ── TEMPLATES TAB ── */}
-      {tab === 'templates' && (
+      {/* ── TEMPLATES TAB ── admin only (matches the tab-bar gate above) */}
+      {tab === 'templates' && isAdmin && (
         <TemplatesTab
           event={event}
           templates={templates}
@@ -1011,8 +1015,8 @@ export default function EventPage() {
         />
       )}
 
-      {/* ── STYLES TAB ── */}
-      {tab === 'styles' && (
+      {/* ── STYLES TAB ── admin only */}
+      {tab === 'styles' && isAdmin && (
         <EventStylesTab
           event={event}
           series={series}

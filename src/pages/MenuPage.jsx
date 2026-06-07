@@ -448,7 +448,7 @@ export default function MenuPage() {
     { key: 'preview', label: 'Preview' },
     ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
-    ...((isAdmin || isInternal) ? [{ key: 'styles', label: 'Styles' }] : []),
+    ...(isAdmin ? [{ key: 'styles', label: 'Styles' }] : []),
     { key: 'signoff', label: 'Sign-off' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
@@ -1025,7 +1025,7 @@ export default function MenuPage() {
         <ApproversPanel targetType="menu" targetId={menu.id} title="Menu sign-off" />
       )}
 
-      {tab === 'styles' && (isAdmin || isInternal) && (
+      {tab === 'styles' && isAdmin && (
         <MenuStylesTab
           menu={menu}
           event={event}
