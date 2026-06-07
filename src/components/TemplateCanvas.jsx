@@ -348,7 +348,7 @@ function SectionBlock({ group, spec, fonts, colors, gapBlock, currency }) {
         gap: itemGap,
       }}>
         {group.items.map(item => (
-          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={effectiveGapBlock} currency={currency} />
+          <ItemRow key={item.id} item={item} spec={spec} fonts={fonts} colors={colors} gapBlock={gapBlock} currency={currency} />
         ))}
       </div>
     </div>
@@ -495,14 +495,6 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const showTaxText = menu?.footer_show_tax_text !== false
   const customFooter = menu?.footer_custom_text
 
-  if (activeItems.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-16 text-sm text-ink-400 italic">
-        No active items — set items to "active" status to preview them here.
-      </div>
-    )
-  }
-
   // Padding: 100px default (overridable per-template — kept for backwards compat)
   const padT = template?.padding_top    ?? 140
   const padR = template?.padding_right  ?? 120
@@ -534,6 +526,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   // Per column: avail = column.clientHeight - sum(natural section content heights).
   // Solve: avail = itemGaps*g + sectionGaps*g*mult  →  g = avail / (itemGaps + sectionGaps*mult).
   // Take the smaller across columns (so neither overflows). Floor at item_gap_min.
+  // Hook must run on every render (no early return above it).
   useEffect(() => {
     if (!(useMult && itemAutoMode)) { setMeasuredItemGap(null); return }
     const min = gapBlock.item_gap_min ?? 0
@@ -575,6 +568,14 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
     if (padBoxRef.current) ro.observe(padBoxRef.current)
     return () => ro.disconnect()
   }, [useMult, itemAutoMode, multiplier, gapBlock.item_gap_min, sectionGroups.length, template?.columns, fitScale])
+
+  if (activeItems.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-ink-400 italic">
+        No active items — set items to "active" status to preview them here.
+      </div>
+    )
+  }
 
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
