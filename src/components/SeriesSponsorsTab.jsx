@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
+import SortableList, { DragHandle } from '@/components/SortableList'
 
 export default function SeriesSponsorsTab({ series, canEdit }) {
   const [linked, setLinked] = useState([])      // series_sponsors rows joined with sponsor
@@ -43,22 +44,15 @@ export default function SeriesSponsorsTab({ series, canEdit }) {
     setSavingId(null)
   }
 
-  async function moveRow(rowId, direction) {
-    const idx = linked.findIndex(l => l.id === rowId)
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (swapIdx < 0 || swapIdx >= linked.length) return
-    const a = linked[idx]
-    const b = linked[swapIdx]
-    setSavingId(rowId)
-    const next = [...linked]
-    next[idx] = b
-    next[swapIdx] = a
-    setLinked(next.map((row, i) => ({ ...row, sort_order: i })))
-    await Promise.all([
-      supabase.from('series_sponsors').update({ sort_order: swapIdx }).eq('id', a.id),
-      supabase.from('series_sponsors').update({ sort_order: idx }).eq('id', b.id),
-    ])
-    setSavingId(null)
+  async function persistOrder(nextLinked) {
+    // Optimistic UI: reorder locally first, then persist.
+    const numbered = nextLinked.map((row, i) => ({ ...row, sort_order: i }))
+    setLinked(numbered)
+    // Issue all updates in parallel; ignore individual failures here — the
+    // reload at the bottom would catch any drift but we keep it light for now.
+    await Promise.all(numbered.map(row =>
+      supabase.from('series_sponsors').update({ sort_order: row.sort_order }).eq('id', row.id)
+    ))
   }
 
   async function removeRow(rowId) {
@@ -121,20 +115,23 @@ export default function SeriesSponsorsTab({ series, canEdit }) {
         </div>
       ) : (
         <div className="card divide-y divide-surface-100 overflow-hidden">
-          {linked.map((row, i) => (
-            <SponsorRow
-              key={row.id}
-              row={row}
-              canEdit={canEdit}
-              saving={savingId === row.id}
-              isFirst={i === 0}
-              isLast={i === linked.length - 1}
-              onTintChange={color => setTint(row.id, color)}
-              onMoveUp={() => moveRow(row.id, 'up')}
-              onMoveDown={() => moveRow(row.id, 'down')}
-              onRemove={() => removeRow(row.id)}
-            />
-          ))}
+          <SortableList
+            items={linked}
+            getId={row => row.id}
+            disabled={!canEdit}
+            onReorder={persistOrder}
+          >
+            {(row, { handleListeners }) => (
+              <SponsorRow
+                row={row}
+                canEdit={canEdit}
+                saving={savingId === row.id}
+                handleListeners={handleListeners}
+                onTintChange={color => setTint(row.id, color)}
+                onRemove={() => removeRow(row.id)}
+              />
+            )}
+          </SortableList>
         </div>
       )}
 
@@ -150,11 +147,12 @@ export default function SeriesSponsorsTab({ series, canEdit }) {
   )
 }
 
-function SponsorRow({ row, canEdit, saving, isFirst, isLast, onTintChange, onMoveUp, onMoveDown, onRemove }) {
+function SponsorRow({ row, canEdit, saving, handleListeners, onTintChange, onRemove }) {
   const sp = row.sponsor
   const tint = row.tint_color || ''
   return (
-    <div className="flex items-center gap-3 p-3 sm:p-4">
+    <div className="flex items-center gap-3 p-3 sm:p-4 bg-white">
+      {canEdit && <DragHandle listeners={handleListeners} />}
       <div
         className="w-12 h-12 rounded-lg border border-surface-200 bg-surface-50 flex items-center justify-center overflow-hidden flex-shrink-0"
         style={{ color: tint || '#1a1a1a' }}
@@ -186,14 +184,6 @@ function SponsorRow({ row, canEdit, saving, isFirst, isLast, onTintChange, onMov
               disabled={saving}
             />
           </label>
-          <div className="flex flex-col flex-shrink-0">
-            <button onClick={onMoveUp}   disabled={isFirst || saving} className="text-ink-400 hover:text-ink-700 p-0.5 disabled:opacity-30 disabled:cursor-default" aria-label="Move up">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
-            </button>
-            <button onClick={onMoveDown} disabled={isLast  || saving} className="text-ink-400 hover:text-ink-700 p-0.5 disabled:opacity-30 disabled:cursor-default" aria-label="Move down">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-          </div>
           <button
             onClick={onRemove}
             disabled={saving}

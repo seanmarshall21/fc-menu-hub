@@ -15,7 +15,11 @@ const LAYOUT_OPTIONS = [
   { value: 'alt',  label: 'Alt — title and price only' },
 ]
 
-export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast, currency }) {
+export default function MenuItemRow({
+  item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast, currency,
+  // Optional drag-and-drop hooks supplied by a SortableContext parent
+  dragRef, dragStyle, dragAttributes, dragListeners, isDragging,
+}) {
   const { profile } = useAuth()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ ...item })
@@ -114,10 +118,32 @@ export default function MenuItemRow({ item, menu, canEdit, onUpdated, sections, 
 
   if (!editing) {
     return (
-      <tr className={`table-row-hover ${pendingFlag ? 'bg-red-50' : ''}`}>
+      <tr
+        ref={dragRef}
+        style={dragStyle}
+        {...dragAttributes}
+        className={`table-row-hover ${pendingFlag ? 'bg-red-50' : ''} ${isDragging ? 'opacity-50' : ''}`}
+      >
         <td className="px-4 py-3 min-w-[140px]">
           <div className="flex items-start gap-1.5">
-            {canEdit && (
+            {canEdit && dragListeners && (
+              <button
+                {...dragListeners}
+                type="button"
+                className="text-ink-300 hover:text-ink-700 touch-none cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 -ml-1"
+                aria-label="Drag to reorder"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <circle cx="5"  cy="4"  r="1.2" />
+                  <circle cx="11" cy="4"  r="1.2" />
+                  <circle cx="5"  cy="8"  r="1.2" />
+                  <circle cx="11" cy="8"  r="1.2" />
+                  <circle cx="5"  cy="12" r="1.2" />
+                  <circle cx="11" cy="12" r="1.2" />
+                </svg>
+              </button>
+            )}
+            {canEdit && !dragListeners && (
               <div className="flex flex-col flex-shrink-0 mt-0.5 -ml-1">
                 <button
                   onClick={onMoveUp} disabled={isFirst}

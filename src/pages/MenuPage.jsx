@@ -20,6 +20,15 @@ import { resolveCurrencySpec } from '@/lib/formatPrice'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { downloadMenuCsv } from '@/lib/downloadMenuCsv'
 import MenuStylesTab from '@/components/MenuStylesTab'
+import {
+  DndContext, PointerSensor, TouchSensor, KeyboardSensor,
+  closestCenter, useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, arrayMove, useSortable, verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
@@ -280,6 +289,26 @@ export default function MenuPage() {
     ;[reordered[flatA], reordered[flatB]] = [reordered[flatB], reordered[flatA]]
     await Promise.all(
       reordered.map((it, i) => supabase.from('menu_items').update({ sort_order: i }).eq('id', it.id))
+    )
+    loadMenu()
+  }
+
+  // ── Replace a section's items with a new ordering (used by drag-and-drop) ──
+  async function reorderItemsInSection(sectionName, newSectionItems) {
+    // Rebuild the full flat items list keeping items outside the section in their original positions
+    // and substituting the reordered section items.
+    const newItems = []
+    let sectionIdx = 0
+    for (const it of items) {
+      if (it.section === sectionName) {
+        newItems.push(newSectionItems[sectionIdx++])
+      } else {
+        newItems.push(it)
+      }
+    }
+    setItems(newItems) // optimistic UI
+    await Promise.all(
+      newItems.map((it, i) => supabase.from('menu_items').update({ sort_order: i }).eq('id', it.id))
     )
     loadMenu()
   }
@@ -688,22 +717,16 @@ export default function MenuPage() {
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-ink-400">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-surface-100">
-                      {group.items.map((item, itemIdx) => (
-                        <MenuItemRow
-                          key={item.id}
-                          item={item}
-                          menu={menu}
-                          canEdit={canEdit}
-                          onUpdated={loadMenu}
-                          sections={sectionNames}
-                          currency={currency}
-                          isFirst={itemIdx === 0}
-                          isLast={itemIdx === group.items.length - 1}
-                          onMoveUp={() => moveItemInSection(item.id, group.items, 'up')}
-                          onMoveDown={() => moveItemInSection(item.id, group.items, 'down')}
-                        />
-                      ))}
+                    <SectionTbody
+                      group={group}
+                      menu={menu}
+                      canEdit={canEdit}
+                      currency={currency}
+                      sectionNames={sectionNames}
+                      loadMenu={loadMenu}
+                      onReorderSection={reorderItemsInSection}
+                    >
+                      {/* The Add-item row stays in normal tbody render flow */}
                       {canEdit && addingToSection === group.key && (
                         <AddItemRow
                           menuId={menu.id}
@@ -713,7 +736,7 @@ export default function MenuPage() {
                           onSaved={() => { setAddingToSection(null); loadMenu() }}
                         />
                       )}
-                    </tbody>
+                    </SectionTbody>
                   </table>
                 </div>
                 {canEdit && addingToSection !== group.key && (
@@ -1071,6 +1094,67 @@ export default function MenuPage() {
         </Modal>
       )}
     </PageScreen>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drag-and-drop reorder for a single section's items. Lives inside <table>
+// rendering a real <tbody>, so the dnd-kit hooks attach directly to <tr>s.
+
+function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, children }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const ids = group.items.map(i => i.id)
+  function handleEnd({ active, over }) {
+    if (!over || active.id === over.id) return
+    const fromIdx = ids.indexOf(active.id)
+    const toIdx   = ids.indexOf(over.id)
+    if (fromIdx === -1 || toIdx === -1) return
+    onReorderSection(group.section, arrayMove(group.items, fromIdx, toIdx))
+  }
+
+  return (
+    <tbody className="divide-y divide-surface-100">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEnd}>
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {group.items.map(item => (
+            <SortableItemTr
+              key={item.id}
+              item={item}
+              menu={menu}
+              canEdit={canEdit}
+              currency={currency}
+              sectionNames={sectionNames}
+              loadMenu={loadMenu}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+      {children}
+    </tbody>
+  )
+}
+
+function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+  return (
+    <MenuItemRow
+      item={item}
+      menu={menu}
+      canEdit={canEdit}
+      currency={currency}
+      sections={sectionNames}
+      onUpdated={loadMenu}
+      dragRef={setNodeRef}
+      dragStyle={style}
+      dragAttributes={attributes}
+      dragListeners={listeners}
+      isDragging={isDragging}
+    />
   )
 }
 
