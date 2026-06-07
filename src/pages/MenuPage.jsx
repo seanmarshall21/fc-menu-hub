@@ -977,7 +977,7 @@ export default function MenuPage() {
           menu={menu}
           event={event}
           series={series}
-          canEdit={canEdit}
+          canEdit={isAdmin && menu.phase !== 'approved'}
           onSaved={loadMenu}
         />
       )}

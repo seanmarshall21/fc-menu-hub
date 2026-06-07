@@ -114,18 +114,20 @@ export default function MenuStylesTab({ menu, event, series, canEdit, onSaved })
   const [headerLogoUrl, setHeaderLogoUrl] = useState(menu.header_logo_url ?? inheritedHeader)
   const [footerUrl,     setFooterUrl]     = useState(menu.footer_url     ?? inheritedFooter)
   const [icons,         setIcons]         = useState(menuSpec.dietary_icons ?? inheritedSpec.dietary_icons)
+  // Seed override values from menu's saved override first (so previously-saved
+  // values render correctly on revisit), falling back to the inherited base.
   const [roleSpecs,     setRoleSpecs]     = useState(() => {
     const out = {}
-    for (const r of ROLES) out[r.key] = { ...inheritedSpec[r.key], ...(eventSpec[r.key] || {}) }
+    for (const r of ROLES) out[r.key] = menuSpec[r.key] ?? { ...inheritedSpec[r.key], ...(eventSpec[r.key] || {}) }
     return out
   })
   const [gapSpecs,      setGapSpecs]      = useState(() => ({
-    sm: { ...inheritedSpec.gaps.sm, ...(eventSpec.gaps?.sm || {}) },
-    md: { ...inheritedSpec.gaps.md, ...(eventSpec.gaps?.md || {}) },
-    lg: { ...inheritedSpec.gaps.lg, ...(eventSpec.gaps?.lg || {}) },
+    sm: menuSpec.gaps?.sm ?? { ...inheritedSpec.gaps.sm, ...(eventSpec.gaps?.sm || {}) },
+    md: menuSpec.gaps?.md ?? { ...inheritedSpec.gaps.md, ...(eventSpec.gaps?.md || {}) },
+    lg: menuSpec.gaps?.lg ?? { ...inheritedSpec.gaps.lg, ...(eventSpec.gaps?.lg || {}) },
   }))
-  const [iconSize,      setIconSize]      = useState(eventSpec.dietary_icon_size ?? inheritedSpec.dietary_icon_size)
-  const [logoH,         setLogoH]         = useState(eventSpec.logo_max_height   ?? inheritedSpec.logo_max_height)
+  const [iconSize,      setIconSize]      = useState(menuSpec.dietary_icon_size ?? eventSpec.dietary_icon_size ?? inheritedSpec.dietary_icon_size)
+  const [logoH,         setLogoH]         = useState(menuSpec.logo_max_height   ?? eventSpec.logo_max_height   ?? inheritedSpec.logo_max_height)
 
   const [activeSize, setActiveSize] = useState('md')
   const [saving, setSaving]   = useState(false)
@@ -134,7 +136,10 @@ export default function MenuStylesTab({ menu, event, series, canEdit, onSaved })
   const [uploadBusy, setUploadBusy] = useState(null)
 
   useEffect(() => {
-    // reset when menu changes
+    // Reset every piece of state when the active menu changes — both the
+    // override toggles AND the override *values*. Without resetting the values
+    // we'd carry the previous menu's state, or worse, overwrite the new menu's
+    // saved values on the next save.
     setOverrideFonts(Array.isArray(menu.fonts))
     setOverrideHeader(menu.header_logo_url != null)
     setOverrideFooter(menu.footer_url != null)
@@ -146,7 +151,23 @@ export default function MenuStylesTab({ menu, event, series, canEdit, onSaved })
     setOverrideIcons(ms.dietary_icons != null)
     setOverrideIconSize(ms.dietary_icon_size != null)
     setOverrideLogoH(ms.logo_max_height != null)
-  }, [menu.id])
+
+    // Values: prefer menu override, then event, then series-inherited.
+    setFonts(Array.isArray(menu.fonts) && menu.fonts.length ? menu.fonts : inheritedFonts)
+    setHeaderLogoUrl(menu.header_logo_url ?? inheritedHeader)
+    setFooterUrl(menu.footer_url ?? inheritedFooter)
+    setIcons(ms.dietary_icons ?? inheritedSpec.dietary_icons)
+    const nextRoles = {}
+    for (const r of ROLES) nextRoles[r.key] = ms[r.key] ?? { ...inheritedSpec[r.key], ...(eventSpec[r.key] || {}) }
+    setRoleSpecs(nextRoles)
+    setGapSpecs({
+      sm: ms.gaps?.sm ?? { ...inheritedSpec.gaps.sm, ...(eventSpec.gaps?.sm || {}) },
+      md: ms.gaps?.md ?? { ...inheritedSpec.gaps.md, ...(eventSpec.gaps?.md || {}) },
+      lg: ms.gaps?.lg ?? { ...inheritedSpec.gaps.lg, ...(eventSpec.gaps?.lg || {}) },
+    })
+    setIconSize(ms.dietary_icon_size ?? eventSpec.dietary_icon_size ?? inheritedSpec.dietary_icon_size)
+    setLogoH(ms.logo_max_height ?? eventSpec.logo_max_height ?? inheritedSpec.logo_max_height)
+  }, [menu.id, menu.updated_at])
 
   const fontKeys = (overrideFonts ? fonts : inheritedFonts).filter(f => f.key).map(f => f.key)
 
