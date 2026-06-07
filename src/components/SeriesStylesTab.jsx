@@ -427,19 +427,22 @@ export default function SeriesStylesTab({ series, canEdit, onSaved }) {
           ))}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <NumberField label="Logo → Title"   value={spec.gaps[activeSize].logo_to_title}   onChange={n => setGapField(activeSize, 'logo_to_title', n)}   suffix="px" disabled={readOnly} />
-          <NumberField label="Title → Items"  value={spec.gaps[activeSize].title_to_items}  onChange={n => setGapField(activeSize, 'title_to_items', n)}  suffix="px" disabled={readOnly} />
-          <NumberField label="Items → Footer" value={spec.gaps[activeSize].items_to_footer} onChange={n => setGapField(activeSize, 'items_to_footer', n)} suffix="px" disabled={readOnly} />
-          <GapField label="Section gap" value={spec.gaps[activeSize].section_gap} onChange={v => setGapField(activeSize, 'section_gap', v)} disabled={readOnly} />
-          <GapField label="Item gap"    value={spec.gaps[activeSize].item_gap}    onChange={v => setGapField(activeSize, 'item_gap', v)}    disabled={readOnly} />
+          <NumberField label="Logo → Title"        value={spec.gaps[activeSize].logo_to_title}                  onChange={n => setGapField(activeSize, 'logo_to_title', n)}             suffix="px" disabled={readOnly} />
+          <NumberField label="Title → Items"       value={spec.gaps[activeSize].title_to_items}                 onChange={n => setGapField(activeSize, 'title_to_items', n)}            suffix="px" disabled={readOnly} />
+          <NumberField label="Items → Footer"      value={spec.gaps[activeSize].items_to_footer}                onChange={n => setGapField(activeSize, 'items_to_footer', n)}           suffix="px" disabled={readOnly} />
+          <GapField    label="Section gap"         value={spec.gaps[activeSize].section_gap}                    onChange={v => setGapField(activeSize, 'section_gap', v)}               disabled={readOnly} />
+          <GapField    label="Item gap"            value={spec.gaps[activeSize].item_gap}                       onChange={v => setGapField(activeSize, 'item_gap', v)}                  disabled={readOnly} />
+          <NumberField label="Item Title → Description" value={spec.gaps[activeSize].item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly} />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
-          <NumberField label="Title → Description" value={spec.gaps[activeSize].item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly} />
-          <NumberField label="Content → Price"     value={spec.gaps[activeSize].item_content_to_price ?? 40} onChange={n => setGapField(activeSize, 'item_content_to_price', n)} suffix="px" disabled={readOnly} />
-          <NumberField label="Stacked price gap"   value={spec.gaps[activeSize].item_price_stack ?? 12} onChange={n => setGapField(activeSize, 'item_price_stack', n)} suffix="px" disabled={readOnly} />
-          <NumberField label="Row price gap"       value={spec.gaps[activeSize].item_price_row ?? 24} onChange={n => setGapField(activeSize, 'item_price_row', n)} suffix="px" disabled={readOnly} />
-          <SelectField label="Size & Price"      value={spec.gaps[activeSize].item_size_price_layout || 'stacked'} onChange={v => setGapField(activeSize, 'item_size_price_layout', v)} options={['stacked', 'row']} disabled={readOnly} />
-          <SelectField label="Two-price layout"  value={spec.gaps[activeSize].item_two_prices_layout || 'stacked'} onChange={v => setGapField(activeSize, 'item_two_prices_layout', v)} options={['stacked', 'row']} disabled={readOnly} />
+        <div className="pt-3 border-t border-surface-100">
+          <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wider mb-2">Item Pricing</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <NumberField label="Content → Price"    value={spec.gaps[activeSize].item_content_to_price ?? 40} onChange={n => setGapField(activeSize, 'item_content_to_price', n)} suffix="px" disabled={readOnly} />
+            <NumberField label="Stacked price gap"  value={spec.gaps[activeSize].item_price_stack ?? 12}      onChange={n => setGapField(activeSize, 'item_price_stack', n)}     suffix="px" disabled={readOnly} />
+            <NumberField label="Row price gap"      value={spec.gaps[activeSize].item_price_row ?? 24}        onChange={n => setGapField(activeSize, 'item_price_row', n)}       suffix="px" disabled={readOnly} />
+            <SelectField label="Size & Price"       value={spec.gaps[activeSize].item_size_price_layout || 'stacked'} onChange={v => setGapField(activeSize, 'item_size_price_layout', v)} options={['stacked', 'row']} disabled={readOnly} />
+            <SelectField label="Two-price layout"   value={spec.gaps[activeSize].item_two_prices_layout || 'stacked'} onChange={v => setGapField(activeSize, 'item_two_prices_layout', v)} options={['stacked', 'row']} disabled={readOnly} />
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-surface-100">
           <NumberField label="Dietary icon size" value={spec.dietary_icon_size} onChange={n => setSpec(p => ({ ...p, dietary_icon_size: n }))} suffix="px" disabled={readOnly} />

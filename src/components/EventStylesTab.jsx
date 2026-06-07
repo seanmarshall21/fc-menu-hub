@@ -415,11 +415,12 @@ export default function EventStylesTab({ event, series, canEdit, onSaved }) {
             const v = overrideGap[activeSize] ? gapSpecs[activeSize] : seriesSpec.gaps[activeSize]
             return (
               <>
-                <NumberField label="Logo → Title"   value={v.logo_to_title}   onChange={n => setGapField(activeSize, 'logo_to_title', n)}   suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
-                <NumberField label="Title → Items"  value={v.title_to_items}  onChange={n => setGapField(activeSize, 'title_to_items', n)}  suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
-                <NumberField label="Items → Footer" value={v.items_to_footer} onChange={n => setGapField(activeSize, 'items_to_footer', n)} suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
-                <GapField    label="Section gap"    value={v.section_gap}     onChange={x => setGapField(activeSize, 'section_gap', x)}     disabled={readOnly || !overrideGap[activeSize]} />
-                <GapField    label="Item gap"       value={v.item_gap}        onChange={x => setGapField(activeSize, 'item_gap',    x)}     disabled={readOnly || !overrideGap[activeSize]} />
+                <NumberField label="Logo → Title"        value={v.logo_to_title}                  onChange={n => setGapField(activeSize, 'logo_to_title', n)}                  suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
+                <NumberField label="Title → Items"       value={v.title_to_items}                 onChange={n => setGapField(activeSize, 'title_to_items', n)}                 suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
+                <NumberField label="Items → Footer"      value={v.items_to_footer}                onChange={n => setGapField(activeSize, 'items_to_footer', n)}                suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
+                <GapField    label="Section gap"         value={v.section_gap}                    onChange={x => setGapField(activeSize, 'section_gap', x)}                    disabled={readOnly || !overrideGap[activeSize]} />
+                <GapField    label="Item gap"            value={v.item_gap}                       onChange={x => setGapField(activeSize, 'item_gap',    x)}                    disabled={readOnly || !overrideGap[activeSize]} />
+                <NumberField label="Item Title → Description" value={v.item_title_to_description ?? 12} onChange={n => setGapField(activeSize, 'item_title_to_description', n)} suffix="px" disabled={readOnly || !overrideGap[activeSize]} />
               </>
             )
           })()}
