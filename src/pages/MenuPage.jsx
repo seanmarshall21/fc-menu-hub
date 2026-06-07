@@ -21,6 +21,8 @@ import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { downloadMenuCsv } from '@/lib/downloadMenuCsv'
 import MenuStylesTab from '@/components/MenuStylesTab'
 import ItemsTableHeader from '@/components/ItemsTableHeader'
+import SegmentedToggle from '@/components/SegmentedToggle'
+import SortableList, { DragHandle } from '@/components/SortableList'
 import { DEFAULT_ITEM_COLUMNS } from '@/components/MenuItemRow'
 import { useTableColumns } from '@/hooks/useTableColumns'
 import {
@@ -137,6 +139,7 @@ export default function MenuPage() {
   const [items, setItems]   = useState([])
   const [eventSponsors, setEventSponsors] = useState([])
   const [menuSponsorIds, setMenuSponsorIds] = useState(new Set())
+  const [menuSponsorRows, setMenuSponsorRows] = useState([])  // full menu_sponsors records w/ sort_order
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
@@ -233,12 +236,14 @@ export default function MenuPage() {
         })
         setEventSponsors(resolved)
 
-        // Which event sponsors are toggled onto this menu
+        // Which event sponsors are toggled onto this menu (include sort_order)
         const { data: msponsors } = await supabase
           .from('menu_sponsors')
-          .select('event_sponsor_id')
+          .select('id, event_sponsor_id, sort_order')
           .eq('menu_id', menuData.id)
           .not('event_sponsor_id', 'is', null)
+          .order('sort_order')
+        setMenuSponsorRows(msponsors || [])
         setMenuSponsorIds(new Set((msponsors || []).map(s => s.event_sponsor_id)))
 
         // Event templates (background + style config per size)
@@ -270,16 +275,48 @@ export default function MenuPage() {
         .eq('menu_id', menu.id)
         .eq('event_sponsor_id', sponsorId)
       setMenuSponsorIds(prev => { const next = new Set(prev); next.delete(sponsorId); return next })
+      setMenuSponsorRows(prev => prev.filter(r => r.event_sponsor_id !== sponsorId))
     } else {
+      const sortOrder = menuSponsorRows.length
       await supabase.from('menu_sponsors').insert({
         menu_id: menu.id,
         event_sponsor_id: sponsorId,
         name: sp?.name || '',
         slug: sp?.slug || '',
         active: true,
+        sort_order: sortOrder,
       })
       setMenuSponsorIds(prev => new Set([...prev, sponsorId]))
+      loadMenu() // refetch so we have the new menu_sponsors record with its id
     }
+  }
+
+  async function toggleMenuOverrideOrder(next) {
+    if (next === !!menu.override_sponsor_order) return
+    await supabase.from('menus').update({ override_sponsor_order: next }).eq('id', menu.id)
+    if (!next) {
+      // Resync menu_sponsors.sort_order to match the event's order
+      const eventOrderIndex = new Map(eventSponsors.map((es, i) => [es.id, i]))
+      const updates = menuSponsorRows.map(row => ({
+        id: row.id,
+        sort_order: eventOrderIndex.get(row.event_sponsor_id) ?? 9999,
+      }))
+      await Promise.all(updates.map(u =>
+        supabase.from('menu_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
+      ))
+    }
+    loadMenu()
+  }
+
+  async function reorderMenuSponsors(newRows) {
+    const updates = newRows.map((row, i) => ({ id: row.menuRowId, sort_order: i }))
+    setMenuSponsorRows(prev => prev.map(r => {
+      const u = updates.find(x => x.id === r.id)
+      return u ? { ...r, sort_order: u.sort_order } : r
+    }))
+    await Promise.all(updates.map(u =>
+      supabase.from('menu_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
+    ))
   }
 
   // ── Item reorder within its section group ──
@@ -379,6 +416,22 @@ export default function MenuPage() {
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
   const isApproved = menu.phase === 'approved'
   const currency = resolveCurrencySpec(series, event, menu)
+
+  // Sponsor order shown in preview/export. When menu.override_sponsor_order is
+  // true, active sponsors are placed first in menu_sponsors.sort_order; when
+  // false, the event order (already in eventSponsors) is preserved.
+  const previewSponsors = (() => {
+    if (!menu.override_sponsor_order) return eventSponsors
+    const orderById = new Map(menuSponsorRows.map(r => [r.event_sponsor_id, r.sort_order]))
+    return [...eventSponsors].sort((a, b) => {
+      const aActive = menuSponsorIds.has(a.id)
+      const bActive = menuSponsorIds.has(b.id)
+      if (aActive && !bActive) return -1
+      if (!aActive && bActive) return 1
+      if (aActive && bActive) return (orderById.get(a.id) ?? 0) - (orderById.get(b.id) ?? 0)
+      return 0
+    })
+  })()
 
   const tabs = [
     { key: 'items', label: 'Items' },
@@ -869,7 +922,7 @@ export default function MenuPage() {
                   size={activeSize}
                   menu={menu}
                   items={items}
-                  eventSponsors={eventSponsors}
+                  eventSponsors={previewSponsors}
                   menuSponsorIds={menuSponsorIds}
                 />
               </div>
@@ -882,7 +935,7 @@ export default function MenuPage() {
                 <MenuPreview
                   menu={menu}
                   items={items}
-                  eventSponsors={eventSponsors}
+                  eventSponsors={previewSponsors}
                   menuSponsorIds={menuSponsorIds}
                 />
               </div>
@@ -919,40 +972,16 @@ export default function MenuPage() {
 
       {/* Sponsors tab */}
       {tab === 'sponsors' && (
-        <div className="card p-6">
-          <h2 className="text-sm font-semibold text-ink-900 mb-1">Sponsors</h2>
-          <p className="text-xs text-ink-400 mb-4">Toggle which sponsors from this event's pool appear on this menu.</p>
-          {eventSponsors.length === 0 ? (
-            <p className="text-sm text-ink-400">No sponsors configured for this event yet. Add them on the Event page.</p>
-          ) : (
-            <div className="space-y-1">
-              {eventSponsors.map(sp => {
-                const active = menuSponsorIds.has(sp.id)
-                return (
-                  <div key={sp.id} className="flex items-center gap-3 py-2.5 border-b border-surface-100 last:border-0">
-                    {canEdit ? (
-                      <button
-                        onClick={() => toggleSponsor(sp.id)}
-                        className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 relative ${active ? 'bg-brand-500' : 'bg-surface-300'}`}
-                        title={active ? 'Remove from menu' : 'Add to menu'}
-                      >
-                        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${active ? 'left-4' : 'left-0.5'}`} />
-                      </button>
-                    ) : (
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? 'bg-emerald-400' : 'bg-surface-300'}`} />
-                    )}
-                    {sp.logo_url && (
-                      <img src={sp.logo_url} alt={sp.name} className="w-6 h-6 object-contain rounded" />
-                    )}
-                    <span className="text-sm font-medium text-ink-900">{sp.name}</span>
-                    <span className="text-xs text-ink-400 font-mono">sponsor--{sp.slug}</span>
-                    {!active && <span className="text-xs text-ink-400 ml-auto">not on menu</span>}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <MenuSponsorsPanel
+          eventSponsors={eventSponsors}
+          menuSponsorIds={menuSponsorIds}
+          menuSponsorRows={menuSponsorRows}
+          menuOverrideOrder={!!menu.override_sponsor_order}
+          canEdit={canEdit}
+          onToggle={toggleSponsor}
+          onToggleOverride={toggleMenuOverrideOrder}
+          onReorder={reorderMenuSponsors}
+        />
       )}
 
       {/* Figma preview tab */}
@@ -1003,7 +1032,7 @@ export default function MenuPage() {
                   size={activeSize}
                   menu={menu}
                   items={items}
-                  eventSponsors={eventSponsors}
+                  eventSponsors={previewSponsors}
                   menuSponsorIds={menuSponsorIds}
                   zoom={previewZoom}
                 />
@@ -1162,6 +1191,116 @@ function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu,
       dragListeners={listeners}
       isDragging={isDragging}
     />
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Menu sponsors picker — toggles which event sponsors appear on this menu.
+// Supports inherit/override of the parent event's sponsor order, with
+// drag-and-drop reordering when override is on.
+
+const SPONSOR_ORDER_OPTS = [
+  { value: 'inherit',  label: 'Inherit from event' },
+  { value: 'override', label: 'Override order' },
+]
+
+function MenuSponsorsPanel({
+  eventSponsors, menuSponsorIds, menuSponsorRows, menuOverrideOrder,
+  canEdit, onToggle, onToggleOverride, onReorder,
+}) {
+  // Map event_sponsor_id → menu_sponsors row so we can grab row IDs for the reorder
+  const menuRowByEsId = new Map(menuSponsorRows.map(r => [r.event_sponsor_id, r]))
+
+  if (eventSponsors.length === 0) {
+    return (
+      <div className="card p-6">
+        <h2 className="text-sm font-semibold text-ink-900 mb-1">Sponsors</h2>
+        <p className="text-sm text-ink-400">No sponsors configured for this event yet. Add them on the Event page.</p>
+      </div>
+    )
+  }
+
+  // Split active vs inactive
+  const activeEventSponsors  = eventSponsors.filter(es => menuSponsorIds.has(es.id))
+  const inactiveEventSponsors = eventSponsors.filter(es => !menuSponsorIds.has(es.id))
+
+  // When override is on, sort active by menu_sponsors.sort_order
+  const sortedActive = menuOverrideOrder
+    ? [...activeEventSponsors].sort((a, b) => {
+        const aOrder = menuRowByEsId.get(a.id)?.sort_order ?? 0
+        const bOrder = menuRowByEsId.get(b.id)?.sort_order ?? 0
+        return aOrder - bOrder
+      })
+    : activeEventSponsors
+
+  const activeRows = sortedActive
+    .map(es => ({ id: es.id, es, menuRowId: menuRowByEsId.get(es.id)?.id }))
+    .filter(r => r.menuRowId) // skip rows we haven't refetched yet
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-4 py-3 border-b border-surface-100 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-ink-900">Sponsors</h2>
+          <p className="text-xs text-ink-400 mt-0.5">Toggle which event sponsors appear on this menu.</p>
+        </div>
+        {canEdit && activeRows.length > 0 && (
+          <SegmentedToggle
+            value={menuOverrideOrder ? 'override' : 'inherit'}
+            options={SPONSOR_ORDER_OPTS}
+            onChange={v => onToggleOverride(v === 'override')}
+          />
+        )}
+      </div>
+
+      <ul className="divide-y divide-surface-100">
+        {menuOverrideOrder && canEdit && activeRows.length > 0 ? (
+          <SortableList items={activeRows} getId={r => r.id} onReorder={onReorder}>
+            {(row, { handleListeners }) => (
+              <MenuSponsorRow
+                sp={row.es}
+                active
+                canEdit={canEdit}
+                onToggle={onToggle}
+                handleListeners={handleListeners}
+              />
+            )}
+          </SortableList>
+        ) : (
+          activeRows.map(row => (
+            <MenuSponsorRow key={row.id} sp={row.es} active canEdit={canEdit} onToggle={onToggle} />
+          ))
+        )}
+        {inactiveEventSponsors.map(es => (
+          <MenuSponsorRow key={es.id} sp={es} active={false} canEdit={canEdit} onToggle={onToggle} />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function MenuSponsorRow({ sp, active, canEdit, onToggle, handleListeners }) {
+  return (
+    <li className={`px-4 py-2.5 flex items-center gap-3 bg-white ${!active ? 'opacity-60' : ''}`}>
+      {handleListeners && canEdit && active && <DragHandle listeners={handleListeners} />}
+      {canEdit ? (
+        <button
+          onClick={() => onToggle(sp.id)}
+          className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 relative ${active ? 'bg-brand-500' : 'bg-surface-300'}`}
+          title={active ? 'Remove from menu' : 'Add to menu'}
+        >
+          <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${active ? 'left-4' : 'left-0.5'}`} />
+        </button>
+      ) : (
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? 'bg-emerald-400' : 'bg-surface-300'}`} />
+      )}
+      {sp.logo_url && (
+        <img src={sp.logo_url} alt={sp.name} className="w-6 h-6 object-contain rounded" />
+      )}
+      <span className="text-sm font-medium text-ink-900">{sp.name}</span>
+      <span className="text-xs text-ink-400 font-mono">sponsor--{sp.slug}</span>
+      {!active && <span className="text-xs text-ink-400 ml-auto">not on menu</span>}
+    </li>
   )
 }
 
