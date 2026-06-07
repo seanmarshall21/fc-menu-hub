@@ -2,9 +2,19 @@ import { useState, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 
-// CSV column map — matches the Master Menu Template format
+// CSV column map — matches the Master Menu Template format and the Google
+// Sheets script vocabulary. Accepts both legacy ("added") and canonical
+// ("active") status text, plus "pending approval" → draft (drafts in the
+// app don't sync to Figma, mirroring how the Sheet treats Pending).
+function mapStatus(raw) {
+  const s = (raw || '').toString().trim().toLowerCase()
+  if (s === 'active' || s === 'added')        return 'active'
+  if (s === 'not added' || s === 'not_added') return 'not_added'
+  // Pending Approval, Draft, blank, anything unknown → draft (won't sync)
+  return 'draft'
+}
+
 function parseRow(row) {
-  const status = (row['Status'] || '').toLowerCase()
   return {
     section:     (row['Section'] || '').trim(),
     title:       (row['Title'] || '').trim(),
@@ -17,20 +27,24 @@ function parseRow(row) {
     price1:      (row['Price'] || '').trim() || null,
     size2:       (row['Size 2'] || '').trim() || null,
     price2:      (row['Price 2'] || '').trim() || null,
-    status:      status === 'added' ? 'active' : status === 'not added' ? 'not_added' : 'draft',
+    status:      mapStatus(row['Status']),
     notes:       (row['Notes'] || '').trim() || null,
   }
 }
 
+// Order matches the Google Sheets script (Code.gs) and the exporter so a
+// CSV downloaded from the app drops into the Master sheet without column
+// reshuffling. The importer reads by header name so legacy CSVs with
+// different orders still parse correctly.
 const CSV_TEMPLATE_HEADERS = [
-  'Section', 'Title', 'Description', 'VT', 'VE', 'GF',
+  'Section', 'Title', 'VT', 'VE', 'GF', 'Description',
   '2 Sizes', 'Size', 'Price', 'Size 2', 'Price 2', 'Status', 'Notes',
 ]
 const CSV_TEMPLATE_EXAMPLE = [
-  ['SIGNATURES', 'Waterfront Mule', 'Vodka, ginger beer, lime, mint', 'FALSE', 'FALSE', 'FALSE', 'FALSE', 'REGULAR', '14', '', '', 'added', ''],
-  ['SIGNATURES', 'Bay Breeze Spritz', 'Aperol, prosecco, blood orange', 'FALSE', 'TRUE', 'FALSE', 'FALSE', 'REGULAR', '15', '', '', 'added', ''],
-  ['SELTZERS & BEER', 'White Claw Variety', 'Assorted flavors', 'FALSE', 'TRUE', 'TRUE', 'FALSE', 'REGULAR', '8', '', '', 'added', ''],
-  ['SELTZERS & BEER', 'Modelo Especial', 'Mexican lager', 'FALSE', 'FALSE', 'FALSE', 'TRUE', 'REGULAR', '9', 'LARGE', '12', 'added', ''],
+  ['SIGNATURES',     'Waterfront Mule',    'FALSE', 'FALSE', 'FALSE', 'Vodka, ginger beer, lime, mint',  'FALSE', 'REGULAR', '14', '',      '',   'Active', ''],
+  ['SIGNATURES',     'Bay Breeze Spritz',  'FALSE', 'TRUE',  'FALSE', 'Aperol, prosecco, blood orange',  'FALSE', 'REGULAR', '15', '',      '',   'Active', ''],
+  ['SELTZERS & BEER','White Claw Variety', 'FALSE', 'TRUE',  'TRUE',  'Assorted flavors',                'FALSE', 'REGULAR', '8',  '',      '',   'Active', ''],
+  ['SELTZERS & BEER','Modelo Especial',    'FALSE', 'FALSE', 'FALSE', 'Mexican lager',                   'TRUE',  'REGULAR', '9',  'LARGE', '12', 'Active', ''],
 ]
 
 function downloadCsvTemplate() {

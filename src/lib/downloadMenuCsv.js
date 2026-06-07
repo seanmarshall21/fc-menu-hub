@@ -18,6 +18,10 @@ function defaultFormatPrice(raw) {
 export function downloadMenuCsv(menu, items, { useCurrency = true } = {}) {
   if (!menu || !Array.isArray(items)) return false
 
+  // Column order + status vocabulary match the Google Sheets script
+  // (sheets-script/Code.gs) and the CSV import template. Three sources,
+  // one shape. Sheet order is canonical because reshuffling an existing
+  // Master sheet's columns is destructive — we conform CSV to Sheet.
   const rows = items.map(item => ({
     Section:     item.section,
     Title:       item.title,
@@ -30,7 +34,9 @@ export function downloadMenuCsv(menu, items, { useCurrency = true } = {}) {
     Price:       useCurrency ? defaultFormatPrice(item.price1) : (item.price1 || ''),
     'Size 2':    item.size2 || '',
     'Price 2':   useCurrency ? defaultFormatPrice(item.price2) : (item.price2 || ''),
-    Status:      item.status === 'active' ? 'Added' : item.status === 'not_added' ? 'Not Added' : 'Draft',
+    Status:      item.status === 'active' ? 'Active'
+                 : item.status === 'not_added' ? 'Not Added'
+                 : 'Draft',
     Notes:       item.notes || '',
   }))
 
