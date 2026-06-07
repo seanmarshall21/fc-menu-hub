@@ -166,14 +166,27 @@ export default function MenuItemRow({
             </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-ink-500 max-w-xs">
+        <td className="px-4 py-3 text-ink-500 align-top" style={{ maxWidth: 260, width: 260 }}>
           {item.layout === 'main' ? (
             item.description ? (
               <button
                 type="button"
                 onClick={() => setDescExpanded(v => !v)}
-                className={`text-left w-full ${descExpanded ? '' : 'line-clamp-2'}`}
-                title={descExpanded ? 'Collapse' : 'Tap to expand'}
+                title={descExpanded ? 'Tap to collapse' : 'Tap to expand'}
+                style={
+                  descExpanded
+                    ? { textAlign: 'left', width: '100%', cursor: 'pointer' }
+                    : {
+                        textAlign: 'left',
+                        width: '100%',
+                        cursor: 'pointer',
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 2,
+                        overflow: 'hidden',
+                        whiteSpace: 'normal',
+                      }
+                }
               >
                 {item.description}
               </button>
