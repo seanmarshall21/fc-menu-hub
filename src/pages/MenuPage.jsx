@@ -147,6 +147,15 @@ export default function MenuPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('items')
+  // Escape always closes the lightbox — safety net in case the close button
+  // ever gets covered. Switching tabs also closes it so you can't get stuck.
+  useEffect(() => {
+    if (!lightboxOpen) return
+    function onKey(e) { if (e.key === 'Escape') setLightboxOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightboxOpen])
+  useEffect(() => { setLightboxOpen(false) }, [tab])
   const [showImport, setShowImport] = useState(false)
   const [addingToSection, setAddingToSection] = useState(null) // section name | '__new__' | null
   const [exporting, setExporting] = useState(false)
@@ -1059,8 +1068,11 @@ export default function MenuPage() {
         const activeSize = previewSize || menu.size || 'lg'
         const template = templates[activeSize]
         return (
-          <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-            <div className="flex items-center justify-between px-4 py-3 text-white">
+          <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            {/* Header sits above the scroller in its own stacking context so
+                it can't be covered by the zoomed canvas; flex-shrink-0 keeps
+                it visible when the scroller fights for space. */}
+            <div className="relative z-10 flex-shrink-0 flex items-center justify-between px-4 py-3 text-white bg-black/90">
               <div className="text-sm font-semibold">{menu.name} <span className="text-white/60 font-normal">— {activeSize.toUpperCase()}</span></div>
               <div className="flex items-center gap-2">
                 <div className="inline-flex items-center rounded-md bg-white/10 backdrop-blur-sm overflow-hidden">
@@ -1079,7 +1091,12 @@ export default function MenuPage() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+            {/* min-h-0 + min-w-0 are mandatory on flex children that need to
+                clip via overflow — without them flex items default to
+                min-{width,height}: auto and grow with their content, which
+                here would push the lightbox wider/taller than the viewport
+                and shove the close button out of reach. */}
+            <div className="flex-1 min-h-0 min-w-0 overflow-auto p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
               <div className="bg-surface-50 rounded-lg" style={{ width: 'max-content', minWidth: '100%' }}>
                 <TemplateCanvas
                   template={template}
