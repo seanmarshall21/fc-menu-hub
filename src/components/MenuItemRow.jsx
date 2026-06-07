@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatPrice } from '@/lib/formatPrice'
@@ -15,8 +15,19 @@ const LAYOUT_OPTIONS = [
   { value: 'alt',  label: 'Alt — title and price only' },
 ]
 
+// Default column registry for the menu items table. MenuPage may pass a
+// reordered/resized subset via the `columns` prop.
+export const DEFAULT_ITEM_COLUMNS = [
+  { id: 'item',        label: 'Item',        defaultWidth: 220, minWidth: 140, frozen: true },
+  { id: 'description', label: 'Description', defaultWidth: 280, minWidth: 100 },
+  { id: 'diet',        label: 'Diet',        defaultWidth: 90,  minWidth: 60  },
+  { id: 'sizeprice',   label: 'Size / Price',defaultWidth: 180, minWidth: 100 },
+  { id: 'status',      label: 'Status',      defaultWidth: 160, minWidth: 110 },
+]
+
 export default function MenuItemRow({
   item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast, currency,
+  columns = DEFAULT_ITEM_COLUMNS,
   // Optional drag-and-drop hooks supplied by a SortableContext parent
   dragRef, dragStyle, dragAttributes, dragListeners, isDragging,
 }) {
@@ -116,6 +127,119 @@ export default function MenuItemRow({
 
   const pendingFlag = item.edit_status === 'pending_approval'
 
+  function cellByColumnId(colId, isFrozen) {
+    const baseStyle = isFrozen
+      ? { position: 'sticky', left: 0, background: pendingFlag ? '#fef2f2' : 'white', zIndex: 1 }
+      : undefined
+    switch (colId) {
+      case 'item':
+        return (
+          <td className="px-4 py-3" style={baseStyle}>
+            <div className="flex items-start gap-1.5">
+              {canEdit && dragListeners && (
+                <button
+                  {...dragListeners}
+                  type="button"
+                  className="text-ink-300 hover:text-ink-700 touch-none cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 -ml-1"
+                  aria-label="Drag to reorder"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <circle cx="5"  cy="4"  r="1.2" /><circle cx="11" cy="4"  r="1.2" />
+                    <circle cx="5"  cy="8"  r="1.2" /><circle cx="11" cy="8"  r="1.2" />
+                    <circle cx="5"  cy="12" r="1.2" /><circle cx="11" cy="12" r="1.2" />
+                  </svg>
+                </button>
+              )}
+              {canEdit && !dragListeners && (
+                <div className="flex flex-col flex-shrink-0 mt-0.5 -ml-1">
+                  <button onClick={onMoveUp} disabled={isFirst} className="text-ink-200 hover:text-brand-400 disabled:opacity-0 leading-none py-0.5 px-1 text-[10px]" title="Move up">▲</button>
+                  <button onClick={onMoveDown} disabled={isLast} className="text-ink-200 hover:text-brand-400 disabled:opacity-0 leading-none py-0.5 px-1 text-[10px]" title="Move down">▼</button>
+                </div>
+              )}
+              {pendingFlag && <span className="mt-0.5 w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Pending approval" />}
+              <div>
+                <span className="font-medium text-ink-900">{item.title}</span>
+                {item.layout === 'alt' && <span className="ml-1.5 text-xs text-ink-300 font-normal">alt</span>}
+              </div>
+            </div>
+          </td>
+        )
+      case 'description':
+        return (
+          <td className="px-4 py-3 text-ink-500 align-top" style={baseStyle}>
+            {item.layout === 'main' ? (
+              item.description ? (
+                <button
+                  type="button"
+                  onClick={() => setDescExpanded(v => !v)}
+                  title={descExpanded ? 'Tap to collapse' : 'Tap to expand'}
+                  style={
+                    descExpanded
+                      ? { textAlign: 'left', width: '100%', cursor: 'pointer' }
+                      : {
+                          textAlign: 'left', width: '100%', cursor: 'pointer',
+                          display: '-webkit-box', WebkitBoxOrient: 'vertical',
+                          WebkitLineClamp: 2, overflow: 'hidden', whiteSpace: 'normal',
+                        }
+                  }
+                >
+                  {item.description}
+                </button>
+              ) : '—'
+            ) : <span className="text-ink-300 italic text-xs">alt layout</span>}
+          </td>
+        )
+      case 'diet':
+        return (
+          <td className="px-4 py-3 text-center whitespace-nowrap" style={baseStyle}>
+            {item.layout === 'main' && (
+              <span className="text-xs text-ink-400 space-x-1">
+                {item.vt && <span className="bg-emerald-100 text-emerald-700 rounded px-1">VT</span>}
+                {item.ve && <span className="bg-emerald-100 text-emerald-700 rounded px-1">VE</span>}
+                {item.gf && <span className="bg-amber-100 text-amber-700 rounded px-1">GF</span>}
+              </span>
+            )}
+          </td>
+        )
+      case 'sizeprice':
+        return (
+          <td className="px-4 py-3 text-ink-700 text-xs whitespace-nowrap" style={baseStyle}>
+            {item.two_sizes ? (
+              <span>{item.size1} <b>{formatPrice(item.price1, currency)}</b> / {item.size2} <b>{formatPrice(item.price2, currency)}</b></span>
+            ) : (
+              <span>{item.size1} <b>{formatPrice(item.price1, currency)}</b></span>
+            )}
+          </td>
+        )
+      case 'status':
+        return (
+          <td className="px-4 py-3 whitespace-nowrap" style={baseStyle}>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CLASSES[item.status] || ''}`}>
+                {STATUS_LABELS[item.status] || item.status}
+              </span>
+              {canEdit && (
+                <>
+                  {pendingFlag && (
+                    <button onClick={approveItem} disabled={saving} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium" title="Approve this edit">
+                      {saving ? '…' : '✓'}
+                    </button>
+                  )}
+                  <button onClick={() => { setForm({ ...item }); setEditing(true) }} className="w-7 h-7 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-brand-600 hover:bg-brand-50" title="Edit item" aria-label="Edit item">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+          </td>
+        )
+      default:
+        return null
+    }
+  }
+
   if (!editing) {
     return (
       <tr
@@ -124,129 +248,18 @@ export default function MenuItemRow({
         {...dragAttributes}
         className={`table-row-hover ${pendingFlag ? 'bg-red-50' : ''} ${isDragging ? 'opacity-50' : ''}`}
       >
-        <td className="px-4 py-3 min-w-[140px]">
-          <div className="flex items-start gap-1.5">
-            {canEdit && dragListeners && (
-              <button
-                {...dragListeners}
-                type="button"
-                className="text-ink-300 hover:text-ink-700 touch-none cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 -ml-1"
-                aria-label="Drag to reorder"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <circle cx="5"  cy="4"  r="1.2" />
-                  <circle cx="11" cy="4"  r="1.2" />
-                  <circle cx="5"  cy="8"  r="1.2" />
-                  <circle cx="11" cy="8"  r="1.2" />
-                  <circle cx="5"  cy="12" r="1.2" />
-                  <circle cx="11" cy="12" r="1.2" />
-                </svg>
-              </button>
-            )}
-            {canEdit && !dragListeners && (
-              <div className="flex flex-col flex-shrink-0 mt-0.5 -ml-1">
-                <button
-                  onClick={onMoveUp} disabled={isFirst}
-                  className="text-ink-200 hover:text-brand-400 disabled:opacity-0 disabled:cursor-default leading-none py-0.5 px-1 text-[10px]"
-                  title="Move up"
-                >▲</button>
-                <button
-                  onClick={onMoveDown} disabled={isLast}
-                  className="text-ink-200 hover:text-brand-400 disabled:opacity-0 disabled:cursor-default leading-none py-0.5 px-1 text-[10px]"
-                  title="Move down"
-                >▼</button>
-              </div>
-            )}
-            {pendingFlag && <span className="mt-0.5 w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Pending approval" />}
-            <div>
-              <span className="font-medium text-ink-900">{item.title}</span>
-              {item.layout === 'alt' && (
-                <span className="ml-1.5 text-xs text-ink-300 font-normal">alt</span>
-              )}
-            </div>
-          </div>
-        </td>
-        <td className="px-4 py-3 text-ink-500 align-top" style={{ maxWidth: 260, width: 260 }}>
-          {item.layout === 'main' ? (
-            item.description ? (
-              <button
-                type="button"
-                onClick={() => setDescExpanded(v => !v)}
-                title={descExpanded ? 'Tap to collapse' : 'Tap to expand'}
-                style={
-                  descExpanded
-                    ? { textAlign: 'left', width: '100%', cursor: 'pointer' }
-                    : {
-                        textAlign: 'left',
-                        width: '100%',
-                        cursor: 'pointer',
-                        display: '-webkit-box',
-                        WebkitBoxOrient: 'vertical',
-                        WebkitLineClamp: 2,
-                        overflow: 'hidden',
-                        whiteSpace: 'normal',
-                      }
-                }
-              >
-                {item.description}
-              </button>
-            ) : '—'
-          ) : <span className="text-ink-300 italic text-xs">alt layout</span>}
-        </td>
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          {item.layout === 'main' && (
-            <span className="text-xs text-ink-400 space-x-1">
-              {item.vt && <span className="bg-emerald-100 text-emerald-700 rounded px-1">VT</span>}
-              {item.ve && <span className="bg-emerald-100 text-emerald-700 rounded px-1">VE</span>}
-              {item.gf && <span className="bg-amber-100 text-amber-700 rounded px-1">GF</span>}
-            </span>
-          )}
-        </td>
-        <td className="px-4 py-3 text-ink-700 text-xs whitespace-nowrap">
-          {item.two_sizes ? (
-            <span>{item.size1} <b>{formatPrice(item.price1, currency)}</b> / {item.size2} <b>{formatPrice(item.price2, currency)}</b></span>
-          ) : (
-            <span>{item.size1} <b>{formatPrice(item.price1, currency)}</b></span>
-          )}
-        </td>
-        <td className="px-4 py-3 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CLASSES[item.status] || ''}`}>
-              {STATUS_LABELS[item.status] || item.status}
-            </span>
-            {canEdit && (
-              <>
-                {pendingFlag && (
-                  <button
-                    onClick={approveItem}
-                    disabled={saving}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-                    title="Approve this edit"
-                  >
-                    {saving ? '…' : '✓'}
-                  </button>
-                )}
-                <button
-                  onClick={() => { setForm({ ...item }); setEditing(true) }}
-                  className="w-7 h-7 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-brand-600 hover:bg-brand-50"
-                  title="Edit item"
-                  aria-label="Edit item"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-              </>
-            )}
-          </div>
-        </td>
+        {columns.map(col => (
+          <React.Fragment key={col.id}>
+            {cellByColumnId(col.id, col.frozen)}
+          </React.Fragment>
+        ))}
       </tr>
     )
   }
 
   return (
     <tr className="bg-brand-50">
-      <td colSpan={5} className="px-4 py-4">
+      <td colSpan={columns.length} className="px-4 py-4">
         <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
             <label className="label">Title</label>

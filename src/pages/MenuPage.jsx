@@ -20,6 +20,9 @@ import { resolveCurrencySpec } from '@/lib/formatPrice'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { downloadMenuCsv } from '@/lib/downloadMenuCsv'
 import MenuStylesTab from '@/components/MenuStylesTab'
+import ItemsTableHeader from '@/components/ItemsTableHeader'
+import { DEFAULT_ITEM_COLUMNS } from '@/components/MenuItemRow'
+import { useTableColumns } from '@/hooks/useTableColumns'
 import {
   DndContext, PointerSensor, TouchSensor, KeyboardSensor,
   closestCenter, useSensor, useSensors,
@@ -373,6 +376,8 @@ export default function MenuPage() {
   const isApproved = menu.phase === 'approved'
   const currency = resolveCurrencySpec(series, event, menu)
 
+  const [itemColumns, setItemColumnOrder, setItemColumnWidth] = useTableColumns('menu_items_v1', DEFAULT_ITEM_COLUMNS)
+
   const tabs = [
     { key: 'items', label: 'Items' },
     { key: 'preview', label: 'Preview' },
@@ -707,16 +712,13 @@ export default function MenuPage() {
               </div>
               <div className="card overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[560px]">
-                    <thead>
-                      <tr className="border-b border-surface-100 bg-surface-50">
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-ink-400">Item</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-ink-400">Description</th>
-                        <th className="px-4 py-2.5 text-center text-xs font-medium text-ink-400">Diet</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-ink-400">Size / Price</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-medium text-ink-400">Status</th>
-                      </tr>
-                    </thead>
+                  <table className="text-sm" style={{ tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
+                    <ItemsTableHeader
+                      columns={itemColumns}
+                      canEdit={canEdit}
+                      onReorder={setItemColumnOrder}
+                      onResize={setItemColumnWidth}
+                    />
                     <SectionTbody
                       group={group}
                       menu={menu}
@@ -725,6 +727,7 @@ export default function MenuPage() {
                       sectionNames={sectionNames}
                       loadMenu={loadMenu}
                       onReorderSection={reorderItemsInSection}
+                      columns={itemColumns}
                     >
                       {/* The Add-item row stays in normal tbody render flow */}
                       {canEdit && addingToSection === group.key && (
@@ -1101,7 +1104,7 @@ export default function MenuPage() {
 // Drag-and-drop reorder for a single section's items. Lives inside <table>
 // rendering a real <tbody>, so the dnd-kit hooks attach directly to <tr>s.
 
-function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, children }) {
+function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -1129,6 +1132,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
               currency={currency}
               sectionNames={sectionNames}
               loadMenu={loadMenu}
+              columns={columns}
             />
           ))}
         </SortableContext>
@@ -1138,7 +1142,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
   )
 }
 
-function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu }) {
+function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
   return (
@@ -1148,6 +1152,7 @@ function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu 
       canEdit={canEdit}
       currency={currency}
       sections={sectionNames}
+      columns={columns}
       onUpdated={loadMenu}
       dragRef={setNodeRef}
       dragStyle={style}
