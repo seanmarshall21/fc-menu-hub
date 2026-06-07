@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
+import SyncChip from '@/components/SyncChip'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
 import { SIZE_CONFIGS } from '@/components/TemplateCanvas'
@@ -577,7 +578,7 @@ export default function EventPage() {
     if (eventData) setFigmaPageName(eventData.figma_page_name || '')
     if (eventData) {
       const [{ data: menusData }, { data: sponsorsData }, { data: templateRows }] = await Promise.all([
-        supabase.from('menus').select('*, menu_items(id)').eq('event_id', eventData.id).order('category').order('name'),
+        supabase.from('menus').select('*, menu_items(id, edit_status)').eq('event_id', eventData.id).order('category').order('name'),
         supabase.from('event_sponsors').select('*').eq('event_id', eventData.id).order('sort_order').order('name'),
         supabase.from('event_templates').select('*').eq('event_id', eventData.id),
       ])
@@ -781,6 +782,7 @@ export default function EventPage() {
         <div className="flex items-center gap-0 overflow-x-auto">
           {[
             { id: 'menus', label: `Menus (${menus.length})` },
+            { id: 'preview', label: 'Preview all' },
             { id: 'sponsors', label: `Sponsors (${sponsors.length})` },
             { id: 'templates', label: 'Templates' },
             { id: 'styles', label: 'Styles' },
@@ -885,23 +887,133 @@ export default function EventPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {menus.map(menu => (
-                <Link
-                  key={menu.id}
-                  to={`${baseUrl}/menus/${menu.slug}`}
-                  className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors">{menu.name}</h3>
-                    <PhaseBadge phase={menu.phase} />
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-ink-400">
-                    <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
-                    <span>·</span>
-                    <span>{menu.menu_items?.length || 0} items</span>
-                  </div>
-                </Link>
-              ))}
+              {menus.map(menu => {
+                const items = menu.menu_items || []
+                const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+                const everSynced  = !!menu.last_synced_at
+                const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+                return (
+                  <Link
+                    key={menu.id}
+                    to={`${baseUrl}/menus/${menu.slug}`}
+                    className="card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col"
+                  >
+                    {/* Thumbnail (or placeholder strip) */}
+                    {menu.preview_image_url ? (
+                      <div className="relative w-full aspect-[4/5] bg-surface-50 border-b border-surface-100 overflow-hidden">
+                        <img
+                          src={menu.preview_image_url}
+                          alt=""
+                          className="w-full h-full object-cover object-top"
+                          loading="lazy"
+                        />
+                        {/* Top-right overlay: sync + edits chips */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                          {pendingCount > 0 && (
+                            <span
+                              className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
+                              title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
+                            >
+                              {pendingCount}
+                            </span>
+                          )}
+                          <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative w-full h-1.5 bg-gradient-to-r from-surface-100 to-surface-50" />
+                    )}
+
+                    {/* Body */}
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex items-start justify-between mb-3 gap-2">
+                        <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
+                        <PhaseBadge phase={menu.phase} />
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-ink-400">
+                        <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
+                        <span>·</span>
+                        <span>{items.length} items</span>
+                        {/* When there's no thumbnail, the chips live inline at the bottom of the card so they're still visible. */}
+                        {!menu.preview_image_url && (
+                          <span className="ml-auto flex items-center gap-1.5">
+                            {pendingCount > 0 && (
+                              <span
+                                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold"
+                                title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
+                              >
+                                {pendingCount}
+                              </span>
+                            )}
+                            <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── PREVIEW ALL TAB ── all menus in the event tiled at large scale. */}
+      {tab === 'preview' && (
+        <>
+          {menus.length === 0 ? (
+            <div className="card px-6 py-8 text-center">
+              <p className="text-sm text-ink-400">No menus to preview yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {menus.map(menu => {
+                const items = menu.menu_items || []
+                const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+                const everSynced  = !!menu.last_synced_at
+                const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+                return (
+                  <Link
+                    key={menu.id}
+                    to={`${baseUrl}/menus/${menu.slug}`}
+                    className="card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col"
+                  >
+                    <div className="relative w-full aspect-[2/3] bg-surface-50 border-b border-surface-100 overflow-hidden">
+                      {menu.preview_image_url ? (
+                        <img
+                          src={menu.preview_image_url}
+                          alt={menu.name}
+                          className="w-full h-full object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-300 text-xs gap-1 p-4 text-center">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4 4 4 4-4 4 4M4 16V8a2 2 0 012-2h12a2 2 0 012 2v8M4 16h16" />
+                          </svg>
+                          <span>Sync this menu to see a preview</span>
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                        {pendingCount > 0 && (
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
+                                title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}>
+                            {pendingCount}
+                          </span>
+                        )}
+                        <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-medium text-ink-900 group-hover:text-brand-600 transition-colors truncate">{menu.name}</h3>
+                        <div className="text-[11px] text-ink-400 capitalize">{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</div>
+                      </div>
+                      <PhaseBadge phase={menu.phase} />
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           )}
         </>
