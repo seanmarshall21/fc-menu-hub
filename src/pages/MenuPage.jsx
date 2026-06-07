@@ -1080,7 +1080,7 @@ export default function MenuPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
-              <div className="bg-surface-50 rounded-lg overflow-hidden">
+              <div className="bg-surface-50 rounded-lg" style={{ width: 'max-content', minWidth: '100%' }}>
                 <TemplateCanvas
                   template={template}
                   series={series}

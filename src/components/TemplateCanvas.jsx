@@ -453,12 +453,19 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const scale = fitScale * (zoom || 1)
 
   useEffect(() => {
+    // Measure the *parent* — not self — because the canvas wrapper can grow
+    // wider than its parent under zoom > 1. Self-measure would feed the scaled
+    // width back into fitScale and snowball. clientWidth is the parent's
+    // visible inner width, so it stays constant as content overflows into a
+    // scrollable ancestor.
     const update = () => {
-      if (containerRef.current) setFitScale(containerRef.current.offsetWidth / sizeConfig.w)
+      const parent = containerRef.current?.parentElement
+      if (parent) setFitScale(parent.clientWidth / sizeConfig.w)
     }
     update()
     const ro = new ResizeObserver(update)
-    if (containerRef.current) ro.observe(containerRef.current)
+    const parent = containerRef.current?.parentElement
+    if (parent) ro.observe(parent)
     return () => ro.disconnect()
   }, [sizeConfig.w])
 
@@ -578,7 +585,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   }
 
   return (
-    <div ref={containerRef} style={{ width: '100%' }}>
+    <div ref={containerRef} style={{ width: 'max-content', minWidth: '100%' }}>
       <FontLoader fonts={fonts} />
       <div style={{
         position: 'relative',
