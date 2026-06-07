@@ -372,6 +372,25 @@ function SponsorLogo({ sponsor, fallbackColor, baseMaxHeight = 100 }) {
   )
 }
 
+/**
+ * Strip width/height attrs from the root <svg> and force a fluid sizing
+ * style so the SVG fills whatever container we put around it. Without this,
+ * the inline SVG keeps its own intrinsic dimensions (e.g. 400×600) and
+ * ignores the wrapper height.
+ */
+function makeSvgFluid(markup) {
+  if (!markup) return markup
+  return markup.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+    const cleaned = attrs
+      .replace(/\swidth="[^"]*"/i, '')
+      .replace(/\sheight="[^"]*"/i, '')
+      .replace(/\sstyle="[^"]*"/i, '')
+    // Force fluid sizing: height = parent (px), width derived from viewBox.
+    // Browsers compute SVG width from viewBox when `width: auto` + a known height.
+    return `<svg${cleaned} preserveAspectRatio="xMidYMid meet" style="height:100%;width:auto;display:block">`
+  })
+}
+
 function InlineSvgFromUrl({ url, maxHeight = 100, maxWidth, fallbackAlt = '' }) {
   const [markup, setMarkup] = useState(null)
   useEffect(() => {
@@ -381,20 +400,27 @@ function InlineSvgFromUrl({ url, maxHeight = 100, maxWidth, fallbackAlt = '' }) 
     return () => { aborted = true }
   }, [url])
   if (!url) return null
-  // Native width: 'auto' + height: N preserves aspect ratio. Optional max-width clamp.
+  // Pre-inline fallback: an <img> respects native aspect ratio if we set
+  // only height. After fetch lands, swap to inline SVG (currentColor-tintable).
   if (!markup) {
     return (
       <img
         src={url}
         alt={fallbackAlt}
-        style={{ height: maxHeight, width: 'auto', maxWidth, objectFit: 'contain' }}
+        style={{ height: maxHeight, width: 'auto', maxWidth, objectFit: 'contain', display: 'block' }}
       />
     )
   }
+  // Wrapping span gets the actual sizing; inner SVG is now fluid 100%/100%.
   return (
     <span
-      style={{ height: maxHeight, maxWidth, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-      dangerouslySetInnerHTML={{ __html: markup }}
+      style={{
+        display: 'inline-block',
+        height: maxHeight,
+        maxWidth,
+        lineHeight: 0,
+      }}
+      dangerouslySetInnerHTML={{ __html: makeSvgFluid(markup) }}
     />
   )
 }
