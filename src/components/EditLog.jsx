@@ -14,24 +14,44 @@ export default function EditLog({ menuId, onApproveAll, onChange }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
+    // 1) Pull raw edit_log rows for this menu — embedding the menu_items join
+    //    has been unreliable (Supabase relationship guess sometimes drops the
+    //    embedded value), so we hydrate it separately.
+    const { data: rows, error: logErr } = await supabase
       .from('edit_log')
-      .select('*, menu_item:menu_items(id, title, edit_status)')
+      .select('*')
       .eq('menu_id', menuId)
       .order('created_at', { ascending: false })
       .limit(200)
-    const rows = data || []
-    // Hydrate display names from user_profiles (fall back to email if no name)
-    const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))]
-    if (ids.length) {
+    if (logErr) {
+      console.error('EditLog: edit_log query failed', logErr)
+      setLogs([]); setLoading(false); return
+    }
+    const list = rows || []
+
+    // 2) Hydrate joined menu_items (title + current edit_status)
+    const itemIds = [...new Set(list.map(r => r.menu_item_id).filter(Boolean))]
+    if (itemIds.length) {
+      const { data: items } = await supabase
+        .from('menu_items')
+        .select('id, title, edit_status')
+        .in('id', itemIds)
+      const map = new Map((items || []).map(i => [i.id, i]))
+      list.forEach(r => { r.menu_item = map.get(r.menu_item_id) || null })
+    }
+
+    // 3) Hydrate user names from user_profiles (fall back to email if no name)
+    const userIds = [...new Set(list.map(r => r.user_id).filter(Boolean))]
+    if (userIds.length) {
       const { data: profiles } = await supabase
         .from('user_profiles')
         .select('id, full_name, email')
-        .in('id', ids)
+        .in('id', userIds)
       const map = new Map((profiles || []).map(p => [p.id, p]))
-      rows.forEach(r => { r.user_profile = map.get(r.user_id) || null })
+      list.forEach(r => { r.user_profile = map.get(r.user_id) || null })
     }
-    setLogs(rows)
+
+    setLogs(list)
     setLoading(false)
   }, [menuId])
 
