@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Menu Hub — Walkthrough</title>
+<style>
+  /* ─── Reset + base ───────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+    color: #1f2330;
+    background: #f7f6f3;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  :root {
+    --brand:        #6366f1;
+    --brand-deep:   #4338ca;
+    --brand-soft:   #eef2ff;
+    --ink:          #1f2330;
+    --ink-soft:     #4b5563;
+    --ink-muted:    #6b7280;
+    --line:         #e7e5e4;
+    --surface:      #ffffff;
+    --surface-alt:  #fafaf9;
+    --green:        #16a34a;
+    --green-soft:   #dcfce7;
+    --amber:        #d97706;
+    --amber-soft:   #fef3c7;
+    --red:          #dc2626;
+    --red-soft:     #fee2e2;
+    --gray:         #6b7280;
+    --gray-soft:    #f3f4f6;
+    --orange:       #C77929;
+    --orange-soft:  #fef3e2;
+  }
+
+  /* ─── Layout ─────────────────────────────────────────────────────── */
+  .shell {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 24px;
+    background: #fff;
+    border-right: 1px solid var(--line);
+  }
+  main {
+    padding: 56px 64px 96px;
+    min-width: 0;
+  }
+  @media (max-width: 880px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    main { padding: 40px 24px 72px; }
+  }
+
+  /* ─── Sidebar TOC ────────────────────────────────────────────────── */
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .brand-mark .dot {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--orange) 0%, #e89a4a 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 14px;
+  }
+  .brand-mark .name {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .brand-mark .sub {
+    font-size: 11px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  nav.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: section;
+  }
+  nav.toc li {
+    counter-increment: section;
+    margin: 2px 0;
+  }
+  nav.toc a {
+    display: flex;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+  }
+  nav.toc a:hover {
+    background: var(--surface-alt);
+    color: var(--brand-deep);
+  }
+  nav.toc a::before {
+    content: counter(section, decimal-leading-zero);
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    padding-top: 2px;
+    min-width: 22px;
+  }
+
+  /* ─── Cover hero ─────────────────────────────────────────────────── */
+  .cover {
+    padding: 64px 48px;
+    background: linear-gradient(135deg, #1f2330 0%, #4338ca 100%);
+    color: #fff;
+    border-radius: 16px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 90% 10%, rgba(199, 121, 41, 0.25), transparent 60%);
+  }
+  .cover-inner { position: relative; }
+  .cover .eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    opacity: 0.7;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .cover h1 {
+    font-size: 56px;
+    line-height: 1.05;
+    margin: 0 0 16px;
+    letter-spacing: -0.025em;
+    font-weight: 800;
+  }
+  .cover .lede {
+    font-size: 18px;
+    opacity: 0.85;
+    max-width: 640px;
+    line-height: 1.55;
+    font-weight: 400;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 24px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-size: 12px;
+  }
+  .cover-meta div { opacity: 0.7; }
+  .cover-meta strong { color: #fff; opacity: 1; display: block; font-size: 13px; }
+
+  /* ─── Sections ───────────────────────────────────────────────────── */
+  section.chunk {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin-bottom: 24px;
+    scroll-margin-top: 24px;
+  }
+  section.chunk:target {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px var(--brand-soft);
+  }
+  .section-head {
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-head .num {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--brand);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    min-width: 32px;
+  }
+  .section-head h2 {
+    font-size: 28px;
+    margin: 0;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    font-weight: 700;
+  }
+  section.chunk p {
+    margin: 0 0 12px;
+    color: var(--ink-soft);
+  }
+  section.chunk p:last-child { margin-bottom: 0; }
+  section.chunk strong { color: var(--ink); font-weight: 600; }
+  section.chunk h3 {
+    font-size: 17px;
+    margin: 28px 0 10px;
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  section.chunk h3:first-child { margin-top: 0; }
+  section.chunk ul, section.chunk ol {
+    margin: 0 0 14px;
+    padding-left: 22px;
+    color: var(--ink-soft);
+  }
+  section.chunk li { margin: 6px 0; }
+  section.chunk li > strong { color: var(--ink); }
+  section.chunk a { color: var(--brand-deep); text-decoration: none; border-bottom: 1px solid var(--brand-soft); }
+  section.chunk a:hover { border-bottom-color: var(--brand); }
+  section.chunk code {
+    background: var(--gray-soft);
+    color: var(--ink);
+    padding: 1.5px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+  }
+  blockquote {
+    margin: 18px 0;
+    padding: 14px 18px;
+    background: var(--brand-soft);
+    border-left: 3px solid var(--brand);
+    border-radius: 0 6px 6px 0;
+    font-style: normal;
+    color: var(--ink);
+    font-size: 14.5px;
+  }
+
+  /* ─── Tables ─────────────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 12px 0 18px;
+    font-size: 14px;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    background: var(--surface-alt);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+  }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--surface-alt); }
+  td code { font-size: 12px; }
+
+  /* ─── Status badges ──────────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+  .badge.active  { background: var(--green-soft); color: #166534; }
+  .badge.pending { background: var(--amber-soft); color: #92400e; }
+  .badge.notadded{ background: var(--gray-soft);  color: var(--ink-muted); }
+  .badge.draft   { background: #dbeafe;           color: #1e40af; }
+  .badge.synced  { background: var(--green-soft); color: #166534; }
+  .badge.needsync{ background: var(--amber-soft); color: #92400e; }
+  .badge.notsync { background: var(--gray-soft);  color: var(--ink-muted); }
+  .badge.edits   { background: var(--red-soft);   color: #991b1b; }
+  .dot-icon {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ─── Callouts ───────────────────────────────────────────────────── */
+  .callout {
+    margin: 18px 0;
+    padding: 16px 20px;
+    border-radius: 8px;
+    border: 1px solid;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .callout.tip {
+    background: var(--brand-soft);
+    border-color: #c7d2fe;
+    color: #312e81;
+  }
+  .callout.warn {
+    background: var(--amber-soft);
+    border-color: #fcd34d;
+    color: #78350f;
+  }
+  .callout-icon {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .tip .callout-icon { background: var(--brand); color: #fff; }
+  .warn .callout-icon { background: var(--amber); color: #fff; }
+  .callout p { margin: 0; }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* ─── Crumb path ─────────────────────────────────────────────────── */
+  .crumb {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--surface-alt);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    margin: 8px 0 16px;
+  }
+  .crumb span { color: var(--ink-muted); }
+  .crumb strong { color: var(--ink); font-weight: 600; }
+  .crumb .arrow { color: var(--ink-muted); opacity: 0.5; }
+
+  /* ─── Print / PDF ────────────────────────────────────────────────── */
+  @media print {
+    body { background: #fff; }
+    .shell { grid-template-columns: 1fr; max-width: none; }
+    nav.toc { display: none; }
+    main { padding: 0; }
+    .cover {
+      background: #1f2330 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      page-break-after: always;
+    }
+    section.chunk {
+      box-shadow: none;
+      page-break-inside: avoid;
+      border-color: #e5e7eb !important;
+      margin-bottom: 16px;
+    }
+    section.chunk:target { box-shadow: none; }
+    .badge, table, .callout {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    a { color: var(--ink) !important; border-bottom: 0 !important; }
+    .section-head { page-break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ───────────────────────────────────────────────────────────────
+       SIDEBAR — table of contents
+       ─────────────────────────────────────────────────────────────── -->
+  <nav class="toc" aria-label="Table of contents">
+    <div class="brand-mark">
+      <div class="dot">M</div>
+      <div>
+        <div class="name">Menu Hub</div>
+        <div class="sub">Walkthrough</div>
+      </div>
+    </div>
+    <ol>
+      <li><a href="#big-picture">The big picture</a></li>
+      <li><a href="#logging-in">Logging in</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="#navigating">Navigating to a menu</a></li>
+      <li><a href="#event-tabs">Event page tabs</a></li>
+      <li><a href="#menu-tabs">Menu page tabs</a></li>
+      <li><a href="#editing">Editing items</a></li>
+      <li><a href="#status">Status values</a></li>
+      <li><a href="#sections">Sections</a></li>
+      <li><a href="#csv">CSV import / export</a></li>
+      <li><a href="#approvals">Approving edits</a></li>
+      <li><a href="#preview">The Preview tab</a></li>
+      <li><a href="#sponsors">Sponsors</a></li>
+      <li><a href="#sync">Sync status chips</a></li>
+      <li><a href="#favorites">Favorites</a></li>
+      <li><a href="#mobile">Mobile</a></li>
+      <li><a href="#help">In-app help</a></li>
+      <li><a href="#contact">Who to ask</a></li>
+      <li><a href="#remember">Things to remember</a></li>
+    </ol>
+  </nav>
+
+  <!-- ───────────────────────────────────────────────────────────────
+       MAIN — cover + sections
+       ─────────────────────────────────────────────────────────────── -->
+  <main>
+
+    <!-- COVER -->
+    <header class="cover">
+      <div class="cover-inner">
+        <div class="eyebrow">Walkthrough · June 2026</div>
+        <h1>Menu Hub</h1>
+        <p class="lede">
+          The single source of truth for every menu across every event.
+          Edit content here, sync it to Figma, export it to print.
+          This guide covers everything you'll touch day-to-day.
+        </p>
+        <div class="cover-meta">
+          <div><strong>Audience</strong>Internal &amp; external editors</div>
+          <div><strong>App URL</strong>fcmenus.netlify.app</div>
+          <div><strong>Contact</strong>sean@crssd.com</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 01 -->
+    <section class="chunk" id="big-picture">
+      <div class="section-head"><div class="num">01</div><h2>The big picture</h2></div>
+      <p>Menu Hub is the <strong>single source of truth</strong> for every menu across every event. You edit content here; the Figma menu templates pull from here; the printed PDF/SVG exports pull from here. No more passing CSVs around or hunting for the latest version of a Figma file.</p>
+      <p>The hierarchy goes:</p>
+      <blockquote><strong>Brand</strong> → <strong>Series</strong> → <strong>Event</strong> → <strong>Menu</strong> → <strong>Items</strong></blockquote>
+      <p>For CRSSD, that looks like:</p>
+      <div class="crumb">
+        <strong>CRSSD</strong><span class="arrow">›</span>
+        <strong>CRSSD Festival</strong><span class="arrow">›</span>
+        <strong>CRSSD Spring 2026</strong><span class="arrow">›</span>
+        <strong>Craft Cocktails</strong><span class="arrow">›</span>
+        <span>Waterfront Mule, Bay Breeze Spritz, …</span>
+      </div>
+      <p>You'll spend most of your time at the <strong>Menu</strong> and <strong>Item</strong> levels.</p>
+    </section>
+
+    <!-- 02 -->
+    <section class="chunk" id="logging-in">
+      <div class="section-head"><div class="num">02</div><h2>Logging in</h2></div>
+      <ol>
+        <li>Go to <a href="https://fcmenus.netlify.app" target="_blank">fcmenus.netlify.app</a></li>
+        <li>Sign in with your email + password</li>
+        <li>First time logging in: use the magic-link or password-reset flow from the sign-in page</li>
+        <li>If you don't have access yet, ask Sean — accounts are added one at a time</li>
+      </ol>
+      <p>After logging in you land on the <strong>Dashboard</strong>.</p>
+    </section>
+
+    <!-- 03 -->
+    <section class="chunk" id="dashboard">
+      <div class="section-head"><div class="num">03</div><h2>Dashboard</h2></div>
+      <p>Your home screen.</p>
+      <table>
+        <thead><tr><th>Panel</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Recent Events</strong></td><td>Events you've touched lately — fastest way back into work</td></tr>
+          <tr><td><strong>Brands</strong></td><td>Every brand you have access to. Click one to drill in</td></tr>
+          <tr><td><strong>Favorites</strong></td><td>Star any event/menu and it appears here</td></tr>
+        </tbody>
+      </table>
+      <p>The left sidebar always has <strong>Dashboard, Favorites, Sponsors, Help, Admin</strong>. The brands you have access to also appear in the sidebar under "BRANDS".</p>
+    </section>
+
+    <!-- 04 -->
+    <section class="chunk" id="navigating">
+      <div class="section-head"><div class="num">04</div><h2>Navigating to a menu</h2></div>
+      <p>The path is always the same:</p>
+      <ol>
+        <li>Click a brand in the sidebar (e.g. <strong>CRSSD</strong>)</li>
+        <li>Click a series (e.g. <strong>CRSSD Festival</strong>)</li>
+        <li>Click an event (e.g. <strong>CRSSD Spring 2026</strong>)</li>
+        <li>Click a menu (e.g. <strong>Craft Cocktails</strong>)</li>
+      </ol>
+      <p>The breadcrumb at the top is clickable — use it to jump back up. The <strong>&lt;</strong> back arrow next to the page title also works.</p>
+    </section>
+
+    <!-- 05 -->
+    <section class="chunk" id="event-tabs">
+      <div class="section-head"><div class="num">05</div><h2>Event page tabs</h2></div>
+      <p>When you open an event, you see these tabs:</p>
+      <table>
+        <thead><tr><th>Tab</th><th>What it shows</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Menus</strong></td><td>Every menu for this event as cards. Status chip (Build / Proof / Approved), sync chip (Synced / Not synced), and red number badge for pending edits. Click a card to open it.</td></tr>
+          <tr><td><strong>Preview all</strong></td><td>Visual previews of every menu in one screen — handy for review meetings.</td></tr>
+          <tr><td><strong>Sponsors</strong></td><td>All sponsors enabled for this event. Toggle which ones are active. Populates the sponsor library that menus draw from.</td></tr>
+          <tr><td><strong>Approvals</strong></td><td>Sign-off panel. Track who needs to approve event-level work and where each person stands.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 06 -->
+    <section class="chunk" id="menu-tabs">
+      <div class="section-head"><div class="num">06</div><h2>Menu page tabs</h2></div>
+      <p>When you open a menu, you see these tabs:</p>
+      <table>
+        <thead><tr><th>Tab</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Items</strong></td><td>Where you do 90% of the work. Every item with section headers, prices, dietary flags, status.</td></tr>
+          <tr><td><strong>Preview</strong></td><td>Live preview of the menu rendered the way it will appear in print. Click the expand icon for the full-screen lightbox.</td></tr>
+          <tr><td><strong>Edit Log</strong></td><td>Every change made to this menu — who, when, what changed. Pending edits get an amber badge.</td></tr>
+          <tr><td><strong>Sponsors</strong></td><td>Toggle which sponsors appear on <em>this specific menu</em> (subset of the event's sponsor library).</td></tr>
+          <tr><td><strong>Approvals</strong></td><td>Per-menu sign-off. Same idea as event-level Approvals, but scoped to this menu.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 07 -->
+    <section class="chunk" id="editing">
+      <div class="section-head"><div class="num">07</div><h2>Editing items — the core workflow</h2></div>
+
+      <h3>Adding an item</h3>
+      <ol>
+        <li>On the <strong>Items</strong> tab, scroll to the section you want to add to (or create a new section)</li>
+        <li>Click <strong>"+ Add item to [Section]"</strong> at the bottom of the section</li>
+        <li>Fill in the row:
+          <ul>
+            <li><strong>Title</strong> (required)</li>
+            <li><strong>Description</strong></li>
+            <li><strong>Dietary flags</strong> (VT / VE / GF) — tick whichever apply</li>
+            <li><strong>Size</strong> + <strong>Price</strong> — e.g. <code>12oz</code> + <code>$8</code></li>
+            <li><strong>2 Sizes?</strong> — tick this if you want a second size/price</li>
+            <li><strong>Size 2</strong> + <strong>Price 2</strong> — only used if "2 Sizes" is on</li>
+            <li><strong>Status</strong> — Active, Not Added, or Draft</li>
+            <li><strong>Notes</strong> — internal notes about this item</li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>Editing an existing item</h3>
+      <p>Click any cell to edit in place. Changes save automatically when you tab out or click elsewhere.</p>
+
+      <div class="callout warn">
+        <div class="callout-icon">!</div>
+        <div><strong>Why your edit shows up amber</strong>Any edit you make on an Active item flips it to <strong>Pending Approval</strong>. The change is saved, but it won't appear in syncs to Figma until an admin approves it. This prevents accidental mid-edit changes from going live.</div>
+      </div>
+
+      <h3>Reordering items</h3>
+      <p>Grab the row by the <code>⋮⋮</code> handle on the left and drag up/down. Items can't move between sections — change the section name on the item itself.</p>
+
+      <h3>Reordering sections</h3>
+      <p>Use the <strong>↑ section / ↓ section</strong> buttons in the section header.</p>
+
+      <h3>Reset columns</h3>
+      <p>If you've dragged columns around or resized them and want the default layout back, click <strong>Reset columns</strong> above the table.</p>
+    </section>
+
+    <!-- 08 -->
+    <section class="chunk" id="status">
+      <div class="section-head"><div class="num">08</div><h2>Status values</h2></div>
+      <p>Every item has a Status. This controls whether it shows up where.</p>
+      <table>
+        <thead><tr><th>Status</th><th>Where it appears</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge active">Active</span></td><td>Shows in Menu Hub, Figma sync, exports — the live menu</td></tr>
+          <tr><td><span class="badge pending">Pending Approval</span></td><td>Saved but not visible in syncs until approved. Highlighted amber.</td></tr>
+          <tr><td><span class="badge notadded">Not Added</span></td><td>Saved but explicitly hidden. Use for items you want to keep around but not show this round.</td></tr>
+          <tr><td><span class="badge draft">Draft</span></td><td>Saved as work-in-progress. Hidden everywhere except the Items table.</td></tr>
+        </tbody>
+      </table>
+      <p>Same vocabulary applies in the Master Google Sheet and CSV imports.</p>
+    </section>
+
+    <!-- 09 -->
+    <section class="chunk" id="sections">
+      <div class="section-head"><div class="num">09</div><h2>Sections</h2></div>
+      <p>Sections are just text labels — type whatever you want (<code>SIGNATURES</code>, <code>BEER</code>, <code>NON-ALCOHOLIC</code>). Items group automatically by their Section field.</p>
+      <p>To rename a section, change the Section field on every item in it (or use the Master Sheet for bulk).</p>
+      <p>To create a new section, type its name in any item's Section field. The new section appears in the table immediately.</p>
+    </section>
+
+    <!-- 10 -->
+    <section class="chunk" id="csv">
+      <div class="section-head"><div class="num">10</div><h2>CSV import / export</h2></div>
+      <p>The most common bulk workflow.</p>
+
+      <h3>Exporting a menu</h3>
+      <ol>
+        <li>Open the menu → <strong>Items</strong> tab</li>
+        <li>Click <strong>Export CSV</strong> (top right)</li>
+        <li>Downloads a <code>.csv</code> you can open in Excel / Numbers / Google Sheets</li>
+      </ol>
+
+      <h3>Importing a menu</h3>
+      <ol>
+        <li>Open the menu → <strong>Items</strong> tab</li>
+        <li>Click <strong>Import CSV</strong></li>
+        <li>Drop your CSV file — preview shows what will be added/updated</li>
+        <li>Confirm to apply</li>
+      </ol>
+
+      <h3>CSV column order</h3>
+      <p>The columns are fixed and must be:</p>
+      <table>
+        <thead><tr><th>Section</th><th>Title</th><th>VT</th><th>VE</th><th>GF</th><th>Description</th><th>2 Sizes</th><th>Size</th><th>Price</th><th>Size 2</th><th>Price 2</th><th>Status</th><th>Notes</th></tr></thead>
+      </table>
+      <ul>
+        <li><strong>VT / VE / GF / 2 Sizes</strong> = <code>TRUE</code> or <code>FALSE</code></li>
+        <li><strong>Price columns</strong> can be <code>12</code>, <code>$12</code>, <code>$12.00</code> — all get normalized</li>
+        <li><strong>Status</strong> = <code>Active</code>, <code>Pending Approval</code>, <code>Not Added</code>, or <code>Draft</code></li>
+      </ul>
+      <div class="callout tip">
+        <div class="callout-icon">i</div>
+        <div><strong>Need the template?</strong>Download it from inside Menu Hub: Items tab → Import CSV → "Download template". Comes with the right headers and a sample row.</div>
+      </div>
+
+      <h3>The Master Google Sheet</h3>
+      <p>There's a Master Sheet that mirrors the CSV format with one tab per menu, plus extra automation (auto-flag edits, approval workflow, version log). If you've been given access, use it for bulk edits across many menus at once.</p>
+      <p>Instructions for the Master Sheet are in the sheet itself (Help / README tab).</p>
+    </section>
+
+    <!-- 11 -->
+    <section class="chunk" id="approvals">
+      <div class="section-head"><div class="num">11</div><h2>Approving edits</h2></div>
+      <p>When someone edits an Active item, its Status flips to <span class="badge pending">Pending Approval</span>.</p>
+      <p>To approve:</p>
+      <ol>
+        <li>Open the menu → <strong>Items</strong> tab</li>
+        <li>Pending items are highlighted amber. You'll also see an amber <strong>Edits</strong> chip in the page header</li>
+        <li>Click <strong>Approve Menu</strong> (top of page) to approve everything in one shot, <em>or</em></li>
+        <li>Open the <strong>Edit Log</strong> tab to review each change individually, with old/new value diffs, and approve/reject from there</li>
+        <li>Approved items return to <span class="badge active">Active</span> and the next Figma sync pushes them out</li>
+      </ol>
+      <p>Internal users can approve their own and others' edits. External users can edit but not approve — only admin/internal can approve external edits.</p>
+    </section>
+
+    <!-- 12 -->
+    <section class="chunk" id="preview">
+      <div class="section-head"><div class="num">12</div><h2>The Preview tab</h2></div>
+      <p>Shows the menu rendered the way it will look in print, using whatever style spec the brand/event/menu is set to.</p>
+      <ul>
+        <li><strong>Zoom in/out</strong> with the +/− buttons in the lightbox</li>
+        <li><strong>Reset zoom</strong> with the percentage label</li>
+        <li><strong>Esc</strong> or click the X to close the lightbox</li>
+        <li>The preview also gets pushed to Figma when someone syncs the menu via the <strong>Menu Sync</strong> plugin</li>
+      </ul>
+      <p>If the preview looks off (cut off, weird spacing), an admin needs to adjust the menu's style overrides — flag it to them.</p>
+    </section>
+
+    <!-- 13 -->
+    <section class="chunk" id="sponsors">
+      <div class="section-head"><div class="num">13</div><h2>Sponsors</h2></div>
+      <p>Sponsors are managed at three levels:</p>
+      <table>
+        <thead><tr><th>Level</th><th>Where</th><th>What</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Series</strong></td><td>Sidebar → Sponsors</td><td>The full library of sponsors that exist for the series. Admin manages this.</td></tr>
+          <tr><td><strong>Event</strong></td><td>Event → Sponsors tab</td><td>Which sponsors are active for this event (subset of the series library).</td></tr>
+          <tr><td><strong>Menu</strong></td><td>Menu → Sponsors tab</td><td>Which sponsors appear on this specific menu (subset of the event's active set).</td></tr>
+        </tbody>
+      </table>
+      <p>Each menu can override / re-order which sponsors appear. By default, menus inherit the full active set from the event.</p>
+      <p>To add a sponsor not yet in the library: ask Sean — it has to be added to the series-level library first.</p>
+    </section>
+
+    <!-- 14 -->
+    <section class="chunk" id="sync">
+      <div class="section-head"><div class="num">14</div><h2>Sync status — what the chips mean</h2></div>
+      <p>On the event's <strong>Menus</strong> tab, each menu card shows a chip:</p>
+      <table>
+        <thead><tr><th>Chip</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge synced">Synced</span></td><td>The Figma version is up to date with the latest Menu Hub data.</td></tr>
+          <tr><td><span class="badge needsync">Sync needed</span></td><td>Menu Hub has changes that haven't been pushed to Figma yet. Tell whoever runs the plugin to re-sync.</td></tr>
+          <tr><td><span class="badge notsync">Not synced</span></td><td>This menu has never been pushed to Figma. Needs an initial sync.</td></tr>
+          <tr><td><span class="badge edits">3 edits</span></td><td>Red number badge — there are pending edits awaiting approval (separate from sync status).</td></tr>
+        </tbody>
+      </table>
+      <p>The Figma sync itself is run by whoever has the <strong>Menu Sync</strong> plugin installed (covered in the Admin Walkthrough). You don't need to do it — but you can watch the chip to know when your edits have made it to print.</p>
+    </section>
+
+    <!-- 15 -->
+    <section class="chunk" id="favorites">
+      <div class="section-head"><div class="num">15</div><h2>Favorites</h2></div>
+      <p>Star ⭐ icon on any event or menu's header → it appears in your <strong>Favorites</strong> sidebar item. Per-user, so star whatever you work on most.</p>
+    </section>
+
+    <!-- 16 -->
+    <section class="chunk" id="mobile">
+      <div class="section-head"><div class="num">16</div><h2>Mobile</h2></div>
+      <p>Menu Hub works on phone/tablet. Cards stack, tabs scroll horizontally. The items table becomes a card list. Editing inline still works.</p>
+      <p>Reasonable for quick checks, status approvals, walking through a menu with a vendor. Not ideal for heavy bulk editing — use a laptop for that.</p>
+    </section>
+
+    <!-- 17 -->
+    <section class="chunk" id="help">
+      <div class="section-head"><div class="num">17</div><h2>Help inside the app</h2></div>
+      <p>Sidebar → <strong>Help</strong> has searchable docs that mirror this walkthrough, plus FAQs and shortcuts. The version inside the app is always the most current — if something here is out of date, that one wins.</p>
+    </section>
+
+    <!-- 18 -->
+    <section class="chunk" id="contact">
+      <div class="section-head"><div class="num">18</div><h2>Who to ask</h2></div>
+      <table>
+        <thead><tr><th>Issue</th><th>Who</th></tr></thead>
+        <tbody>
+          <tr><td>Can't log in / forgot password</td><td>Sean</td></tr>
+          <tr><td>Need access to a brand</td><td>Sean</td></tr>
+          <tr><td>Preview looks broken</td><td>Sean (style spec issue)</td></tr>
+          <tr><td>Want to add a sponsor not in the library</td><td>Sean (series-level addition)</td></tr>
+          <tr><td>Found a bug</td><td>Sean — describe the menu, the tab, and what happened</td></tr>
+          <tr><td>Want to bulk-edit dozens of items</td><td>Use the Master Google Sheet, or ask Sean for access</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 19 -->
+    <section class="chunk" id="remember">
+      <div class="section-head"><div class="num">19</div><h2>Things to remember</h2></div>
+      <ul>
+        <li>Your edits <strong>save automatically</strong> — no Save button to forget</li>
+        <li>Edits to Active items become <strong>Pending Approval</strong> until someone signs off</li>
+        <li>Status defaults to <strong>Active</strong> when you add a new item — if it should be hidden initially, set it to <strong>Draft</strong></li>
+        <li>The <strong>Preview</strong> tab is the source of truth for how the printed menu will look, <em>not</em> the items table layout</li>
+        <li>Don't rename sections by editing one item — change the Section field on every item in that section (the Master Sheet makes this easy)</li>
+        <li>The <strong>Sync chip</strong> tells you whether your changes have hit Figma yet; it doesn't mean your edits aren't saved (they are, immediately)</li>
+      </ul>
+      <p style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-muted); font-size: 13px;">
+        Last updated June 2026. For the always-current version, see the Help page inside Menu Hub.
+      </p>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>
