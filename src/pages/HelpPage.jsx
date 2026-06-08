@@ -56,6 +56,48 @@ export default function HelpPage() {
       <PageBody className="max-w-3xl">
       <p className="text-sm text-ink-400 mb-6">Templates, workflow guides, and reference for Menu Hub.</p>
 
+      {/* ── Walkthrough CTA — full presentation doc, opens in new tab ── */}
+      <div className="mb-8 rounded-xl overflow-hidden border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-brand-50 shadow-sm">
+        <div className="p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-brand-500 text-white flex items-center justify-center shadow-sm">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs uppercase tracking-wider text-brand-600 font-semibold mb-1">New here? Start with this</div>
+            <h2 className="text-lg font-bold text-ink-900 mb-1">Menu Hub Walkthrough</h2>
+            <p className="text-sm text-ink-600">
+              The full presentation-style guide to everything in Menu Hub — navigation, editing, approvals, sync status, CSV import/export. Read it once, refer back as needed.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+            <a
+              href="/walkthrough.html"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-primary text-sm inline-flex items-center gap-2 whitespace-nowrap"
+            >
+              View support documentation
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+            <a
+              href="/walkthrough.pdf"
+              download
+              className="btn-secondary text-sm inline-flex items-center gap-1.5 whitespace-nowrap"
+              title="Download as PDF for offline reference or printing"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              PDF
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* ── CSV Template ── */}
       <Section title="CSV Template">
         <p className="text-sm text-ink-500 mb-4">
