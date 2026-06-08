@@ -11,7 +11,7 @@ import Modal from '@/components/Modal'
  * Anyone can see the list. Admin/internal can add or remove approvers.
  * The signed-in user can sign off their own row at any time.
  */
-export default function ApproversPanel({ targetType, targetId, title = 'Sign-off' }) {
+export default function ApproversPanel({ targetType, targetId, title = 'Approvals' }) {
   const { profile, isAdmin, isInternal } = useAuth()
   const canManage = isAdmin || isInternal
 
@@ -135,7 +135,7 @@ export default function ApproversPanel({ targetType, targetId, title = 'Sign-off
                       {row.signed_note && <span className="italic text-ink-500"> — “{row.signed_note}”</span>}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-ink-400 mt-1">Awaiting sign-off</div>
+                    <div className="text-[11px] text-ink-400 mt-1">Awaiting approval</div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">

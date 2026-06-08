@@ -449,7 +449,7 @@ export default function MenuPage() {
     ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
     ...(isAdmin ? [{ key: 'styles', label: 'Styles' }] : []),
-    { key: 'signoff', label: 'Sign-off' },
+    { key: 'signoff', label: 'Approvals' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
 
@@ -724,7 +724,7 @@ export default function MenuPage() {
 
       {showImport && (
         <div className="mb-6">
-          <CsvImport menuId={menu.id} onImported={() => { setShowImport(false); loadMenu() }} />
+          <CsvImport menuId={menu.id} currency={currency} onImported={() => { setShowImport(false); loadMenu() }} />
         </div>
       )}
 
@@ -1022,7 +1022,7 @@ export default function MenuPage() {
 
       {/* Sign-off tab */}
       {tab === 'signoff' && (
-        <ApproversPanel targetType="menu" targetId={menu.id} title="Menu sign-off" />
+        <ApproversPanel targetType="menu" targetId={menu.id} title="Menu approvals" />
       )}
 
       {tab === 'styles' && isAdmin && (
@@ -1177,13 +1177,23 @@ export default function MenuPage() {
                 onClick={async () => {
                   setDeleting(true); setDeleteError(null)
                   try {
-                    // Items, menu_sponsors, and edit_log cascade via FK from menus (assumed); fall back
-                    // to explicit deletes if needed.
-                    await supabase.from('menu_items').delete().eq('menu_id', menu.id)
-                    await supabase.from('menu_sponsors').delete().eq('menu_id', menu.id)
-                    await supabase.from('edit_log').delete().eq('menu_id', menu.id)
-                    const { error } = await supabase.from('menus').delete().eq('id', menu.id)
+                    // FK cascades handle items/sponsors/edit_log, so we only
+                    // need the menus delete. Critically: use .select() so we
+                    // can verify the row actually came out — without it, RLS
+                    // silently filtering returns success + 0 rows and the UI
+                    // falsely reports "deleted" while the menu lingers.
+                    const { data, error } = await supabase
+                      .from('menus')
+                      .delete()
+                      .eq('id', menu.id)
+                      .select('id')
                     if (error) throw error
+                    if (!data || data.length === 0) {
+                      throw new Error(
+                        'Delete request returned 0 rows. You may not have permission to delete this menu, ' +
+                        'or your session may have expired. Try signing out and back in.'
+                      )
+                    }
                     setShowDeleteMenu(false)
                     navigate(`/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`, { replace: true })
                   } catch (e) {

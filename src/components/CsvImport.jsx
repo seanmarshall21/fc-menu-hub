@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
+import { formatPrice } from '@/lib/formatPrice'
 
 // CSV column map — matches the Master Menu Template format and the Google
 // Sheets script vocabulary. Accepts both legacy ("added") and canonical
@@ -14,7 +15,18 @@ function mapStatus(raw) {
   return 'draft'
 }
 
-function parseRow(row) {
+// Normalize an imported price using the menu's currency spec so the form
+// shows the same string the table/Figma do. Non-numeric values (e.g. "MP",
+// "Ask server") pass through untouched.
+function normalizePrice(raw, currency) {
+  const s = (raw || '').toString().trim()
+  if (!s) return null
+  // Already non-numeric → pass through (MP, "Ask", "$14" already formatted, etc.)
+  if (/[A-Za-z€£¥₹]|^\$/u.test(s)) return s
+  return formatPrice(s, currency)
+}
+
+function parseRow(row, currency) {
   return {
     section:     (row['Section'] || '').trim(),
     title:       (row['Title'] || '').trim(),
@@ -24,9 +36,9 @@ function parseRow(row) {
     gf:          (row['GF'] || '').toUpperCase() === 'TRUE',
     two_sizes:   (row['2 Sizes'] || '').toUpperCase() === 'TRUE',
     size1:       (row['Size'] || '').trim() || null,
-    price1:      (row['Price'] || '').trim() || null,
+    price1:      normalizePrice(row['Price'], currency),
     size2:       (row['Size 2'] || '').trim() || null,
-    price2:      (row['Price 2'] || '').trim() || null,
+    price2:      normalizePrice(row['Price 2'], currency),
     status:      mapStatus(row['Status']),
     notes:       (row['Notes'] || '').trim() || null,
   }
@@ -59,7 +71,7 @@ function downloadCsvTemplate() {
   URL.revokeObjectURL(url)
 }
 
-export default function CsvImport({ menuId, onImported }) {
+export default function CsvImport({ menuId, currency, onImported }) {
   const fileRef = useRef(null)
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState(null)
@@ -92,7 +104,7 @@ export default function CsvImport({ menuId, onImported }) {
             return obj
           })
           .filter(r => r['Section'] && r['Title'])
-          .map(parseRow)
+          .map(row => parseRow(row, currency))
         setPreview(parsed)
       },
       error: (err) => setError(err.message),

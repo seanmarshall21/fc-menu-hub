@@ -13,6 +13,7 @@ import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
+import { formatPrice, resolveCurrencySpec } from '@/lib/formatPrice'
 import FigmaLogo from '@/components/FigmaLogo'
 import EventSponsorsTab from '@/components/EventSponsorsTab'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
@@ -41,8 +42,18 @@ function nameFromFilename(filename) {
     .trim()
 }
 
-function parseCsvRow(row) {
-  const status = (row['Status'] || '').toLowerCase()
+// Mirror of the one in CsvImport.jsx — kept inline to avoid an import cycle
+// with this page's local helpers. Accepts the resolved currency spec so
+// numeric prices come in formatted (so the form shows the same string as
+// the table/Figma do).
+function parseCsvRow(row, currency) {
+  const status = (row['Status'] || '').toString().trim().toLowerCase()
+  const normalizePrice = (raw) => {
+    const s = (raw || '').toString().trim()
+    if (!s) return null
+    if (/[A-Za-z€£¥₹]|^\$/u.test(s)) return s
+    return formatPrice(s, currency)
+  }
   return {
     section:     (row['Section'] || '').trim(),
     title:       (row['Title'] || '').trim(),
@@ -52,15 +63,17 @@ function parseCsvRow(row) {
     gf:          (row['GF'] || '').toUpperCase() === 'TRUE',
     two_sizes:   (row['2 Sizes'] || '').toUpperCase() === 'TRUE',
     size1:       (row['Size'] || '').trim() || null,
-    price1:      (row['Price'] || '').trim() || null,
+    price1:      normalizePrice(row['Price']),
     size2:       (row['Size 2'] || '').trim() || null,
-    price2:      (row['Price 2'] || '').trim() || null,
-    status:      status === 'added' ? 'active' : status === 'not added' ? 'not_added' : 'draft',
+    price2:      normalizePrice(row['Price 2']),
+    status:      (status === 'active' || status === 'added') ? 'active'
+                 : (status === 'not added' || status === 'not_added') ? 'not_added'
+                 : 'draft',
     notes:       (row['Notes'] || '').trim() || null,
   }
 }
 
-function parseCsvFile(file) {
+function parseCsvFile(file, currency) {
   return new Promise(resolve => {
     Papa.parse(file, {
       header: false,        // parse raw rows so we can find the real header row
@@ -83,7 +96,7 @@ function parseCsvFile(file) {
             return obj
           })
           .filter(r => r['Section'] && r['Title'])
-          .map(parseCsvRow)
+          .map(row => parseCsvRow(row, currency))
         resolve({ items, error: null })
       },
       error: (err) => resolve({ items: [], error: err.message }),
@@ -711,9 +724,12 @@ export default function EventPage() {
   async function handleCsvFilesSelected(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
+    // Resolve the event's currency spec so imported numeric prices are
+    // formatted in the same style as the table/Figma will display them.
+    const currency = resolveCurrencySpec(series, event, null)
     const results = await Promise.all(files.map(async file => {
       const name = nameFromFilename(file.name)
-      const { items, error } = await parseCsvFile(file)
+      const { items, error } = await parseCsvFile(file, currency)
       return { name, slug: slugify(name), category: 'bar', items, error }
     }))
     setCsvBatch(results)
@@ -790,7 +806,7 @@ export default function EventPage() {
               { id: 'templates', label: 'Templates' },
               { id: 'styles',    label: 'Styles' },
             ] : []),
-            { id: 'signoff', label: 'Sign-off' },
+            { id: 'signoff', label: 'Approvals' },
           ].map(t => (
             <button
               key={t.id}
@@ -1027,7 +1043,7 @@ export default function EventPage() {
 
       {/* ── SIGN-OFF TAB ── */}
       {tab === 'signoff' && (
-        <ApproversPanel targetType="event" targetId={event.id} title="Event sign-off" />
+        <ApproversPanel targetType="event" targetId={event.id} title="Event approvals" />
       )}
 
       {/* ── Edit Event Modal ── */}
