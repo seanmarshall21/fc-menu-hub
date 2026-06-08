@@ -225,6 +225,23 @@ create policy "admin_read_profiles" on user_profiles for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role = 'admin')
 );
 
+-- ─── Helper function: refresh just the preview thumbnail ────────────────────
+-- Called from the Menu Sync plugin when the user wants to re-export the Figma
+-- frame's PNG (e.g. after manual layout tweaks) WITHOUT marking the menu as
+-- newly synced. Leaves last_synced_at and any sync digest untouched so the
+-- drift indicator stays honest about whether Menu Hub data was actually
+-- pushed to Figma.
+create or replace function update_menu_preview(
+  p_menu_id     uuid,
+  p_preview_url text
+) returns void as $$
+begin
+  update menus
+     set preview_image_url = p_preview_url
+   where id = p_menu_id;
+end;
+$$ language plpgsql security definer;
+
 -- ─── Helper function: log an edit ────────────────────────────────────────────
 create or replace function log_menu_item_edit(
   p_item_id     uuid,
