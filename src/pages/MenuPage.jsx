@@ -550,7 +550,7 @@ export default function MenuPage() {
         )}
       </>)}
       below={(
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {tabs.map(t => (
             <button
               key={t.key}

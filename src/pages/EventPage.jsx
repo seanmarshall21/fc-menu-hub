@@ -779,7 +779,7 @@ export default function EventPage() {
         )}
       </>)}
       below={(
-        <div className="flex items-center gap-0 overflow-x-auto">
+        <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
             { id: 'menus',     label: `Menus (${menus.length})` },
             { id: 'preview',   label: 'Preview all' },
