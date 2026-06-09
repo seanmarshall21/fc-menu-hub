@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -755,6 +755,21 @@ export default function EventPage() {
 
   useEffect(() => { loadData() }, [brandSlug, seriesSlug, eventSlug])
   useFocusRefresh(loadData)
+
+  // If we arrived here from a SeriesPage 'Edit' action, the URL carries
+  // ?edit=1 — open the Edit Event modal as soon as the event loads, then
+  // strip the param so refresh doesn't re-open it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('edit') === '1' && event) {
+      openEditEvent()
+      const next = new URLSearchParams(searchParams)
+      next.delete('edit')
+      setSearchParams(next, { replace: true })
+    }
+    // openEditEvent is stable enough — re-run only when event/searchParams change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id, searchParams])
 
   // ── Menu create ──
   async function handleCreateMenu(e) {
