@@ -79,10 +79,46 @@ export default function EditLog({ menuId, onApproveAll, onChange }) {
   }
 
   async function rejectItem(menuItemId) {
-    if (!confirm('Mark this edit as rejected? The item stays as-is and the change is logged as not approved.')) return
+    if (!confirm('Reject these edits? The item will be reverted to its pre-edit values. This cannot be undone.')) return
     setBusyId(menuItemId)
     try {
-      await supabase.from('menu_items').update({ edit_status: 'rejected' }).eq('id', menuItemId)
+      // Pull every pending edit-log row for this item (each row = one field's
+      // old → new transition). Walk them oldest-first and capture the EARLIEST
+      // old_value seen per field — that's the value before any pending edits
+      // started piling up, which is what we restore.
+      const { data: pendingLogs } = await supabase
+        .from('edit_log')
+        .select('id, field_changed, old_value, note, created_at')
+        .eq('menu_item_id', menuItemId)
+        .is('archived_at', null)
+        .order('created_at', { ascending: true })
+
+      const revertable = new Set(['title','description','price1','size1','price2','size2','status'])
+      const revertMap = {}
+      for (const log of (pendingLogs || [])) {
+        if (!revertable.has(log.field_changed)) continue
+        if (!(log.field_changed in revertMap)) {
+          revertMap[log.field_changed] = log.old_value === '' ? null : log.old_value
+        }
+      }
+
+      // If we found prior values, revert them. Either way, clear the pending
+      // state so the item drops back to whatever it was before.
+      const update = { ...revertMap, edit_status: 'active', last_edited_at: null, last_edited_by: null }
+      await supabase.from('menu_items').update(update).eq('id', menuItemId)
+
+      // Mark the rejected log rows so the history shows they were denied
+      // instead of silently disappearing. We use phase_at_edit since there's
+      // no dedicated outcome column; UI key is the menu_item.edit_status.
+      // Tag each rejected log row in the existing note column so the history
+      // shows it was denied. Preserve any pre-existing reviewer note.
+      for (const log of (pendingLogs || [])) {
+        const tagged = log.note
+          ? (log.note.includes('[rejected]') ? log.note : `${log.note} [rejected]`)
+          : '[rejected]'
+        await supabase.from('edit_log').update({ note: tagged }).eq('id', log.id)
+      }
+
       await load()
     } finally {
       setBusyId(null)
