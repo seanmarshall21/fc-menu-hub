@@ -16,6 +16,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
+import MenuReviewPanel from '@/components/MenuReviewPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
@@ -427,6 +428,19 @@ export default function MenuPage() {
     setMenuSponsorRows(menuSponsorRowsServer)
     setMenuOverrideOrderDraft(!!menu?.override_sponsor_order)
   }
+
+  // Warn before navigating away (refresh, close tab, back) while there are
+  // unsaved sponsor changes. Browsers ignore the custom message — they show
+  // their own confirm dialog — but setting returnValue is what arms it.
+  useEffect(() => {
+    if (!sponsorsDirty) return
+    function onBeforeUnload(e) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [sponsorsDirty])
 
   // ── Item reorder within its section group ──
   async function moveItemInSection(itemId, groupItems, direction) {
@@ -877,6 +891,7 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
+          {canEdit && <MenuReviewPanel items={items} />}
           {lastApprovedIds.length > 0 && pendingCount === 0 && (
             <div className="card border-emerald-200 bg-emerald-50 p-3 flex items-center justify-between gap-3">
               <div className="text-sm text-emerald-800">

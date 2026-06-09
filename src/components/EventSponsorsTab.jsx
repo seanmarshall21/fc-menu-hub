@@ -192,6 +192,17 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
     setError(null)
   }
 
+  // beforeunload guard while the draft is dirty.
+  useEffect(() => {
+    if (!isDraftDirty) return
+    function onBeforeUnload(e) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [isDraftDirty])
+
   // Draft-only reorder. saveDraft writes the new sort_orders in one batch.
   function reorderActive(newActiveRows) {
     const updates = newActiveRows.map((row, i) => ({ id: row.eventSponsorId, sort_order: i }))
