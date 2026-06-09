@@ -36,6 +36,7 @@ export default function SeriesPage() {
 
   const [tab, setTab] = useState('events') // 'events' | 'styles'
   const [duplicatingEvent, setDuplicatingEvent] = useState(null)
+  const [deletingEvent, setDeletingEvent] = useState(null)
   const [showNewEvent, setShowNewEvent] = useState(false)
   const [eventName, setEventName] = useState('')
   const [eventSlugField, setEventSlugField] = useState('')
@@ -178,14 +179,23 @@ export default function SeriesPage() {
                     <td className="px-4 sm:px-6 py-3 text-ink-500">{event.menus?.length || 0}</td>
                     <td className="px-4 sm:px-6 py-3"><PhaseBadge phase={event.phase} /></td>
                     {(isAdmin || isInternal) && (
-                      <td className="px-2 py-3 text-right">
+                      <td className="px-2 py-3 text-right whitespace-nowrap">
                         <button
                           onClick={() => setDuplicatingEvent(event)}
-                          className="text-[11px] text-ink-500 hover:text-brand-600"
+                          className="text-[11px] text-ink-500 hover:text-brand-600 mr-3"
                           title="Duplicate event (with all its menus)"
                         >
                           Duplicate
                         </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => setDeletingEvent(event)}
+                            className="text-[11px] text-ink-400 hover:text-red-600"
+                            title="Delete event and all its menus"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -243,6 +253,14 @@ export default function SeriesPage() {
           currentBrandId={brand?.id}
           onClose={() => setDuplicatingEvent(null)}
           onDuplicated={() => { setDuplicatingEvent(null); loadData() }}
+        />
+      )}
+
+      {deletingEvent && (
+        <DeleteEventModal
+          event={deletingEvent}
+          onClose={() => setDeletingEvent(null)}
+          onDeleted={() => { setDeletingEvent(null); loadData() }}
         />
       )}
       </PageBody>
@@ -319,6 +337,78 @@ function DuplicateEventModal({ sourceEvent, currentSeriesId, currentBrandId, onC
         <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
           <button type="button" onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
           <button type="submit" disabled={busy} className="btn-primary btn-sm">{busy ? 'Duplicating…' : 'Duplicate'}</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Delete Event modal — typed-DELETE confirmation. Cascades through menus →
+// items → sponsors → edit_log via the existing on-delete-cascade FKs in
+// schema.sql. Admin-only.
+// ─────────────────────────────────────────────────────────────────────────────
+function DeleteEventModal({ event, onClose, onDeleted }) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy]   = useState(false)
+  const [error, setError] = useState(null)
+  const menuCount = event.menus?.length || 0
+  const armed = typed.trim().toUpperCase() === 'DELETE'
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!armed) return
+    setBusy(true); setError(null)
+    try {
+      const { error: err } = await supabase.from('events').delete().eq('id', event.id)
+      if (err) throw err
+      onDeleted?.()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title="Delete event?" onClose={() => { if (!busy) onClose() }}>
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-ink-700">
+          <strong>{event.name}</strong>{menuCount > 0 && (
+            <span className="text-ink-500"> · {menuCount} menu{menuCount === 1 ? '' : 's'}</span>
+          )} will be permanently removed.
+        </p>
+
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          This cascades through every menu, item, edit log entry, sponsor toggle,
+          and template under this event. There's no undo.
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-ink-700 mb-1">
+            Type <code className="bg-surface-100 px-1 rounded text-red-600">DELETE</code> to confirm
+          </label>
+          <input
+            type="text"
+            className="input"
+            value={typed}
+            onChange={e => setTyped(e.target.value)}
+            placeholder="DELETE"
+            autoFocus
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
+          <button type="button" onClick={onClose} disabled={busy} className="btn-secondary btn-sm">Cancel</button>
+          <button
+            type="submit"
+            disabled={!armed || busy}
+            className={`btn-sm text-white ${armed ? 'bg-red-600 hover:bg-red-700' : 'bg-red-300 cursor-not-allowed'}`}
+          >
+            {busy ? 'Deleting…' : 'Delete event'}
+          </button>
         </div>
       </form>
     </Modal>
