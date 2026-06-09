@@ -17,13 +17,19 @@ const ORDER_OPTIONS = [
  *   <EventSponsorsTab event={event} series={series} canEdit={canEdit} onChange={refresh} />
  */
 export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
-  const [seriesSponsors, setSeriesSponsors] = useState([])   // series_sponsors rows w/ library data
-  const [eventSponsors, setEventSponsors]   = useState([])   // event_sponsors rows for this event
-  const [defaultColor, setDefaultColor]     = useState(event?.sponsor_tint_color || '')
+  const [seriesSponsors, setSeriesSponsors] = useState([])   // series_sponsors rows (read-only library)
+  // Sponsor toggles + reorder + override flag use a draft-then-save flow.
+  // Server snapshot below lets us compute dirty + offer Cancel. Tint colors
+  // stay on their existing per-field Save button (no need to batch them).
+  const [eventSponsors, setEventSponsors]   = useState([])   // draft
+  const [eventSponsorsServer, setEventSponsorsServer] = useState([])
   const [overrideOrder, setOverrideOrder]   = useState(!!event?.override_sponsor_order)
+  const [overrideOrderServer, setOverrideOrderServer] = useState(!!event?.override_sponsor_order)
+  const [defaultColor, setDefaultColor]     = useState(event?.sponsor_tint_color || '')
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
   const [busy, setBusy]       = useState(null)
+  const [savingDraft, setSavingDraft] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -42,9 +48,12 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
     if (ss.error) setError(ss.error.message)
     if (es.error) setError(es.error.message)
     setSeriesSponsors((ss.data || []).filter(r => r.sponsor))
-    setEventSponsors(es.data || [])
+    const esRows = es.data || []
+    setEventSponsors(esRows)
+    setEventSponsorsServer(esRows)
     setDefaultColor(event?.sponsor_tint_color || '')
     setOverrideOrder(!!event?.override_sponsor_order)
+    setOverrideOrderServer(!!event?.override_sponsor_order)
     setLoading(false)
   }, [series?.id, event?.id, event?.sponsor_tint_color, event?.override_sponsor_order])
 
@@ -62,33 +71,28 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
   // Legacy custom sponsors (added before the library existed) — preserve, but flag.
   const customSponsors = eventSponsors.filter(r => !r.sponsor_id)
 
-  async function toggleSponsor(ss) {
+  // Draft-only — actual DB writes happen in saveDraft below.
+  function toggleSponsor(ss) {
     if (!canEdit) return
-    setBusy(ss.sponsor.id); setError(null)
+    setError(null)
     const existing = linkedByLibraryId.get(ss.sponsor.id)
-    try {
-      if (existing) {
-        const { error: err } = await supabase.from('event_sponsors').delete().eq('id', existing.id)
-        if (err) throw err
-      } else {
-        const sortOrder = eventSponsors.length
-        const { error: err } = await supabase.from('event_sponsors').insert({
-          event_id: event.id,
-          sponsor_id: ss.sponsor.id,
-          name: ss.sponsor.name,
-          slug: ss.sponsor.slug,
-          logo_url: ss.sponsor.svg_url || null,
-          active: true,
-          sort_order: sortOrder,
-        })
-        if (err) throw err
-      }
-      await load()
-      onChange?.()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setBusy(null)
+    if (existing) {
+      setEventSponsors(prev => prev.filter(r => r.id !== existing.id))
+    } else {
+      const sortOrder = eventSponsors.length
+      setEventSponsors(prev => [...prev, {
+        // Synthetic id until save creates a real one
+        id: `draft-${ss.sponsor.id}`,
+        event_id: event.id,
+        sponsor_id: ss.sponsor.id,
+        name: ss.sponsor.name,
+        slug: ss.sponsor.slug,
+        logo_url: ss.sponsor.svg_url || null,
+        active: true,
+        sort_order: sortOrder,
+        tint_color_override: null,
+        _draft: true,
+      }])
     }
   }
 
@@ -105,53 +109,96 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
     finally { setBusy(null) }
   }
 
-  // Persist event_sponsors.sort_order to match the active rows' current
-  // index in the series_sponsors ordering. Called when we need to resync
-  // (e.g. user just turned off Override).
-  async function resyncSortOrderToSeries() {
-    const seriesIndex = new Map(seriesSponsors.map((ss, i) => [ss.sponsor?.id, i]))
-    const updates = eventSponsors
-      .filter(es => es.sponsor_id)
-      .map(es => ({ id: es.id, sort_order: seriesIndex.get(es.sponsor_id) ?? 9999 }))
-    await Promise.all(updates.map(u =>
-      supabase.from('event_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
-    ))
-  }
-
-  async function toggleOverrideOrder(next) {
+  // Draft-only override toggle. When switching back to inherit, snap the
+  // draft order to mirror series so the preview reflects what'll happen on
+  // save. Real DB write happens in saveDraft.
+  function toggleOverrideOrder(next) {
     if (next === overrideOrder) return
-    setBusy('order-toggle'); setError(null)
-    try {
-      const { error: err } = await supabase
-        .from('events')
-        .update({ override_sponsor_order: next })
-        .eq('id', event.id)
-      if (err) throw err
-      setOverrideOrder(next)
-      // When switching back to inherit, snap event order to mirror series.
-      if (!next) await resyncSortOrderToSeries()
-      onChange?.()
-      await load()
-    } catch (e) { setError(e.message) }
-    finally { setBusy(null) }
+    setOverrideOrder(next)
+    if (!next) {
+      const seriesIndex = new Map(seriesSponsors.map((ss, i) => [ss.sponsor?.id, i]))
+      setEventSponsors(prev =>
+        [...prev]
+          .sort((a, b) => (seriesIndex.get(a.sponsor_id) ?? 9999) - (seriesIndex.get(b.sponsor_id) ?? 9999))
+          .map((r, i) => ({ ...r, sort_order: i }))
+      )
+    }
   }
 
-  // Reorder active rows when override is on. New ordering is persisted to
-  // event_sponsors.sort_order in one batch.
-  async function reorderActive(newActiveRows) {
-    setBusy('reorder')
+  // ── Draft dirty check + save/cancel ────────────────────────────────────
+  const isDraftDirty = useMemo(() => {
+    if (overrideOrder !== overrideOrderServer) return true
+    // Compare active set + per-row order. Tint overrides aren't part of the
+    // draft (they have their own per-row Save button), so skip those.
+    const draftKey  = eventSponsors.map(r => `${r.sponsor_id}:${r.sort_order}`).sort().join('|')
+    const serverKey = eventSponsorsServer.map(r => `${r.sponsor_id}:${r.sort_order}`).sort().join('|')
+    if (draftKey !== serverKey) return true
+    // Order-sensitive comparison for the active sequence
+    const draftSeq  = eventSponsors.slice().sort((a,b) => a.sort_order - b.sort_order).map(r => r.sponsor_id).join(',')
+    const serverSeq = eventSponsorsServer.slice().sort((a,b) => a.sort_order - b.sort_order).map(r => r.sponsor_id).join(',')
+    return draftSeq !== serverSeq
+  }, [overrideOrder, overrideOrderServer, eventSponsors, eventSponsorsServer])
+
+  async function saveDraft() {
+    setSavingDraft(true); setError(null)
     try {
-      const updates = newActiveRows.map((row, i) => ({ id: row.eventSponsorId, sort_order: i }))
-      // Optimistic UI
-      setEventSponsors(prev => prev.map(es => {
-        const u = updates.find(x => x.id === es.id)
-        return u ? { ...es, sort_order: u.sort_order } : es
-      }))
-      await Promise.all(updates.map(u =>
+      const serverByLib = new Map(eventSponsorsServer.filter(r => r.sponsor_id).map(r => [r.sponsor_id, r]))
+      const draftByLib  = new Map(eventSponsors.filter(r => r.sponsor_id).map(r => [r.sponsor_id, r]))
+
+      // Removes
+      for (const [sponsorId, srvRow] of serverByLib) {
+        if (!draftByLib.has(sponsorId)) {
+          await supabase.from('event_sponsors').delete().eq('id', srvRow.id)
+        }
+      }
+      // Adds
+      for (const [sponsorId, drRow] of draftByLib) {
+        if (!serverByLib.has(sponsorId)) {
+          await supabase.from('event_sponsors').insert({
+            event_id: event.id,
+            sponsor_id: sponsorId,
+            name: drRow.name,
+            slug: drRow.slug,
+            logo_url: drRow.logo_url,
+            active: true,
+            sort_order: drRow.sort_order,
+          })
+        }
+      }
+      // Reorder existing real rows (skip drafts — they got real ids on insert)
+      const reorderUpdates = eventSponsors
+        .filter(r => r.id && !String(r.id).startsWith('draft-') && !r._draft)
+        .map(r => ({ id: r.id, sort_order: r.sort_order }))
+      await Promise.all(reorderUpdates.map(u =>
         supabase.from('event_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
       ))
-    } catch (e) { setError(e.message) }
-    finally { setBusy(null) }
+      // Override flag on events
+      if (overrideOrder !== overrideOrderServer) {
+        await supabase.from('events').update({ override_sponsor_order: overrideOrder }).eq('id', event.id)
+      }
+
+      await load()
+      onChange?.()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
+  function cancelDraft() {
+    setEventSponsors(eventSponsorsServer)
+    setOverrideOrder(overrideOrderServer)
+    setError(null)
+  }
+
+  // Draft-only reorder. saveDraft writes the new sort_orders in one batch.
+  function reorderActive(newActiveRows) {
+    const updates = newActiveRows.map((row, i) => ({ id: row.eventSponsorId, sort_order: i }))
+    setEventSponsors(prev => prev.map(es => {
+      const u = updates.find(x => x.id === es.id)
+      return u ? { ...es, sort_order: u.sort_order } : es
+    }))
   }
 
   async function saveDefaultColor() {
@@ -363,6 +410,31 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
             ))}
           </ul>
         </section>
+      )}
+
+      {/* Sticky Save/Cancel bar — visible only when toggle/reorder/override
+          draft differs from server. Tint color edits live outside the draft
+          and use their existing per-field Save buttons. */}
+      {canEdit && isDraftDirty && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-30 md:left-60 bg-white border-t border-amber-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+        >
+          <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3 max-w-6xl mx-auto">
+            <div className="flex items-center gap-2 text-sm text-amber-700">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">Unsaved sponsor changes</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={cancelDraft} disabled={savingDraft} className="btn-secondary btn-sm">Cancel</button>
+              <button onClick={saveDraft} disabled={savingDraft} className="btn-primary btn-sm">
+                {savingDraft ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
