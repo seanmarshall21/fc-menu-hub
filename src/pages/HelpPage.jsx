@@ -49,8 +49,10 @@ function Code({ children }) {
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import { PLUGIN_INSTALL_URL, PLUGIN_LOCAL_INSTALL_DOC } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function HelpPage() {
+  const { isAdmin } = useAuth()
   return (
     <PageScreen breadcrumbs={[{ label: 'Help & Resources' }]}>
       <PageBody className="max-w-3xl">
@@ -97,6 +99,51 @@ export default function HelpPage() {
           </div>
         </div>
       </div>
+
+      {/* Admin Walkthrough — only visible to admins. Same shape as the user
+          card but purple-tinted so it stands apart at a glance. */}
+      {isAdmin && (
+        <div className="mb-8 rounded-xl overflow-hidden border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50 shadow-sm">
+          <div className="p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow-sm">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs uppercase tracking-wider text-purple-700 font-semibold mb-1">Admin only · for the Vivo team</div>
+              <h2 className="text-lg font-bold text-ink-900 mb-1">Admin Walkthrough</h2>
+              <p className="text-sm text-ink-600">
+                Setup, design system, Figma pipeline, data ops, troubleshooting — everything you and your team need to administrate Menu Hub.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+              <a
+                href="/admin-walkthrough.html"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
+              >
+                View admin documentation
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+              <a
+                href="/admin-walkthrough.pdf"
+                download
+                className="btn-secondary text-sm inline-flex items-center gap-1.5 whitespace-nowrap"
+                title="Download as PDF for offline reference or printing"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CSV Template ── */}
       <Section title="CSV Template">

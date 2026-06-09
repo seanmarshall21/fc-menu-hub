@@ -17,8 +17,10 @@ const docsDir    = join(projectDir, 'docs')
 const publicDir  = join(projectDir, 'public')
 
 const files = [
-  { src: 'walkthrough.html', dst: 'walkthrough.html' },
-  { src: 'walkthrough.pdf',  dst: 'walkthrough.pdf'  },
+  { src: 'walkthrough.html',        dst: 'walkthrough.html' },
+  { src: 'walkthrough.pdf',         dst: 'walkthrough.pdf'  },
+  { src: 'admin-walkthrough.html',  dst: 'admin-walkthrough.html' },
+  { src: 'admin-walkthrough.pdf',   dst: 'admin-walkthrough.pdf'  },
 ]
 
 await mkdir(publicDir, { recursive: true })

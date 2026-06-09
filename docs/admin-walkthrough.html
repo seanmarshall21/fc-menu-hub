@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Menu Hub — Admin Walkthrough</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+    color: #1f2330; background: #f7f6f3; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  :root {
+    --brand: #6366f1; --brand-deep: #4338ca; --brand-soft: #eef2ff;
+    --ink: #1f2330; --ink-soft: #4b5563; --ink-muted: #6b7280;
+    --line: #e7e5e4; --surface: #ffffff; --surface-alt: #fafaf9;
+    --green: #16a34a; --green-soft: #dcfce7;
+    --amber: #d97706; --amber-soft: #fef3c7;
+    --red: #dc2626; --red-soft: #fee2e2;
+    --gray-soft: #f3f4f6;
+    --orange: #C77929; --orange-soft: #fef3e2;
+    --purple: #7c3aed; --purple-soft: #ede9fe;
+  }
+  .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); max-width: 1280px; margin: 0 auto; min-height: 100vh; }
+  nav.toc { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 32px 24px; background: #fff; border-right: 1px solid var(--line); }
+  main { padding: 56px 64px 96px; min-width: 0; }
+  @media (max-width: 880px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    main { padding: 40px 24px 72px; }
+  }
+  .brand-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .brand-mark .dot {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--purple) 0%, #a855f7 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 14px;
+  }
+  .brand-mark .name { font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .brand-mark .sub { font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: section; }
+  nav.toc li { counter-increment: section; margin: 2px 0; }
+  nav.toc a {
+    display: flex; gap: 10px; padding: 8px 10px; border-radius: 6px;
+    text-decoration: none; color: var(--ink-soft); font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+  }
+  nav.toc a:hover { background: var(--surface-alt); color: var(--brand-deep); }
+  nav.toc a::before {
+    content: counter(section, decimal-leading-zero);
+    color: var(--ink-muted); font-variant-numeric: tabular-nums;
+    font-size: 11px; padding-top: 2px; min-width: 22px;
+  }
+  nav.toc h4 {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-muted); margin: 18px 10px 6px; font-weight: 600;
+  }
+  .cover {
+    padding: 64px 48px;
+    background: linear-gradient(135deg, #1f2330 0%, #7c3aed 100%);
+    color: #fff; border-radius: 16px; margin-bottom: 48px;
+    position: relative; overflow: hidden;
+  }
+  .cover::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 90% 10%, rgba(199, 121, 41, 0.25), transparent 60%);
+  }
+  .cover-inner { position: relative; }
+  .cover .eyebrow {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em;
+    opacity: 0.7; margin-bottom: 12px; font-weight: 600;
+  }
+  .cover h1 { font-size: 52px; line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.025em; font-weight: 800; }
+  .cover .lede { font-size: 18px; opacity: 0.85; max-width: 640px; line-height: 1.55; }
+  .cover-meta {
+    display: flex; gap: 24px; margin-top: 32px; padding-top: 24px;
+    border-top: 1px solid rgba(255,255,255,0.15); font-size: 12px;
+  }
+  .cover-meta div { opacity: 0.7; }
+  .cover-meta strong { color: #fff; opacity: 1; display: block; font-size: 13px; }
+  section.chunk {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 32px 36px; margin-bottom: 24px;
+    scroll-margin-top: 24px;
+  }
+  section.chunk:target { border-color: var(--purple); box-shadow: 0 0 0 4px var(--purple-soft); }
+  .section-head {
+    display: flex; gap: 16px; align-items: baseline;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-head .num {
+    font-size: 13px; font-weight: 600; color: var(--purple);
+    letter-spacing: 0.06em; text-transform: uppercase; min-width: 32px;
+  }
+  .section-head h2 { font-size: 26px; margin: 0; color: var(--ink); letter-spacing: -0.015em; font-weight: 700; }
+  section.chunk p { margin: 0 0 12px; color: var(--ink-soft); }
+  section.chunk p:last-child { margin-bottom: 0; }
+  section.chunk strong { color: var(--ink); font-weight: 600; }
+  section.chunk h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 700; letter-spacing: -0.01em; }
+  section.chunk h3:first-child { margin-top: 0; }
+  section.chunk h4 { font-size: 14px; margin: 18px 0 6px; color: var(--ink); font-weight: 600; }
+  section.chunk ul, section.chunk ol { margin: 0 0 14px; padding-left: 22px; color: var(--ink-soft); }
+  section.chunk li { margin: 6px 0; }
+  section.chunk li > strong { color: var(--ink); }
+  section.chunk a { color: var(--purple); text-decoration: none; border-bottom: 1px solid var(--purple-soft); }
+  section.chunk a:hover { border-bottom-color: var(--purple); }
+  section.chunk code {
+    background: var(--gray-soft); color: var(--ink);
+    padding: 1.5px 6px; border-radius: 4px; font-size: 12.5px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+  }
+  pre.sql {
+    background: #1f2330; color: #f7f6f3;
+    padding: 14px 18px; border-radius: 8px; overflow-x: auto;
+    font-size: 12.5px; font-family: 'SF Mono', Menlo, Consolas, monospace;
+    line-height: 1.55; margin: 12px 0 18px;
+  }
+  pre.sql code { background: transparent; color: inherit; padding: 0; }
+  blockquote {
+    margin: 18px 0; padding: 14px 18px; background: var(--purple-soft);
+    border-left: 3px solid var(--purple); border-radius: 0 6px 6px 0;
+    color: var(--ink); font-size: 14.5px;
+  }
+  table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    margin: 12px 0 18px; font-size: 14px; overflow: hidden;
+    border-radius: 8px; border: 1px solid var(--line);
+  }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    background: var(--surface-alt); font-weight: 600; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted);
+  }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--surface-alt); }
+  td code { font-size: 12px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 999px; font-size: 11.5px;
+    font-weight: 600; line-height: 1.4; letter-spacing: 0.01em;
+  }
+  .badge.admin { background: var(--purple-soft); color: #5b21b6; }
+  .badge.internal { background: var(--brand-soft); color: #3730a3; }
+  .badge.external { background: var(--gray-soft); color: var(--ink-muted); }
+  .callout {
+    margin: 18px 0; padding: 16px 20px; border-radius: 8px;
+    border: 1px solid; display: flex; gap: 14px; align-items: flex-start;
+  }
+  .callout.tip { background: var(--purple-soft); border-color: #c4b5fd; color: #4c1d95; }
+  .callout.warn { background: var(--amber-soft); border-color: #fcd34d; color: #78350f; }
+  .callout.danger { background: var(--red-soft); border-color: #fca5a5; color: #7f1d1d; }
+  .callout-icon {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .tip .callout-icon { background: var(--purple); color: #fff; }
+  .warn .callout-icon { background: var(--amber); color: #fff; }
+  .danger .callout-icon { background: var(--red); color: #fff; }
+  .callout p { margin: 0; }
+  .callout strong { display: block; margin-bottom: 4px; }
+  @media print {
+    body { background: #fff; }
+    .shell { grid-template-columns: 1fr; max-width: none; }
+    nav.toc { display: none; }
+    main { padding: 0; }
+    .cover { background: #1f2330 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-after: always; }
+    section.chunk { box-shadow: none; page-break-inside: avoid; border-color: #e5e7eb !important; margin-bottom: 16px; }
+    section.chunk:target { box-shadow: none; }
+    .badge, table, .callout, pre.sql { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: var(--ink) !important; border-bottom: 0 !important; }
+    .section-head { page-break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <nav class="toc" aria-label="Table of contents">
+    <div class="brand-mark">
+      <div class="dot">A</div>
+      <div>
+        <div class="name">Menu Hub</div>
+        <div class="sub">Admin Walkthrough</div>
+      </div>
+    </div>
+    <h4>Setup</h4>
+    <ol>
+      <li><a href="#roles">Roles &amp; access model</a></li>
+      <li><a href="#user-management">User management</a></li>
+      <li><a href="#brands">Brands · series · events</a></li>
+    </ol>
+    <h4>Design system</h4>
+    <ol style="counter-reset: section 3;">
+      <li><a href="#styles">Series · Event · Menu Styles</a></li>
+      <li><a href="#templates">Event templates</a></li>
+      <li><a href="#sponsor-library">Sponsor library &amp; SVG normalization</a></li>
+    </ol>
+    <h4>Editing &amp; approvals</h4>
+    <ol style="counter-reset: section 6;">
+      <li><a href="#approvals">Approvals workflow</a></li>
+      <li><a href="#notify">Notify-for-edits cascade</a></li>
+      <li><a href="#sponsor-approval">Per-menu sponsor approval</a></li>
+    </ol>
+    <h4>Figma pipeline</h4>
+    <ol style="counter-reset: section 9;">
+      <li><a href="#plugin">Menu Sync plugin</a></li>
+      <li><a href="#plugin-distribution">Plugin distribution</a></li>
+      <li><a href="#pdf-export">PDF / SVG export</a></li>
+    </ol>
+    <h4>Data flow</h4>
+    <ol style="counter-reset: section 12;">
+      <li><a href="#csv">CSV import / export</a></li>
+      <li><a href="#sheets">Master Google Sheet (Apps Script)</a></li>
+      <li><a href="#duplicate">Duplicate menus / events / series</a></li>
+    </ol>
+    <h4>Operations</h4>
+    <ol style="counter-reset: section 15;">
+      <li><a href="#supabase">Supabase project</a></li>
+      <li><a href="#sql">Required SQL migrations</a></li>
+      <li><a href="#deploys">Deploys &amp; rebuilds</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <header class="cover">
+      <div class="cover-inner">
+        <div class="eyebrow">For Sean &amp; the Vivo Creative team · June 2026</div>
+        <h1>Admin Walkthrough</h1>
+        <p class="lede">
+          Everything you need to set up Menu Hub for a new client, keep the
+          design system in good shape, run the Figma pipeline, and stay
+          unstuck when something breaks. Pairs with the User Walkthrough
+          (which is what you hand to editors).
+        </p>
+        <div class="cover-meta">
+          <div><strong>App URL</strong>fcmenus.netlify.app</div>
+          <div><strong>Supabase project</strong>fc-events (wysvknamfxtbehwetjxf)</div>
+          <div><strong>Repo</strong>seanmarshall21/fc-menu-hub</div>
+          <div><strong>Plugin</strong>figma.com/community/plugin/1645758553039246791</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 01 -->
+    <section class="chunk" id="roles">
+      <div class="section-head"><div class="num">01</div><h2>Roles &amp; access model</h2></div>
+      <p>Every user has one of four roles, set on the <code>user_profiles</code> table:</p>
+      <table>
+        <thead><tr><th>Role</th><th>Can do</th><th>Cannot do</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge admin">Admin</span></td>
+            <td>Everything — including Styles, Templates, Admin page, role changes, deletion of menus/events/series</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><span class="badge internal">Internal</span></td>
+            <td>Edit menus, manage sponsors at every level, approve edits, view Approvals and Inbox</td>
+            <td>Edit Styles / Templates, manage users, delete events</td>
+          </tr>
+          <tr>
+            <td><span class="badge external">External</span></td>
+            <td>Edit items (saves as Pending Approval), view Preview &amp; Edit Log, can be tagged for notifications</td>
+            <td>Approve their own edits, edit sponsors, manage anything above the menu level</td>
+          </tr>
+          <tr>
+            <td><span class="badge" style="background: var(--amber-soft); color: #78350f;">Pending</span></td>
+            <td>Sign in but only sees the "Access Pending" screen</td>
+            <td>Anything else — until admin assigns a real role</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Roles are enforced by Postgres Row Level Security policies. Admins can read all profiles; internals can read other internal/admin profiles (via the <code>list_taggable_users()</code> RPC); externals only see their own row.</p>
+    </section>
+
+    <!-- 02 -->
+    <section class="chunk" id="user-management">
+      <div class="section-head"><div class="num">02</div><h2>User management</h2></div>
+
+      <h3>Inviting a user</h3>
+      <ol>
+        <li>Sidebar → <strong>Admin</strong></li>
+        <li><strong>Add User</strong> (top right)</li>
+        <li>Email + name + role + (for external) brand access</li>
+        <li>Supabase sends them a magic-link invite email</li>
+      </ol>
+
+      <h3>Approving a pending signup</h3>
+      <p>If someone signs up themselves (via the login page's signup form), they land in the user list with role = <code>pending</code> and a yellow row. Click <strong>Approve</strong> on the row to assign a real role, or <strong>Deny</strong> to delete.</p>
+
+      <h3>Resetting a password</h3>
+      <p>Each user row in Admin has a key icon (left of the pencil). Click it → confirm → Supabase emails the user a password-reset link that redirects to <code>/reset-password</code>.</p>
+
+      <h3>Removing a user</h3>
+      <p>Click the trash icon in an Admin user row. Deletes the <code>user_profiles</code> row. Their Supabase Auth user remains until removed from the Supabase dashboard — that's intentional so any historical edit_log rows still resolve to a real email.</p>
+    </section>
+
+    <!-- 03 -->
+    <section class="chunk" id="brands">
+      <div class="section-head"><div class="num">03</div><h2>Brands · series · events</h2></div>
+
+      <h3>Creating a brand</h3>
+      <p>Sidebar → <strong>+</strong> next to "BRANDS" → fill in name, slug (auto-generated), color, icon. Admin-only.</p>
+
+      <h3>Creating a series</h3>
+      <p>Open the brand → <strong>+ New Series</strong> (top right of Series list). Name + slug.</p>
+
+      <h3>Creating an event</h3>
+      <p>Open the series → <strong>+ New Event</strong>. Name, slug, date, venue, phase, optional Figma file URL + Figma page name.</p>
+
+      <h3>The phase pill</h3>
+      <table>
+        <thead><tr><th>Phase</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Build</strong></td><td>In progress — content being assembled</td></tr>
+          <tr><td><strong>Proof</strong></td><td>Ready for review</td></tr>
+          <tr><td><strong>Approved</strong></td><td>Signed off — content frozen, edits return to Pending Approval</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Duplicating</h3>
+      <p>See <a href="#duplicate">section 14</a> — every level (menu / event / series) has a <code>⋯</code> dropdown with a Duplicate option that cascades through children.</p>
+
+      <h3>Deleting</h3>
+      <div class="callout danger">
+        <div class="callout-icon">!</div>
+        <div><strong>Deletes cascade.</strong>Deleting an event removes every menu, every item, every sponsor toggle, every edit log row, every template under it. There's no undo. The typed-DELETE confirmation modal exists for a reason.</div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section class="chunk" id="styles">
+      <div class="section-head"><div class="num">04</div><h2>Series · Event · Menu Styles</h2></div>
+      <p>Three-tier inheritance: Series sets the brand defaults; Event overrides per-event; Menu overrides per-menu.</p>
+      <table>
+        <thead><tr><th>Tab</th><th>Where</th><th>Controls</th></tr></thead>
+        <tbody>
+          <tr><td>Series Styles</td><td>Series page → Styles (admin-only)</td><td>The full design spec: fonts, type roles (menu title, item title, description, etc.), spacing (per size — SM / MD / LG), dietary icons, sponsor styling, footer config</td></tr>
+          <tr><td>Event Styles</td><td>Event page → Styles (admin-only)</td><td>Same fields as Series, but each is an inherit/override toggle. Default = inherit from series</td></tr>
+          <tr><td>Menu Styles</td><td>Menu page → Styles (admin-only)</td><td>Same fields, three-tier inheritance (series → event → menu). Useful for one-off menu tweaks</td></tr>
+        </tbody>
+      </table>
+      <h3>Spacing — auto + multiplier modes</h3>
+      <ul>
+        <li><strong>Auto</strong>: gap distributes leftover space via flexbox. Set a <strong>min</strong> floor so it never collapses below that</li>
+        <li><strong>Section gap = Item gap × multiplier</strong>: when on, section gap is computed from the resolved item gap (including auto-distributed values) × the multiplier. The renderer measures actual content heights, computes the item gap from available space, and derives section gap</li>
+      </ul>
+      <h3>Tips</h3>
+      <ul>
+        <li>Per-size tabs (SM / MD / LG) under the Spacing block — each menu size has its own gap spec</li>
+        <li>Item Title → Description gap is surfaced in the main spacing grid. Pricing-related fields (Content → Price, stacked/row gap, layout selects) live in the "Item Pricing" subgroup</li>
+        <li>Reset columns (above the items table) restores default column order/widths</li>
+      </ul>
+    </section>
+
+    <!-- 05 -->
+    <section class="chunk" id="templates">
+      <div class="section-head"><div class="num">05</div><h2>Event templates</h2></div>
+      <p>The Templates tab on an Event stores the per-size background image + a color/style snapshot used by the in-app preview canvas and the Figma plugin.</p>
+      <h3>Setting up</h3>
+      <ol>
+        <li>Event → <strong>Templates</strong></li>
+        <li>For each size you'll use (SM / MD / LG), upload a background image OR push one from Figma via the plugin's Template Export tab</li>
+        <li>Set colors (section, title, description, price, size label, divider) — these drive the in-app preview</li>
+      </ol>
+      <h3>Pushing layout from Figma</h3>
+      <p>In the Menu Sync plugin → Template Export tab → select size → "Push background + layout". The plugin uploads a JPEG of the frame's background and extracts spec tokens (gaps, padding, fonts) back into the event template.</p>
+    </section>
+
+    <!-- 06 -->
+    <section class="chunk" id="sponsor-library">
+      <div class="section-head"><div class="num">06</div><h2>Sponsor library &amp; SVG normalization</h2></div>
+      <p>Sponsors live in a global library (<code>sponsors</code> table) and cascade down:</p>
+      <blockquote><strong>Library</strong> → <strong>Series</strong> (which library entries this series uses) → <strong>Event</strong> (which series entries are active for this event) → <strong>Menu</strong> (which event entries appear on this specific menu)</blockquote>
+      <h3>Adding a sponsor to the library</h3>
+      <ol>
+        <li>Sidebar → <strong>Sponsors</strong></li>
+        <li><strong>New Sponsor</strong></li>
+        <li>Name, slug (used for the Figma layer name <code>sponsor--slug</code>), Figma layer name override (optional), SVG upload, scale, max width</li>
+      </ol>
+      <h3>SVG auto-normalize on upload</h3>
+      <p>When you upload an SVG, the app rewrites it before storing:</p>
+      <ul>
+        <li>Every hard-coded <code>fill="#…"</code> and <code>stroke="#…"</code> becomes <code>currentColor</code> (so the sponsor color override at series/event/menu level actually applies)</li>
+        <li>Same for inline <code>style="fill:#…"</code></li>
+        <li>Root <code>&lt;svg&gt;</code> gets width/height stripped + <code>preserveAspectRatio="xMidYMid meet"</code> added so it scales freely</li>
+        <li><code>fill="none"</code> stays as <code>none</code> (intentional empties)</li>
+      </ul>
+      <p>Internal users can upload too — the auto-normalize means they don't need to manually prep SVGs.</p>
+      <h3>Sponsor approval (per menu)</h3>
+      <p>Menu edit form → "Requires sponsor approval" toggle. When on, an amber chip appears at the top of that menu until someone clicks "Mark as approved". See <a href="#sponsor-approval">section 8</a>.</p>
+    </section>
+
+    <!-- 07 -->
+    <section class="chunk" id="approvals">
+      <div class="section-head"><div class="num">07</div><h2>Approvals workflow</h2></div>
+      <p>Status of an item drives where it appears + who can change it:</p>
+      <table>
+        <thead><tr><th>Status</th><th>Visible in</th><th>Set by</th></tr></thead>
+        <tbody>
+          <tr><td><code>active</code></td><td>Everywhere (table, preview, Figma sync, exports)</td><td>Default for new items + after approval</td></tr>
+          <tr><td><code>pending_approval</code></td><td>Items table (amber row), Edit Log</td><td>Auto: when anyone edits an Active item</td></tr>
+          <tr><td><code>not_added</code></td><td>Items table only (greyed)</td><td>Explicit "hide this item" toggle</td></tr>
+          <tr><td><code>draft</code></td><td>Items table only</td><td>Work-in-progress, default on bulk imports</td></tr>
+        </tbody>
+      </table>
+      <h3>Approving</h3>
+      <ul>
+        <li>Per-item: Items table → row action → <strong>Approve</strong>. Or Edit Log → <strong>Approve</strong> on a row</li>
+        <li>Per-menu: "Edits N pending" chip at top of menu → <strong>Approve all</strong></li>
+      </ul>
+      <h3>Rejecting</h3>
+      <p>Reject reverts the item to its pre-edit values (walks every unarchived edit_log row for the item, takes the earliest <code>old_value</code> per field). The log entries get <code>[rejected]</code> appended to their note for history.</p>
+      <h3>Edit log accordions</h3>
+      <p>Edit Log tab splits into Pending (open by default) / Approved / Rejected / History / Archived (all collapsed). Click chevrons to expand. Archive any row to hide it from active buckets.</p>
+    </section>
+
+    <!-- 08 -->
+    <section class="chunk" id="notify">
+      <div class="section-head"><div class="num">08</div><h2>Notify-for-edits cascade</h2></div>
+      <p>People tagged on an edit get a notification in their Inbox. Defaults cascade top-down:</p>
+      <blockquote><strong>Brand</strong> → <strong>Series</strong> → <strong>Event</strong> → <strong>Menu</strong> → pre-checked on every item edit form</blockquote>
+      <h3>Setting at each level</h3>
+      <table>
+        <thead><tr><th>Where</th><th>Inherits from</th></tr></thead>
+        <tbody>
+          <tr><td>Brand page → Approvals tab</td><td>(root — no parent)</td></tr>
+          <tr><td>Series → Approvals tab</td><td>Brand</td></tr>
+          <tr><td>Event → Approvals tab (below sign-off list)</td><td>Brand + Series</td></tr>
+          <tr><td>Menu → Approvals tab (below sign-off list)</td><td>Brand + Series + Event</td></tr>
+          <tr><td>Per-edit chips in item edit form</td><td>Brand + Series + Event + Menu (pre-checked, removable for this single edit)</td></tr>
+        </tbody>
+      </table>
+      <p>Inherited people show as grayed chips with a check — can't be removed at a lower level (only at the level they were added). Protects against accidental exclusion.</p>
+      <h3>Edit-resolved auto-notifications</h3>
+      <p>When you approve or reject an edit, the original editor gets an auto-notification ("Your edit on X was approved"). Fires via a DB trigger on every <code>menu_items.edit_status</code> change. No frontend code involved — survives any UI changes.</p>
+      <h3>Inbox</h3>
+      <p>Sidebar → <strong>Inbox</strong> (red badge for unread count). Buckets: Tagged in edits · My edits · Archived (collapsed). Mark all read, archive all, restore archived, per-row actions.</p>
+    </section>
+
+    <!-- 09 -->
+    <section class="chunk" id="sponsor-approval">
+      <div class="section-head"><div class="num">09</div><h2>Per-menu sponsor approval</h2></div>
+      <p>Optional flag for menus where you need explicit sign-off from a sponsor (e.g. the Bulleit-sponsored craft cocktails menu where Bulleit's marketing team needs to OK the final).</p>
+      <h3>Turning it on</h3>
+      <ol>
+        <li>Menu page → <strong>Edit</strong> button → tick "Requires sponsor approval"</li>
+        <li>Amber "Needs sponsor approval" chip appears at the top of that menu</li>
+        <li>When the sponsor signs off, click <strong>Mark as approved</strong> on the chip — flips to green "Approved by sponsor (timestamp)"</li>
+      </ol>
+      <p>State stored on <code>menus.requires_sponsor_approval</code>, <code>menus.sponsor_approved_at</code>, <code>menus.sponsor_approved_by</code>.</p>
+    </section>
+
+    <!-- 10 -->
+    <section class="chunk" id="plugin">
+      <div class="section-head"><div class="num">10</div><h2>Menu Sync plugin</h2></div>
+      <p>The Figma plugin that pulls menu content from Menu Hub into your Figma menu templates.</p>
+      <h3>Layer naming convention</h3>
+      <p>Every templated frame must follow this structure (the plugin's <code>detectPrefix</code> recognizes either form):</p>
+      <pre class="sql"><code>menu-template_med_2x3                  ← root frame (also matches _sm _lg or small/med/large)
+  cf26f--menu_head_md                  ← any prefixed child confirms the prefix
+  cf26f--menu-items_column             ← OR just "menu-items_column" (newer templates)
+    cf26f--menu-items_section
+      cf26f--section_label
+      menu-items_section-items
+        cf26f--menu-item_layout_main   ← cloned per item on sync
+          cf26f--menu-item_details
+          cf26f--menu-item_price-group-column
+            cf26f--menu-item_price_group
+              menu-item_size
+              menu-item_price
+            cf26f--menu-item_price_group   ← second price (two-size items)
+  menu_footer
+    sponsors-row
+      sponsor--bulleit               ← can also be "cf26f--sponsor--bulleit"
+        logo--bulleit</code></pre>
+      <h3>Sync flow</h3>
+      <ol>
+        <li>Plugin opens → cascading Brand → Series → Event → Menu dropdowns</li>
+        <li>"Fetch Menu Data" → loads items, sponsors, the menu's content fingerprint</li>
+        <li>Plugin auto-picks the matching size frame on the current page (warns if size doesn't match)</li>
+        <li>Toggle sponsors (pre-checked from Menu Hub's active set), footer options, spacing</li>
+        <li>"Sync to → {frame name}" — rebuilds the items column from the master component instances</li>
+      </ol>
+      <h3>Frame ownership</h3>
+      <p>Each synced frame stores <code>linkedMenuId</code> in its pluginData. The plugin never auto-picks a frame that's already linked to a different menu. Drop-down marks them "In use by other menus — pick only to overwrite" so you don't accidentally clobber spicy-pie when syncing main-bar.</p>
+      <h3>Drift detection</h3>
+      <p>On sync, the plugin writes a content fingerprint to the frame. On every fetch, it recomputes from current DB data. Mismatch → amber "Out of date" badge below the frame name. Match → green "Up to date with Menu Hub (synced X minutes ago)".</p>
+      <h3>Update text only mode</h3>
+      <p>Checkbox in the sync panel. When on, the plugin walks existing items in the column, matches by title, and only updates text content — preserving any manual layout tweaks you made in Figma.</p>
+      <h3>Refresh preview image only</h3>
+      <p>Button below Sync. Re-exports the frame as a PNG and uploads it to Menu Hub as the new preview thumbnail — without touching item text or marking the menu as freshly synced (drift indicator stays accurate).</p>
+    </section>
+
+    <!-- 11 -->
+    <section class="chunk" id="plugin-distribution">
+      <div class="section-head"><div class="num">11</div><h2>Plugin distribution</h2></div>
+      <h3>Today: published on Figma Community</h3>
+      <p><a href="https://www.figma.com/community/plugin/1645758553039246791/menu-sync" target="_blank">figma.com/community/plugin/1645758553039246791/menu-sync</a></p>
+      <p>Anyone with the link can install it. They'll see empty dropdowns unless they have a Menu Hub login that can read your Supabase data.</p>
+      <h3>Updating the published version</h3>
+      <ol>
+        <li>Edit <code>menu-sync-plugin/code.js</code> or <code>ui.html</code> locally</li>
+        <li>Reload the dev copy in Figma (Plugins → Development → Menu Sync) to test</li>
+        <li>From any Figma file → right-click your dev plugin → <strong>Publish new version</strong></li>
+        <li>Figma re-reviews (usually under a day on re-submits). Users get the update automatically</li>
+      </ol>
+      <h3>Private to an org instead</h3>
+      <p>Requires Figma Organization or Enterprise plan (Professional doesn't have it). Once on Org, publish privately to your org — only people in the org see it, and they get updates instantly without Community review.</p>
+      <div class="callout warn">
+        <div class="callout-icon">!</div>
+        <div><strong>Quirks of the plugin runtime.</strong>Figma's QuickJS doesn't support <code>??</code> or <code>?.</code>. Use ternaries and guard blocks instead. Page switching also requires <code>figma.setCurrentPageAsync()</code>, not the synchronous assignment.</div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section class="chunk" id="pdf-export">
+      <div class="section-head"><div class="num">12</div><h2>PDF / SVG export</h2></div>
+      <h3>From the plugin</h3>
+      <ul>
+        <li><strong>Export PDF (live text)</strong> button — uses Figma's native <code>exportAsync({format:'PDF'})</code>. Live text survives <em>only when the fonts are properly embedded</em>; Adobe Fonts / variable fonts get outlined</li>
+        <li><strong>Export Menus tab</strong> — bulk export every synced menu on the page as PDF or SVG</li>
+      </ul>
+      <h3>Known limitation</h3>
+      <p>The CRSSD template uses Acumin Variable Concept which Figma outlines on PDF export. Workarounds: (a) switch to a non-variable font, (b) export as SVG (preserves text), (c) accept the outline and let Illustrator handle it (text is still visually crisp, just not editable).</p>
+    </section>
+
+    <!-- 13 -->
+    <section class="chunk" id="csv">
+      <div class="section-head"><div class="num">13</div><h2>CSV import / export</h2></div>
+      <h3>Column shape (canonical)</h3>
+      <table>
+        <thead><tr><th>Section</th><th>Title</th><th>VT</th><th>VE</th><th>GF</th><th>Description</th><th>2 Sizes</th><th>Size</th><th>Price</th><th>Size 2</th><th>Price 2</th><th>Status</th><th>Notes</th></tr></thead>
+      </table>
+      <ul>
+        <li><strong>VT/VE/GF/2 Sizes</strong>: <code>TRUE</code> / <code>FALSE</code></li>
+        <li><strong>Price columns</strong>: any of <code>12</code>, <code>$12</code>, <code>$12.00</code> — normalized on import</li>
+        <li><strong>Status</strong>: <code>Active</code>, <code>Pending Approval</code>, <code>Not Added</code>, <code>Draft</code> (also accepts legacy <code>Added</code>)</li>
+      </ul>
+      <h3>Master Google Sheet</h3>
+      <p>Apps Script (in <code>sheets-script/Code.gs</code>) provides one tab per menu with checkboxes, validation, color-coded status, and an auto-flag trigger. See <a href="#sheets">section 14</a>.</p>
+    </section>
+
+    <!-- 14 -->
+    <section class="chunk" id="sheets">
+      <div class="section-head"><div class="num">14</div><h2>Master Google Sheet (Apps Script)</h2></div>
+      <p>Lives at <code>sheets-script/Code.gs</code> in the repo. Setup guide: <code>sheets-script/SETUP-GUIDE.md</code>.</p>
+      <h3>First-time setup per sheet</h3>
+      <ol>
+        <li>Open the Google Sheet → Extensions → Apps Script</li>
+        <li>Paste entire <code>Code.gs</code> contents → Save → reload spreadsheet</li>
+        <li>New <strong>☰ Menu Sync</strong> menu appears in the sheet's menu bar</li>
+        <li><strong>☰ Menu Sync → Setup VERSION LOG tab</strong> (once)</li>
+        <li><strong>☰ Menu Sync → Setup all tabs at once</strong> (formats every non-system tab)</li>
+      </ol>
+      <h3>Workflow</h3>
+      <ul>
+        <li>Edit items in the sheet → install the <strong>onEditInstallable</strong> trigger so edits auto-flag as Pending Approval</li>
+        <li><strong>☰ Menu Sync → Approve selected rows</strong> to bulk-approve</li>
+        <li><strong>☰ Menu Sync → Email pending approvals summary</strong> for a daily roll-up to sean@crssd.com</li>
+      </ul>
+      <p>The Figma plugin doesn't read the sheet directly — it reads the Supabase data the app pushes. The sheet is a parallel editing surface for people who prefer spreadsheets.</p>
+    </section>
+
+    <!-- 15 -->
+    <section class="chunk" id="duplicate">
+      <div class="section-head"><div class="num">15</div><h2>Duplicate menus / events / series</h2></div>
+      <p>Every level has a <code>⋯</code> dropdown with Edit · Duplicate · Delete (Delete admin-only):</p>
+      <table>
+        <thead><tr><th>Level</th><th>Where</th><th>Cascades to</th></tr></thead>
+        <tbody>
+          <tr><td>Menu</td><td>Event page → menu card ⋯</td><td>Items + same-event sponsor toggles</td></tr>
+          <tr><td>Event</td><td>Series page → event row ⋯</td><td>All menus + their items + sponsor toggles</td></tr>
+          <tr><td>Series</td><td>Brand page → series card ⋯</td><td>All events → all menus → all items</td></tr>
+        </tbody>
+      </table>
+      <h3>Target picker</h3>
+      <p>Each duplicate modal has a cascading Brand → Series → Event picker (only the levels above the entity you're duplicating). Each select has a <strong>+ Add new {level}…</strong> option that inline-creates a row and immediately selects it. So you can clone a series into a brand-new brand without leaving the modal.</p>
+      <h3>Never copied</h3>
+      <ul>
+        <li>Sync metadata: <code>last_synced_at</code>, <code>last_sync_digest</code>, <code>preview_image_url</code></li>
+        <li>Sponsor sign-off: <code>sponsor_approved_at</code>, <code>sponsor_approved_by</code></li>
+        <li>Figma links: <code>figma_file_url</code>, <code>figma_page_name</code> on events</li>
+        <li>Event dates are explicitly cleared so each new event gets its own</li>
+        <li>Edit log entries</li>
+      </ul>
+    </section>
+
+    <!-- 16 -->
+    <section class="chunk" id="supabase">
+      <div class="section-head"><div class="num">16</div><h2>Supabase project</h2></div>
+      <table>
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Project name</td><td>fc-events</td></tr>
+          <tr><td>Reference ID</td><td><code>wysvknamfxtbehwetjxf</code></td></tr>
+          <tr><td>URL</td><td><code>https://wysvknamfxtbehwetjxf.supabase.co</code></td></tr>
+          <tr><td>Region</td><td>us-west-1</td></tr>
+        </tbody>
+      </table>
+      <h3>Storage buckets</h3>
+      <ul>
+        <li><code>series-assets</code> — header logos, footer images, fonts, diet icons (per-series)</li>
+        <li><code>sponsor-logos</code> — uploaded sponsor SVGs (after normalization)</li>
+        <li><code>menu-previews</code> — PNGs uploaded by the Menu Sync plugin after every sync (used as the in-app preview thumbnail)</li>
+      </ul>
+      <h3>Key RPCs</h3>
+      <ul>
+        <li><code>log_menu_item_edit</code> — called from the item edit form for each changed field</li>
+        <li><code>log_sponsor_change</code> — called when sponsor toggles save</li>
+        <li><code>create_notification</code> — used by the tag selector to insert into the recipient's inbox</li>
+        <li><code>list_taggable_users</code> — SECURITY DEFINER function that returns admin+internal users (bypasses RLS recursion)</li>
+        <li><code>mark_menu_synced</code> — plugin calls after sync (writes last_synced_at + preview_image_url)</li>
+        <li><code>update_menu_preview</code> — plugin's preview-only refresh button</li>
+        <li><code>prune_old_notifications</code> — deletes archived notifications older than 30 days</li>
+      </ul>
+      <h3>Triggers</h3>
+      <ul>
+        <li><code>handle_new_user</code> — auto-creates a <code>user_profiles</code> row on auth signup</li>
+        <li><code>trg_notify_edit_resolved</code> — fires on <code>menu_items.edit_status</code> updates → notifies the editor</li>
+      </ul>
+    </section>
+
+    <!-- 17 -->
+    <section class="chunk" id="sql">
+      <div class="section-head"><div class="num">17</div><h2>Required SQL migrations</h2></div>
+      <p>Everything that needs to be in your Supabase project lives in <code>menu-hub/supabase/schema.sql</code>. When you spin up a fresh project, run the whole file. When iterating, you'll usually only need the new bits at the end.</p>
+      <h3>The biggies that have to be in place</h3>
+      <ul>
+        <li>Tables: brands · series · events · menus · menu_items · menu_sponsors · edit_log · user_profiles · notifications · sponsors · series_sponsors · event_sponsors · event_templates · favorites · approvers</li>
+        <li>RLS enabled on every table with role-based policies (admin / internal / external)</li>
+        <li>The <code>handle_new_user</code> trigger on <code>auth.users</code></li>
+        <li>The <code>trg_notify_edit_resolved</code> trigger on <code>menu_items</code></li>
+        <li>Storage buckets (above) with public-read + per-role write policies</li>
+      </ul>
+      <h3>Adding a new column</h3>
+      <pre class="sql"><code>alter table menus add column if not exists new_field text;</code></pre>
+      <p>Always use <code>if not exists</code> so re-running schema.sql is safe.</p>
+      <h3>Adding a new RPC</h3>
+      <pre class="sql"><code>create or replace function my_helper(p_input uuid)
+returns void as $$
+begin
+  -- …
+end;
+$$ language plpgsql security definer;</code></pre>
+      <p>Use <strong>security definer</strong> when you need to bypass the caller's RLS (e.g. for the role check that reads user_profiles).</p>
+    </section>
+
+    <!-- 18 -->
+    <section class="chunk" id="deploys">
+      <div class="section-head"><div class="num">18</div><h2>Deploys &amp; rebuilds</h2></div>
+      <h3>App (Netlify)</h3>
+      <p>Push to <code>main</code> → Netlify auto-builds in ~2 min → deploys to fcmenus.netlify.app. Build runs the <code>prebuild</code> script first (syncs <code>docs/walkthrough.*</code> → <code>public/walkthrough.*</code>).</p>
+      <h3>Walkthrough docs</h3>
+      <p>Edit <code>menu-hub/docs/walkthrough.html</code> (user) or <code>admin-walkthrough.html</code> (this doc). Regenerate the PDF with <code>npm run walkthrough:pdf</code> (uses headless Chrome on your Mac). Commit + push, Netlify copies into <code>public/</code> on the next build.</p>
+      <h3>Plugin (dev)</h3>
+      <p>Local: edit <code>menu-sync-plugin/code.js</code> or <code>ui.html</code> → reload via Figma's <strong>Plugins → Development → Menu Sync</strong>. No build step needed.</p>
+      <h3>Plugin (published)</h3>
+      <p>Right-click your dev plugin in Figma → <strong>Publish new version</strong>. Re-submits to Figma review. Approved users get the update automatically.</p>
+    </section>
+
+    <!-- 19 -->
+    <section class="chunk" id="troubleshooting">
+      <div class="section-head"><div class="num">19</div><h2>Troubleshooting</h2></div>
+
+      <h3>"Access Pending" shown to a user who used to work</h3>
+      <p>Their profile fetch returned null. Usually a botched RLS policy. The fix that worked before: <code>SELECT * FROM user_profiles WHERE id = '{their auth uid}'</code> in Supabase SQL editor. If the row is gone, recreate it. If it's there, check policies on <code>user_profiles</code>.</p>
+
+      <h3>Plugin dropdown is empty</h3>
+      <p>The plugin uses an anon key, so it can read what RLS allows the unauthenticated reader. Check the policies on <code>brands</code>, <code>series</code>, <code>events</code>, <code>menus</code> — anon must have SELECT.</p>
+
+      <h3>Plugin throws "Cannot call with documentAccess: dynamic-page"</h3>
+      <p>You're using a synchronous Figma plugin API call that's blocked in dynamic-page mode (page switching, async font loads). Wrap it in the Async variant.</p>
+
+      <h3>Sync needed chip never clears</h3>
+      <p>The plugin's RPC to update <code>last_synced_at</code> failed. Check the browser console in the plugin's UI (Figma → Plugins → Development → Open Console).</p>
+
+      <h3>Items disappeared from a menu</h3>
+      <p>Probably set to Draft or Not Added accidentally. Edit Log → look for status changes. Or use the Items table's status filter (column header).</p>
+
+      <h3>Notifications not arriving</h3>
+      <p>Three places to check, in order:</p>
+      <ol>
+        <li>The recipient's role — only admin + internal can be tagged (RLS limits the user list)</li>
+        <li>The cascade — confirm they're toggled on at Brand/Series/Event/Menu Approvals OR explicitly tagged on the edit</li>
+        <li>The notifications table — <code>SELECT * FROM notifications WHERE user_id = '{recipient uid}' ORDER BY created_at DESC LIMIT 5</code> — if rows are there but the inbox is empty, it's an RLS read issue</li>
+      </ol>
+
+      <h3>Figma sync hangs on "Generating preview image…"</h3>
+      <p>The PNG upload to <code>menu-previews</code> bucket is slow on huge frames. The sync itself succeeded — the preview upload is non-blocking. Wait or cancel and re-sync.</p>
+
+      <p style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-muted); font-size: 13px;">
+        Last updated June 2026. Living source: <code>menu-hub/docs/admin-walkthrough.html</code>.
+      </p>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>
