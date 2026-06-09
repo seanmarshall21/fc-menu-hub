@@ -129,15 +129,20 @@ create table if not exists edit_log (
 
 -- ─── User Profiles ───────────────────────────────────────────────────────────
 create table if not exists user_profiles (
-  id            uuid primary key references auth.users(id) on delete cascade,
-  email         text,
-  full_name     text,
-  avatar_url    text,
-  role          text default 'external'
-                check (role in ('admin', 'internal', 'external')),
-  brand_access  uuid[] default '{}',  -- brand IDs this user can access (empty = all for admin)
-  created_at    timestamptz default now()
+  id              uuid primary key references auth.users(id) on delete cascade,
+  email           text,
+  full_name       text,
+  avatar_url      text,
+  role            text default 'external'
+                  check (role in ('admin', 'internal', 'external')),
+  brand_access    uuid[] default '{}',  -- brand IDs this user can access (empty = all for admin)
+  -- Elevated permission for trusted internal users who manage the design
+  -- system (styles, templates) alongside admins.
+  can_edit_styles boolean default false,
+  created_at      timestamptz default now()
 );
+-- Idempotent column add for existing projects
+alter table user_profiles add column if not exists can_edit_styles boolean default false;
 
 -- Auto-create profile on signup
 create or replace function handle_new_user()

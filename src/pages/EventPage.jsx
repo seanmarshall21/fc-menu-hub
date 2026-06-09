@@ -666,7 +666,7 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, currentSeriesId, curre
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function EventPage() {
   const { brandSlug, seriesSlug, eventSlug } = useParams()
-  const { isAdmin, isInternal } = useAuth()
+  const { isAdmin, isInternal, canEditStyles } = useAuth()
   const navigate = useNavigate()
   const canEdit = isAdmin || isInternal
 
@@ -966,8 +966,9 @@ export default function EventPage() {
             { id: 'preview',   label: 'Preview all' },
             { id: 'sponsors',  label: `Sponsors (${sponsors.length})` },
             // Templates + Styles are the design system / brand setup —
-            // editors only need menus + previews. Hide unless admin.
-            ...(isAdmin ? [
+            // editors only need menus + previews. Hide unless the user has
+            // can_edit_styles set (admins always do).
+            ...(canEditStyles ? [
               { id: 'templates', label: 'Templates' },
               { id: 'styles',    label: 'Styles' },
             ] : []),
@@ -1213,7 +1214,7 @@ export default function EventPage() {
       )}
 
       {/* ── TEMPLATES TAB ── admin only (matches the tab-bar gate above) */}
-      {tab === 'templates' && isAdmin && (
+      {tab === 'templates' && canEditStyles && (
         <TemplatesTab
           event={event}
           templates={templates}
@@ -1225,7 +1226,7 @@ export default function EventPage() {
       )}
 
       {/* ── STYLES TAB ── admin only */}
-      {tab === 'styles' && isAdmin && (
+      {tab === 'styles' && canEditStyles && (
         <EventStylesTab
           event={event}
           series={series}

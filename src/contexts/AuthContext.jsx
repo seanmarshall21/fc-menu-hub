@@ -61,13 +61,16 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
-  const isAdmin    = profile?.role === 'admin'
-  const isInternal = profile?.role === 'internal' || isAdmin
-  const isExternal = profile?.role === 'external'
-  const isPending  = profile?.role === 'pending' || (session && !profile && !loading)
+  const isAdmin       = profile?.role === 'admin'
+  const isInternal    = profile?.role === 'internal' || isAdmin
+  const isExternal    = profile?.role === 'external'
+  const isPending     = profile?.role === 'pending' || (session && !profile && !loading)
+  // Elevated style/template access. Admins always get it; trusted internals
+  // get it when an admin flips can_edit_styles on their profile.
+  const canEditStyles = isAdmin || !!profile?.can_edit_styles
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isPending }}>
+    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isPending, canEditStyles }}>
       {children}
     </AuthContext.Provider>
   )

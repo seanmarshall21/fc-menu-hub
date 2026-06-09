@@ -61,6 +61,7 @@ export default function AdminPage() {
   const [editRole, setEditRole] = useState('')
   const [editCompany, setEditCompany] = useState('')
   const [editBrandAccess, setEditBrandAccess] = useState([])
+  const [editCanEditStyles, setEditCanEditStyles] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
@@ -147,6 +148,7 @@ export default function AdminPage() {
     setEditRole(user.role || 'external')
     setEditCompany(user.company || '')
     setEditBrandAccess(Array.isArray(user.brand_access) ? user.brand_access : [])
+    setEditCanEditStyles(!!user.can_edit_styles)
     setEditError(null)
   }
 
@@ -178,6 +180,13 @@ export default function AdminPage() {
         company: editCompany.trim(),
         brand_access: editRole === 'external' ? editBrandAccess : null,
       })
+      // can_edit_styles is admin-only and only meaningful for internal users.
+      // Goes through a direct supabase update since the edge function doesn't
+      // know about the column.
+      await supabase
+        .from('user_profiles')
+        .update({ can_edit_styles: editRole === 'internal' ? editCanEditStyles : false })
+        .eq('id', userId)
       setEditingId(null)
       loadUsers()
     } catch (err) {
@@ -507,6 +516,24 @@ export default function AdminPage() {
                   {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                 </select>
               </div>
+
+              {editRole === 'internal' && (
+                <label className="inline-flex items-start gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={editCanEditStyles}
+                    onChange={e => setEditCanEditStyles(e.target.checked)}
+                    className="mt-0.5 rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium text-ink-700">Can edit Styles &amp; Templates</span>
+                    <span className="block text-xs text-ink-400 mt-0.5">
+                      Gives this internal user access to the brand's design system —
+                      Series/Event/Menu Styles tabs and the Templates tab. Off by default.
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {editRole === 'external' && (
                 <div>

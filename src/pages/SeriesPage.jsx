@@ -29,7 +29,7 @@ function slugify(str) {
 
 export default function SeriesPage() {
   const { brandSlug, seriesSlug } = useParams()
-  const { isAdmin, isInternal } = useAuth()
+  const { isAdmin, isInternal, canEditStyles } = useAuth()
   const [brand, setBrand] = useState(null)
   const [series, setSeries] = useState(null)
   const [events, setEvents] = useState([])
@@ -94,7 +94,7 @@ export default function SeriesPage() {
             { key: 'events',   label: 'Events' },
             { key: 'sponsors', label: 'Sponsors' },
             { key: 'approvals',label: 'Approvals' },
-            ...(isAdmin ? [{ key: 'styles', label: 'Styles' }] : []),
+            ...(canEditStyles ? [{ key: 'styles', label: 'Styles' }] : []),
           ].map(t => (
             <button
               key={t.key}
@@ -114,7 +114,7 @@ export default function SeriesPage() {
       <PageBody>
 
       {tab === 'styles' ? (
-        <SeriesStylesTab series={series} canEdit={isAdmin || isInternal} onSaved={loadData} />
+        <SeriesStylesTab series={series} canEdit={canEditStyles} onSaved={loadData} />
       ) : tab === 'sponsors' ? (
         <SeriesSponsorsTab series={series} canEdit={isAdmin || isInternal} />
       ) : tab === 'approvals' ? (

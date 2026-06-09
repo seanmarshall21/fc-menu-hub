@@ -132,7 +132,7 @@ function AddItemRow({ menuId, sections, defaultSection, onSaved, nextSortOrder }
 export default function MenuPage() {
   const { brandSlug, seriesSlug, eventSlug, menuSlug } = useParams()
   const navigate = useNavigate()
-  const { isAdmin, isInternal } = useAuth()
+  const { isAdmin, isInternal, canEditStyles } = useAuth()
 
   const [brand, setBrand]   = useState(null)
   const [series, setSeries] = useState(null)
@@ -547,7 +547,7 @@ export default function MenuPage() {
     { key: 'preview', label: 'Preview' },
     ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
-    ...(isAdmin ? [{ key: 'styles', label: 'Styles' }] : []),
+    ...(canEditStyles ? [{ key: 'styles', label: 'Styles' }] : []),
     { key: 'signoff', label: 'Approvals' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
@@ -1194,12 +1194,12 @@ export default function MenuPage() {
         </div>
       )}
 
-      {tab === 'styles' && isAdmin && (
+      {tab === 'styles' && canEditStyles && (
         <MenuStylesTab
           menu={menu}
           event={event}
           series={series}
-          canEdit={isAdmin && menu.phase !== 'approved'}
+          canEdit={canEditStyles && menu.phase !== 'approved'}
           onSaved={loadMenu}
         />
       )}
