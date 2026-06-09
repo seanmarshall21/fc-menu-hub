@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -139,8 +139,16 @@ export default function MenuPage() {
   const [menu, setMenu]     = useState(null)
   const [items, setItems]   = useState([])
   const [eventSponsors, setEventSponsors] = useState([])
-  const [menuSponsorIds, setMenuSponsorIds] = useState(new Set())
-  const [menuSponsorRows, setMenuSponsorRows] = useState([])  // full menu_sponsors records w/ sort_order
+  // Sponsor state is split into draft (the live UI) + server (last-loaded
+  // snapshot). The Sponsors tab uses a Save/Cancel pattern instead of
+  // committing on every toggle, so anything the user changes lives in the
+  // draft until they press Save. Cancel reverts draft to server.
+  const [menuSponsorIds, setMenuSponsorIds] = useState(new Set())          // draft
+  const [menuSponsorRows, setMenuSponsorRows] = useState([])               // draft
+  const [menuSponsorIdsServer, setMenuSponsorIdsServer] = useState(new Set())
+  const [menuSponsorRowsServer, setMenuSponsorRowsServer] = useState([])
+  const [menuOverrideOrderDraft, setMenuOverrideOrderDraft] = useState(false)
+  const [menuSponsorsSaving, setMenuSponsorsSaving] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
@@ -254,8 +262,15 @@ export default function MenuPage() {
           .eq('menu_id', menuData.id)
           .not('event_sponsor_id', 'is', null)
           .order('sort_order')
-        setMenuSponsorRows(msponsors || [])
-        setMenuSponsorIds(new Set((msponsors || []).map(s => s.event_sponsor_id)))
+        const initialRows = msponsors || []
+        const initialIds  = new Set(initialRows.map(s => s.event_sponsor_id))
+        setMenuSponsorRows(initialRows)
+        setMenuSponsorIds(initialIds)
+        // Snapshot what the server has so the Sponsors tab can compute a
+        // "dirty" flag and offer Cancel.
+        setMenuSponsorRowsServer(initialRows)
+        setMenuSponsorIdsServer(initialIds)
+        setMenuOverrideOrderDraft(!!menuData.override_sponsor_order)
 
         // Event templates (background + style config per size)
         const { data: templateRows } = await supabase
@@ -279,63 +294,127 @@ export default function MenuPage() {
   // across renders — must NOT live after the early returns below.
   const [itemColumns, setItemColumnOrder, setItemColumnWidth, resetItemColumns] = useTableColumns('menu_items_v1', DEFAULT_ITEM_COLUMNS)
 
-  async function toggleSponsor(sponsorId) {
+  // Sponsor toggle/reorder/override — DRAFT only. Nothing hits the DB until
+  // the user presses Save Changes on the sponsor bar. saveMenuSponsors below
+  // diffs draft vs server and runs the actual writes.
+  function toggleSponsor(sponsorId) {
     const sp = eventSponsors.find(s => s.id === sponsorId)
-    const sponsorName = sp?.name || sp?.slug || 'sponsor'
     if (menuSponsorIds.has(sponsorId)) {
-      await supabase.from('menu_sponsors').delete()
-        .eq('menu_id', menu.id)
-        .eq('event_sponsor_id', sponsorId)
       setMenuSponsorIds(prev => { const next = new Set(prev); next.delete(sponsorId); return next })
       setMenuSponsorRows(prev => prev.filter(r => r.event_sponsor_id !== sponsorId))
-      // Log to edit log so reviewers can see who added/removed sponsors and when.
-      supabase.rpc('log_sponsor_change', {
-        p_menu_id: menu.id, p_sponsor_name: sponsorName, p_action: 'removed',
-      }).then(() => {}, () => {})
     } else {
       const sortOrder = menuSponsorRows.length
-      await supabase.from('menu_sponsors').insert({
-        menu_id: menu.id,
+      setMenuSponsorIds(prev => new Set([...prev, sponsorId]))
+      setMenuSponsorRows(prev => [...prev, {
+        // No DB id yet — gets a real one after save. Mark as draft via _draft.
+        id: `draft-${sponsorId}`,
         event_sponsor_id: sponsorId,
+        sort_order: sortOrder,
+        _draft: true,
         name: sp?.name || '',
         slug: sp?.slug || '',
-        active: true,
-        sort_order: sortOrder,
-      })
-      setMenuSponsorIds(prev => new Set([...prev, sponsorId]))
-      supabase.rpc('log_sponsor_change', {
-        p_menu_id: menu.id, p_sponsor_name: sponsorName, p_action: 'added',
-      }).then(() => {}, () => {})
-      loadMenu() // refetch so we have the new menu_sponsors record with its id
+      }])
     }
   }
 
-  async function toggleMenuOverrideOrder(next) {
-    if (next === !!menu.override_sponsor_order) return
-    await supabase.from('menus').update({ override_sponsor_order: next }).eq('id', menu.id)
+  function toggleMenuOverrideOrder(next) {
+    if (next === menuOverrideOrderDraft) return
+    setMenuOverrideOrderDraft(next)
     if (!next) {
-      // Resync menu_sponsors.sort_order to match the event's order
+      // Snap draft order back to the event's order so the preview reflects
+      // what'll happen on save. Real sort_order gets persisted at save time.
       const eventOrderIndex = new Map(eventSponsors.map((es, i) => [es.id, i]))
-      const updates = menuSponsorRows.map(row => ({
-        id: row.id,
-        sort_order: eventOrderIndex.get(row.event_sponsor_id) ?? 9999,
-      }))
-      await Promise.all(updates.map(u =>
-        supabase.from('menu_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
-      ))
+      setMenuSponsorRows(prev =>
+        [...prev].sort((a, b) =>
+          (eventOrderIndex.get(a.event_sponsor_id) ?? 9999) -
+          (eventOrderIndex.get(b.event_sponsor_id) ?? 9999)
+        ).map((r, i) => ({ ...r, sort_order: i }))
+      )
     }
-    loadMenu()
   }
 
-  async function reorderMenuSponsors(newRows) {
+  function reorderMenuSponsors(newRows) {
     const updates = newRows.map((row, i) => ({ id: row.menuRowId, sort_order: i }))
     setMenuSponsorRows(prev => prev.map(r => {
       const u = updates.find(x => x.id === r.id)
       return u ? { ...r, sort_order: u.sort_order } : r
     }))
-    await Promise.all(updates.map(u =>
-      supabase.from('menu_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
-    ))
+  }
+
+  // ── Save / cancel for the sponsor draft ────────────────────────────────
+  const sponsorsDirty = useMemo(() => {
+    if (menuOverrideOrderDraft !== !!menu?.override_sponsor_order) return true
+    if (menuSponsorIds.size !== menuSponsorIdsServer.size) return true
+    for (const id of menuSponsorIds) if (!menuSponsorIdsServer.has(id)) return true
+    // Order-sensitive: compare the row sequence too.
+    const aOrder = menuSponsorRows.map(r => r.event_sponsor_id).join(',')
+    const bOrder = menuSponsorRowsServer.map(r => r.event_sponsor_id).join(',')
+    if (aOrder !== bOrder) return true
+    return false
+  }, [menu?.override_sponsor_order, menuOverrideOrderDraft, menuSponsorIds, menuSponsorIdsServer, menuSponsorRows, menuSponsorRowsServer])
+
+  async function saveMenuSponsors() {
+    if (!menu?.id) return
+    setMenuSponsorsSaving(true)
+    try {
+      // 1. Toggle delta
+      const toAdd = [...menuSponsorIds].filter(id => !menuSponsorIdsServer.has(id))
+      const toRemove = [...menuSponsorIdsServer].filter(id => !menuSponsorIds.has(id))
+
+      // 2. Apply removals (with edit-log entries)
+      for (const sponsorId of toRemove) {
+        const sp = eventSponsors.find(s => s.id === sponsorId)
+        const sponsorName = sp?.name || sp?.slug || 'sponsor'
+        await supabase.from('menu_sponsors').delete()
+          .eq('menu_id', menu.id).eq('event_sponsor_id', sponsorId)
+        supabase.rpc('log_sponsor_change', {
+          p_menu_id: menu.id, p_sponsor_name: sponsorName, p_action: 'removed',
+        }).then(() => {}, () => {})
+      }
+
+      // 3. Apply adds (with edit-log entries)
+      for (const sponsorId of toAdd) {
+        const sp = eventSponsors.find(s => s.id === sponsorId)
+        const sponsorName = sp?.name || sp?.slug || 'sponsor'
+        const sortOrder = menuSponsorRows.find(r => r.event_sponsor_id === sponsorId)?.sort_order ?? 9999
+        await supabase.from('menu_sponsors').insert({
+          menu_id: menu.id,
+          event_sponsor_id: sponsorId,
+          name: sp?.name || '',
+          slug: sp?.slug || '',
+          active: true,
+          sort_order: sortOrder,
+        })
+        supabase.rpc('log_sponsor_change', {
+          p_menu_id: menu.id, p_sponsor_name: sponsorName, p_action: 'added',
+        }).then(() => {}, () => {})
+      }
+
+      // 4. Reorder existing rows (skip draft rows — those just got their id)
+      const reorderUpdates = menuSponsorRows
+        .filter(r => !r._draft && r.id && !String(r.id).startsWith('draft-'))
+        .map(r => ({ id: r.id, sort_order: r.sort_order }))
+      await Promise.all(reorderUpdates.map(u =>
+        supabase.from('menu_sponsors').update({ sort_order: u.sort_order }).eq('id', u.id)
+      ))
+
+      // 5. Override-order toggle on the menu row
+      if (menuOverrideOrderDraft !== !!menu.override_sponsor_order) {
+        await supabase.from('menus')
+          .update({ override_sponsor_order: menuOverrideOrderDraft })
+          .eq('id', menu.id)
+      }
+
+      await loadMenu()  // refetches and snapshots draft = server again
+    } finally {
+      setMenuSponsorsSaving(false)
+    }
+  }
+
+  function cancelMenuSponsorChanges() {
+    setMenuSponsorIds(new Set(menuSponsorIdsServer))
+    setMenuSponsorRows(menuSponsorRowsServer)
+    setMenuOverrideOrderDraft(!!menu?.override_sponsor_order)
   }
 
   // ── Item reorder within its section group ──
@@ -1092,16 +1171,53 @@ export default function MenuPage() {
 
       {/* Sponsors tab */}
       {tab === 'sponsors' && (
-        <MenuSponsorsPanel
-          eventSponsors={eventSponsors}
-          menuSponsorIds={menuSponsorIds}
-          menuSponsorRows={menuSponsorRows}
-          menuOverrideOrder={!!menu.override_sponsor_order}
-          canEdit={canEdit}
-          onToggle={toggleSponsor}
-          onToggleOverride={toggleMenuOverrideOrder}
-          onReorder={reorderMenuSponsors}
-        />
+        <>
+          <MenuSponsorsPanel
+            eventSponsors={eventSponsors}
+            menuSponsorIds={menuSponsorIds}
+            menuSponsorRows={menuSponsorRows}
+            menuOverrideOrder={menuOverrideOrderDraft}
+            canEdit={canEdit}
+            onToggle={toggleSponsor}
+            onToggleOverride={toggleMenuOverrideOrder}
+            onReorder={reorderMenuSponsors}
+          />
+
+          {/* Sticky Save/Cancel bar — appears only when the draft differs
+              from the server snapshot. Same pattern we'll use everywhere
+              once we roll Save/Cancel out beyond the Sponsors tab. */}
+          {canEdit && sponsorsDirty && (
+            <div
+              className="fixed bottom-0 left-0 right-0 z-30 md:left-60 bg-white border-t border-amber-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+            >
+              <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3 max-w-6xl mx-auto">
+                <div className="flex items-center gap-2 text-sm text-amber-700">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">Unsaved sponsor changes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={cancelMenuSponsorChanges}
+                    disabled={menuSponsorsSaving}
+                    className="btn-secondary btn-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveMenuSponsors}
+                    disabled={menuSponsorsSaving}
+                    className="btn-primary btn-sm"
+                  >
+                    {menuSponsorsSaving ? 'Saving…' : 'Save changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Figma preview tab */}
