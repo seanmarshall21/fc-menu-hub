@@ -519,6 +519,230 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
   )
 }
 
+// ── Menu card action menu (⋯) ────────────────────────────────────────────────
+// Lives inside the menu card <Link>. Clicks stopPropagation so the dropdown
+// doesn't navigate. Currently just Duplicate; future actions (delete, move
+// to another event, etc.) can land here too.
+function MenuCardActionMenu({ menu, onDuplicate }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    function onAway(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onAway)
+    return () => document.removeEventListener('mousedown', onAway)
+  }, [open])
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o) }}
+        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-ink-700 hover:bg-surface-100"
+        aria-label="Menu actions"
+        title="Menu actions"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <circle cx="4" cy="10" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="16" cy="10" r="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-1 z-10 min-w-[160px] bg-white border border-surface-200 rounded-lg shadow-lg py-1"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onDuplicate?.() }}
+            className="w-full text-left px-3 py-1.5 text-sm text-ink-700 hover:bg-surface-50 flex items-center gap-2"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+            </svg>
+            Duplicate menu
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Duplicate menu modal ─────────────────────────────────────────────────────
+// Clones a menu (and its items + sponsor toggles) under a new name. Target
+// event defaults to the source event; can be redirected to any other event
+// in the same series. Sync metadata is intentionally NOT copied — the new
+// menu starts unlinked from any Figma frame.
+function DuplicateMenuModal({ sourceMenu, currentEventId, onClose, onDuplicated }) {
+  const [name, setName] = useState(`${sourceMenu.name} (copy)`)
+  const [targetEventId, setTargetEventId] = useState(currentEventId)
+  const [eventOptions, setEventOptions] = useState([])
+  const [setAllDraft, setSetAllDraft] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const [counts, setCounts] = useState({ items: null, sponsors: null })
+
+  // Load sibling events (same series) so duplicate can target a different
+  // event without leaving the page.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: src } = await supabase.from('events').select('series_id').eq('id', sourceMenu.event_id).single()
+      if (!src) return
+      const { data: ev } = await supabase.from('events').select('id, name').eq('series_id', src.series_id).order('name')
+      if (!cancelled) setEventOptions(ev || [])
+      // Also count items + sponsors so the modal shows what'll be copied.
+      const [{ count: ic }, { count: sc }] = await Promise.all([
+        supabase.from('menu_items').select('id', { count: 'exact', head: true }).eq('menu_id', sourceMenu.id),
+        supabase.from('menu_sponsors').select('id', { count: 'exact', head: true }).eq('menu_id', sourceMenu.id),
+      ])
+      if (!cancelled) setCounts({ items: ic || 0, sponsors: sc || 0 })
+    })()
+    return () => { cancelled = true }
+  }, [sourceMenu.id, sourceMenu.event_id])
+
+  function slugify(s) {
+    return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  }
+
+  async function handleDuplicate(e) {
+    e.preventDefault()
+    if (!name.trim()) { setError('Give the new menu a name.'); return }
+    setBusy(true); setError(null)
+    try {
+      // 1. Fetch full source menu row so we can carry forward style overrides,
+      //    category, size, icon, etc. — everything except the sync metadata
+      //    + the linked-frame fields.
+      const { data: src, error: srcErr } = await supabase.from('menus').select('*').eq('id', sourceMenu.id).single()
+      if (srcErr) throw srcErr
+      const baseSlug = slugify(name.trim()) || `menu-${Date.now()}`
+      // Ensure slug uniqueness within the target event
+      let slug = baseSlug
+      let attempt = 1
+      while (attempt < 50) {
+        const { data: clash } = await supabase
+          .from('menus').select('id', { head: true, count: 'exact' })
+          .eq('event_id', targetEventId).eq('slug', slug)
+        if (!clash || clash.length === 0) break
+        attempt++
+        slug = `${baseSlug}-${attempt}`
+      }
+
+      const newRow = {
+        event_id:                 targetEventId,
+        name:                     name.trim(),
+        slug,
+        category:                 src.category,
+        size:                     src.size,
+        icon_url:                 src.icon_url,
+        icon_name:                src.icon_name,
+        phase:                    'build',
+        style_spec:               src.style_spec,
+        fonts:                    src.fonts,
+        header_logo_url:          src.header_logo_url,
+        footer_url:               src.footer_url,
+        footer_show_diet_key:     src.footer_show_diet_key,
+        footer_show_tax_text:     src.footer_show_tax_text,
+        footer_custom_text:       src.footer_custom_text,
+        override_sponsor_order:   src.override_sponsor_order,
+        requires_sponsor_approval: src.requires_sponsor_approval,
+        notify_user_ids:          src.notify_user_ids,
+        // Intentionally NOT copied: last_synced_at, last_sync_digest,
+        // preview_image_url, sponsor_approved_at, sponsor_approved_by.
+      }
+      const { data: created, error: createErr } = await supabase
+        .from('menus').insert(newRow).select().single()
+      if (createErr) throw createErr
+
+      // 2. Clone items
+      const { data: items } = await supabase.from('menu_items').select('*').eq('menu_id', sourceMenu.id).order('sort_order')
+      if (items && items.length > 0) {
+        const cloned = items.map(it => {
+          const { id: _, menu_id: __, created_at: ___, last_edited_at: ____, last_edited_by: _____, ...rest } = it
+          return {
+            ...rest,
+            menu_id:     created.id,
+            edit_status: setAllDraft ? 'draft' : (it.edit_status === 'pending_approval' ? 'active' : it.edit_status),
+          }
+        })
+        const { error: itemsErr } = await supabase.from('menu_items').insert(cloned)
+        if (itemsErr) throw itemsErr
+      }
+
+      // 3. Clone sponsor toggles (these point at event_sponsors rows; only
+      //    valid if the target event is the same. For a cross-event clone,
+      //    skip sponsors — user will toggle them manually on the new menu.)
+      if (targetEventId === sourceMenu.event_id) {
+        const { data: sps } = await supabase.from('menu_sponsors').select('*').eq('menu_id', sourceMenu.id).order('sort_order')
+        if (sps && sps.length > 0) {
+          const cloned = sps.map(sp => {
+            const { id: _, menu_id: __, created_at: ___, ...rest } = sp
+            return { ...rest, menu_id: created.id }
+          })
+          await supabase.from('menu_sponsors').insert(cloned)
+        }
+      }
+
+      onDuplicated?.(created)
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const crossEvent = targetEventId !== sourceMenu.event_id
+
+  return (
+    <Modal title="Duplicate menu" onClose={onClose}>
+      <form onSubmit={handleDuplicate} className="space-y-4">
+        <div className="text-xs text-ink-500">
+          Cloning <strong className="text-ink-900">{sourceMenu.name}</strong>
+          {counts.items != null && (
+            <span> · {counts.items} item{counts.items === 1 ? '' : 's'}{counts.sponsors > 0 ? ` · ${counts.sponsors} sponsor${counts.sponsors === 1 ? '' : 's'}` : ''}</span>
+          )}
+        </div>
+
+        <div>
+          <label className="label">New menu name</label>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} required autoFocus />
+        </div>
+
+        <div>
+          <label className="label">Target event</label>
+          <select className="input" value={targetEventId} onChange={e => setTargetEventId(e.target.value)}>
+            {eventOptions.map(ev => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name}{ev.id === sourceMenu.event_id ? ' (same event)' : ''}
+              </option>
+            ))}
+          </select>
+          {crossEvent && (
+            <p className="mt-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              Sponsor toggles won't carry over — they're scoped to the source event. You'll add them on the new menu.
+            </p>
+          )}
+        </div>
+
+        <label className="inline-flex items-center gap-2 text-sm text-ink-700">
+          <input
+            type="checkbox"
+            checked={setAllDraft}
+            onChange={e => setSetAllDraft(e.target.checked)}
+            className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+          />
+          Set all copied items to <strong>Draft</strong> (hidden everywhere)
+        </label>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
+          <button type="button" onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
+          <button type="submit" disabled={busy} className="btn-primary btn-sm">{busy ? 'Duplicating…' : 'Duplicate'}</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function EventPage() {
   const { brandSlug, seriesSlug, eventSlug } = useParams()
@@ -529,6 +753,7 @@ export default function EventPage() {
   const [brand, setBrand]   = useState(null)
   const [series, setSeries] = useState(null)
   const [event, setEvent]   = useState(null)
+  const [duplicatingMenu, setDuplicatingMenu] = useState(null)
   const [menus, setMenus]   = useState([])
   const [sponsors, setSponsors] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -922,11 +1147,19 @@ export default function EventPage() {
                   <Link
                     key={menu.id}
                     to={`${baseUrl}/menus/${menu.slug}`}
-                    className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col"
+                    className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative"
                   >
                     <div className="flex items-start justify-between mb-3 gap-2">
                       <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
-                      <PhaseBadge phase={menu.phase} />
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <PhaseBadge phase={menu.phase} />
+                        {canEdit && (
+                          <MenuCardActionMenu
+                            menu={menu}
+                            onDuplicate={() => setDuplicatingMenu(menu)}
+                          />
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-ink-400">
                       <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
@@ -950,6 +1183,24 @@ export default function EventPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Duplicate menu modal */}
+      {duplicatingMenu && (
+        <DuplicateMenuModal
+          sourceMenu={duplicatingMenu}
+          currentEventId={event.id}
+          onClose={() => setDuplicatingMenu(null)}
+          onDuplicated={(newMenu) => {
+            setDuplicatingMenu(null)
+            loadData()
+            // If duplicated into a different event, leave the user here;
+            // otherwise scroll to the new card (refresh handles that).
+            if (newMenu?.event_id === event.id && newMenu?.slug) {
+              navigate(`${baseUrl}/menus/${newMenu.slug}`)
+            }
+          }}
+        />
       )}
 
       {/* ── PREVIEW ALL TAB ── all menus in the event tiled at large scale. */}
