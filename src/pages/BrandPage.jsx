@@ -19,6 +19,7 @@ export default function BrandPage() {
   const [brand, setBrand] = useState(null)
   const [series, setSeries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('series') // 'series' | 'approvals'
 
   const [showNewSeries, setShowNewSeries] = useState(false)
   const [seriesName, setSeriesName] = useState('')
@@ -193,6 +194,26 @@ export default function BrandPage() {
           Edit Brand
         </button>
       )}
+      below={(
+        <div className="flex items-center gap-1 overflow-x-auto overflow-y-hidden touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {[
+            { key: 'series',    label: `Series (${series.length})` },
+            { key: 'approvals', label: 'Approvals' },
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                tab === t.key
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-ink-500 hover:text-ink-800'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
     >
       <PageBody>
       <div className="flex items-center gap-3 mb-6">
@@ -204,10 +225,9 @@ export default function BrandPage() {
         <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">{brand.name}</h1>
       </div>
 
-      {/* Brand-level "Notify for edits" — root of the cascade. Anyone toggled
-          here gets notified on every edit anywhere under this brand. */}
-      {(isAdmin || isInternal) && (
-        <div className="card p-5 mb-6 max-w-2xl">
+      {/* ── Approvals tab — brand-level "Notify for edits" lives here ── */}
+      {tab === 'approvals' && (
+        <div className="card p-5 max-w-2xl">
           <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
           <p className="text-xs text-ink-500 mb-4">
             People toggled here get an inbox notification for every edit on any menu under <strong>{brand.name}</strong>. They appear pre-checked at every level below (series → event → menu → item).
@@ -224,6 +244,8 @@ export default function BrandPage() {
         </div>
       )}
 
+      {/* ── Series tab (default) ── */}
+      {tab === 'series' && (<>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink-700">Series</h2>
         {(isAdmin || isInternal) && (
@@ -295,6 +317,7 @@ export default function BrandPage() {
           })}
         </div>
       )}
+      </>)}
 
       {editingSeries && (
         <Modal title="Edit Series" onClose={() => setEditingSeries(null)}>
