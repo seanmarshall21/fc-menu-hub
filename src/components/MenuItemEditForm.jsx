@@ -33,11 +33,10 @@ export default function MenuItemEditForm({ item, menu, sections, defaultNotifyId
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, email, role')
-        .in('role', ['admin', 'internal'])
-        .order('full_name')
+      // Goes through the list_taggable_users SECURITY DEFINER RPC so the
+      // caller doesn't need direct read access on every user_profiles row
+      // (which would require a recursive RLS policy and break profile fetch).
+      const { data } = await supabase.rpc('list_taggable_users')
       if (!cancelled) setNotifyOptions(data || [])
     })()
     return () => { cancelled = true }

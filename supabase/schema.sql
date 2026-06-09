@@ -245,10 +245,26 @@ create policy "admin_read_profiles" on user_profiles for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role = 'admin')
 );
 -- Internal users need to see other admin/internal users so they can be
--- tagged for edit notifications.
-create policy "internal_read_profiles" on user_profiles for select using (
-  exists (select 1 from user_profiles up where up.id = auth.uid() and up.role in ('admin','internal'))
-);
+-- tagged for edit notifications. We expose this via a SECURITY DEFINER
+-- function rather than a recursive RLS policy — recursive policies on
+-- user_profiles can interact unpredictably with the existing admin
+-- policy and break the profile fetch (caller sees an empty result and
+-- gets shown the Access Pending screen).
+create or replace function list_taggable_users()
+returns table (id uuid, full_name text, email text, role text)
+language sql
+security definer
+stable
+as $$
+  select up.id, up.full_name, up.email, up.role
+    from user_profiles up
+   where up.role in ('admin','internal')
+     and exists (
+       select 1 from user_profiles me
+        where me.id = auth.uid() and me.role in ('admin','internal')
+     )
+   order by up.full_name nulls last
+$$;
 
 -- ─── Helper function: refresh just the preview thumbnail ────────────────────
 -- Called from the Menu Sync plugin when the user wants to re-export the Figma

@@ -34,15 +34,14 @@ export default function NotifyForEditsEditor({
     setServer(new Set(current || []))
   }, [entityId, JSON.stringify(current || [])])
 
-  // Load admin + internal users so they can be toggled
+  // Load admin + internal users so they can be toggled.
+  // Goes through the list_taggable_users SECURITY DEFINER RPC instead of
+  // a direct user_profiles select — keeps RLS simple and avoids the
+  // recursion that broke profile fetch earlier.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, email, role')
-        .in('role', ['admin', 'internal'])
-        .order('full_name')
+      const { data } = await supabase.rpc('list_taggable_users')
       if (!cancelled) setUsers(data || [])
     })()
     return () => { cancelled = true }
