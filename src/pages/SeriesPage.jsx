@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,7 +38,6 @@ export default function SeriesPage() {
   const [tab, setTab] = useState('events') // 'events' | 'styles'
   const [duplicatingEvent, setDuplicatingEvent] = useState(null)
   const [deletingEvent, setDeletingEvent] = useState(null)
-  const [openMenuEventId, setOpenMenuEventId] = useState(null)
   const navigate = useNavigate()
   const [showNewEvent, setShowNewEvent] = useState(false)
   const [eventName, setEventName] = useState('')
@@ -181,66 +181,14 @@ export default function SeriesPage() {
                     <td className="px-4 sm:px-6 py-3 text-ink-500">{event.menus?.length || 0}</td>
                     <td className="px-4 sm:px-6 py-3"><PhaseBadge phase={event.phase} /></td>
                     {(isAdmin || isInternal) && (
-                      <td className="px-2 py-3 text-right whitespace-nowrap relative">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setOpenMenuEventId(openMenuEventId === event.id ? null : event.id)
-                          }}
-                          className="w-7 h-7 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-ink-700 hover:bg-surface-100"
-                          aria-label="Event actions"
-                          title="Event actions"
-                        >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 4a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
-                          </svg>
-                        </button>
-                        {openMenuEventId === event.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setOpenMenuEventId(null)}
-                            />
-                            <div className="absolute top-10 right-3 z-20 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]">
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  setOpenMenuEventId(null)
-                                  // Edit lives on the Event page itself —
-                                  // navigate there and the existing Edit Event
-                                  // modal takes it from here.
-                                  navigate(`/brands/${brandSlug}/series/${seriesSlug}/events/${event.slug}?edit=1`)
-                                }}
-                                className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50 transition-colors"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  setOpenMenuEventId(null)
-                                  setDuplicatingEvent(event)
-                                }}
-                                className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50 transition-colors"
-                              >
-                                Duplicate
-                              </button>
-                              {isAdmin && (
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    setOpenMenuEventId(null)
-                                    setDeletingEvent(event)
-                                  }}
-                                  className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              )}
-                            </div>
-                          </>
-                        )}
+                      <td className="px-2 py-3 text-right whitespace-nowrap">
+                        <EventRowMenu
+                          event={event}
+                          isAdmin={isAdmin}
+                          onEdit={() => navigate(`/brands/${brandSlug}/series/${seriesSlug}/events/${event.slug}?edit=1`)}
+                          onDuplicate={() => setDuplicatingEvent(event)}
+                          onDelete={() => setDeletingEvent(event)}
+                        />
                       </td>
                     )}
                   </tr>
@@ -457,5 +405,85 @@ function DeleteEventModal({ event, onClose, onDeleted }) {
         </div>
       </form>
     </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kebab dropdown for an event row. Renders the dropdown via createPortal into
+// document.body so it isn't clipped by the events table's overflow: hidden /
+// overflow-x: auto wrappers. Position is computed from the button's
+// getBoundingClientRect each time it opens.
+// ─────────────────────────────────────────────────────────────────────────────
+function EventRowMenu({ event, isAdmin, onEdit, onDuplicate, onDelete }) {
+  const btnRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+
+  function toggle(e) {
+    e.preventDefault(); e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      // Anchor the dropdown to the button's right edge so it grows leftward.
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(o => !o)
+  }
+
+  // Close on scroll / resize / Escape — the absolute coords would otherwise
+  // drift away from the button.
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    function onKey(e) { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-ink-700 hover:bg-surface-100"
+        aria-label="Event actions"
+        title="Event actions"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10 4a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+        </svg>
+      </button>
+
+      {open && createPortal(
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[61] bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]"
+            style={{ top: pos.top, right: pos.right }}
+          >
+            <button
+              onClick={(e) => { e.preventDefault(); setOpen(false); onEdit?.() }}
+              className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50"
+            >Edit</button>
+            <button
+              onClick={(e) => { e.preventDefault(); setOpen(false); onDuplicate?.() }}
+              className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50"
+            >Duplicate</button>
+            {isAdmin && (
+              <button
+                onClick={(e) => { e.preventDefault(); setOpen(false); onDelete?.() }}
+                className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+              >Delete</button>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
   )
 }
