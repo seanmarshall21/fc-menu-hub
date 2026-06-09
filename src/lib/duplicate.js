@@ -120,7 +120,7 @@ export async function duplicateMenuTo(sourceMenuId, { name, targetEventId, setAl
  * Cross-series clones don't carry sponsor toggles on child menus (same
  * reason as menu duplication — event_sponsors are event-scoped).
  */
-export async function duplicateEventTo(sourceEventId, { name, targetSeriesId, setAllItemsToDraft = false }) {
+export async function duplicateEventTo(sourceEventId, { name, targetSeriesId, setAllItemsToDraft = false, includeMenus = true }) {
   const { data: src, error: srcErr } = await supabase.from('events').select('*').eq('id', sourceEventId).single()
   if (srcErr) throw srcErr
 
@@ -148,20 +148,22 @@ export async function duplicateEventTo(sourceEventId, { name, targetSeriesId, se
     .select().single()
   if (createErr) throw createErr
 
-  // ── Cascade: every menu under the source event ──────────────────────────
-  const { data: menus } = await supabase.from('menus').select('id, name').eq('event_id', sourceEventId).order('name')
-  for (const m of (menus || [])) {
-    try {
-      await duplicateMenuTo(m.id, {
-        name: m.name,           // preserve original names — the event is what changes
-        targetEventId: created.id,
-        setAllDraft: setAllItemsToDraft,
-      })
-    } catch (e) {
-      // Don't bail the whole event clone if one menu fails — surface a
-      // warning and continue. The user can manually fix up afterwards.
-      // eslint-disable-next-line no-console
-      console.warn('Skipping menu during event clone:', m.name, e?.message)
+  // ── Cascade: every menu under the source event (optional) ───────────────
+  if (includeMenus) {
+    const { data: menus } = await supabase.from('menus').select('id, name').eq('event_id', sourceEventId).order('name')
+    for (const m of (menus || [])) {
+      try {
+        await duplicateMenuTo(m.id, {
+          name: m.name,           // preserve original names — the event is what changes
+          targetEventId: created.id,
+          setAllDraft: setAllItemsToDraft,
+        })
+      } catch (e) {
+        // Don't bail the whole event clone if one menu fails — surface a
+        // warning and continue. The user can manually fix up afterwards.
+        // eslint-disable-next-line no-console
+        console.warn('Skipping menu during event clone:', m.name, e?.message)
+      }
     }
   }
 
@@ -172,7 +174,7 @@ export async function duplicateEventTo(sourceEventId, { name, targetSeriesId, se
  * Clone a series into a target brand. Cascades: every event under the source
  * series is duplicated into the new series, which cascades menus, items, etc.
  */
-export async function duplicateSeriesTo(sourceSeriesId, { name, targetBrandId, setAllItemsToDraft = false }) {
+export async function duplicateSeriesTo(sourceSeriesId, { name, targetBrandId, setAllItemsToDraft = false, includeEvents = true, includeMenus = true }) {
   const { data: src, error: srcErr } = await supabase.from('series').select('*').eq('id', sourceSeriesId).single()
   if (srcErr) throw srcErr
 
@@ -195,7 +197,8 @@ export async function duplicateSeriesTo(sourceSeriesId, { name, targetBrandId, s
     .select().single()
   if (createErr) throw createErr
 
-  // ── Cascade: every event ────────────────────────────────────────────────
+  // ── Cascade: every event (optional) ─────────────────────────────────────
+  if (!includeEvents) return created
   const { data: events } = await supabase.from('events').select('id, name').eq('series_id', sourceSeriesId).order('name')
   for (const ev of (events || [])) {
     try {
@@ -203,6 +206,7 @@ export async function duplicateSeriesTo(sourceSeriesId, { name, targetBrandId, s
         name: ev.name,
         targetSeriesId: created.id,
         setAllItemsToDraft,
+        includeMenus,
       })
     } catch (e) {
       // eslint-disable-next-line no-console

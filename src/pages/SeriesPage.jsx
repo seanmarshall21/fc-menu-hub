@@ -269,6 +269,7 @@ function DuplicateEventModal({ sourceEvent, currentSeriesId, currentBrandId, onC
   const [name, setName] = useState(`${sourceEvent.name} (copy)`)
   const [target, setTarget] = useState({ brandId: currentBrandId || '', seriesId: currentSeriesId || '' })
   const [setAllItemsToDraft, setSetAllItemsToDraft] = useState(false)
+  const [includeMenus, setIncludeMenus] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const menuCount = sourceEvent.menus?.length || 0
@@ -283,6 +284,7 @@ function DuplicateEventModal({ sourceEvent, currentSeriesId, currentBrandId, onC
         name: name.trim(),
         targetSeriesId: target.seriesId,
         setAllItemsToDraft,
+        includeMenus,
       })
       onDuplicated?.()
     } catch (e) {
@@ -311,19 +313,33 @@ function DuplicateEventModal({ sourceEvent, currentSeriesId, currentBrandId, onC
           onChange={setTarget}
         />
 
-        <label className="inline-flex items-center gap-2 text-sm text-ink-700">
-          <input
-            type="checkbox"
-            checked={setAllItemsToDraft}
-            onChange={e => setSetAllItemsToDraft(e.target.checked)}
-            className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
-          />
-          Set all copied items to <strong>Draft</strong>
-        </label>
+        <div className="space-y-2 pt-1">
+          <label className="inline-flex items-center gap-2 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              checked={includeMenus}
+              onChange={e => setIncludeMenus(e.target.checked)}
+              className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+            />
+            Include menus from this event {menuCount > 0 && <span className="text-ink-400 text-xs">({menuCount} menu{menuCount === 1 ? '' : 's'})</span>}
+          </label>
+          {includeMenus && (
+            <label className="inline-flex items-center gap-2 text-sm text-ink-700 ml-6">
+              <input
+                type="checkbox"
+                checked={setAllItemsToDraft}
+                onChange={e => setSetAllItemsToDraft(e.target.checked)}
+                className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+              />
+              Set all copied items to <strong>Draft</strong>
+            </label>
+          )}
+        </div>
 
         <p className="text-[11px] text-ink-400">
-          The new event keeps the menus' design/config but gets a blank date, no Figma link, and no preview images.
-          Sponsor toggles on each menu only carry over when staying in the same event — for a brand-new event, you'll re-toggle on each menu.
+          {includeMenus
+            ? "The new event keeps the menus' design/config but gets a blank date, no Figma link, and no preview images. Sponsor toggles on each menu only carry over when staying in the same event — for a brand-new event, you'll re-toggle on each menu."
+            : "Only the event itself is duplicated — same styles, sponsor library, and config, but a clean slate with no menus. Add new menus or duplicate them one-by-one from the source."}
         </p>
 
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}

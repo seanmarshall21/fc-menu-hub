@@ -509,6 +509,8 @@ function DuplicateSeriesModal({ sourceSeries, currentBrandId, onClose, onDuplica
   const [name, setName] = useState(`${sourceSeries.name} (copy)`)
   const [target, setTarget] = useState({ brandId: currentBrandId || '' })
   const [setAllItemsToDraft, setSetAllItemsToDraft] = useState(false)
+  const [includeEvents, setIncludeEvents] = useState(true)
+  const [includeMenus, setIncludeMenus]   = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const eventCount = sourceSeries.events?.length || 0
@@ -523,6 +525,8 @@ function DuplicateSeriesModal({ sourceSeries, currentBrandId, onClose, onDuplica
         name: name.trim(),
         targetBrandId: target.brandId,
         setAllItemsToDraft,
+        includeEvents,
+        includeMenus,
       })
       onDuplicated?.()
     } catch (e) {
@@ -551,18 +555,48 @@ function DuplicateSeriesModal({ sourceSeries, currentBrandId, onClose, onDuplica
           onChange={setTarget}
         />
 
-        <label className="inline-flex items-center gap-2 text-sm text-ink-700">
-          <input
-            type="checkbox"
-            checked={setAllItemsToDraft}
-            onChange={e => setSetAllItemsToDraft(e.target.checked)}
-            className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
-          />
-          Set all copied items to <strong>Draft</strong>
-        </label>
+        <div className="space-y-2 pt-1">
+          <label className="inline-flex items-center gap-2 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              checked={includeEvents}
+              onChange={e => { setIncludeEvents(e.target.checked); if (!e.target.checked) setIncludeMenus(false) }}
+              className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+            />
+            Include events from this series {eventCount > 0 && <span className="text-ink-400 text-xs">({eventCount} event{eventCount === 1 ? '' : 's'})</span>}
+          </label>
+          {includeEvents && (
+            <>
+              <label className="inline-flex items-center gap-2 text-sm text-ink-700 ml-6">
+                <input
+                  type="checkbox"
+                  checked={includeMenus}
+                  onChange={e => setIncludeMenus(e.target.checked)}
+                  className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+                />
+                Include menus inside each cloned event
+              </label>
+              {includeMenus && (
+                <label className="inline-flex items-center gap-2 text-sm text-ink-700 ml-12">
+                  <input
+                    type="checkbox"
+                    checked={setAllItemsToDraft}
+                    onChange={e => setSetAllItemsToDraft(e.target.checked)}
+                    className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  Set all copied items to <strong>Draft</strong>
+                </label>
+              )}
+            </>
+          )}
+        </div>
 
         <p className="text-[11px] text-ink-400">
-          Every event gets a blank date and no Figma link. Each cloned menu keeps its design + items but starts unsynced. Cloning a series with lots of events can take a moment.
+          {includeEvents
+            ? (includeMenus
+              ? 'Every event gets a blank date and no Figma link. Each cloned menu keeps its design + items but starts unsynced. Cloning a series with lots of events can take a moment.'
+              : 'Each cloned event keeps its design/config but has no menus — clean slate.')
+            : 'Only the series itself is duplicated — its styles and sponsor library carry over but no events or menus underneath.'}
         </p>
 
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
