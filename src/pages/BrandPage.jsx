@@ -7,6 +7,8 @@ import Modal from '@/components/Modal'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
+import TargetPicker from '@/components/TargetPicker'
+import { duplicateSeriesTo } from '@/lib/duplicate'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 
 function slugify(str) {
@@ -20,6 +22,7 @@ export default function BrandPage() {
   const [series, setSeries] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('series') // 'series' | 'approvals'
+  const [duplicatingSeries, setDuplicatingSeries] = useState(null)
 
   const [showNewSeries, setShowNewSeries] = useState(false)
   const [seriesName, setSeriesName] = useState('')
@@ -294,12 +297,18 @@ export default function BrandPage() {
                           className="fixed inset-0 z-10"
                           onClick={() => setOpenMenuSeriesId(null)}
                         />
-                        <div className="absolute top-10 right-3 z-20 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[120px]">
+                        <div className="absolute top-10 right-3 z-20 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]">
                           <button
                             onClick={(e) => { e.preventDefault(); openEditSeries(s) }}
                             className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50 transition-colors"
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={(e) => { e.preventDefault(); setOpenMenuSeriesId(null); setDuplicatingSeries(s) }}
+                            className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50 transition-colors"
+                          >
+                            Duplicate
                           </button>
                           <button
                             onClick={(e) => { e.preventDefault(); openDeleteSeries(s) }}
@@ -477,7 +486,91 @@ export default function BrandPage() {
           </form>
         </Modal>
       )}
+      {duplicatingSeries && (
+        <DuplicateSeriesModal
+          sourceSeries={duplicatingSeries}
+          currentBrandId={brand.id}
+          onClose={() => setDuplicatingSeries(null)}
+          onDuplicated={() => { setDuplicatingSeries(null); loadData() }}
+        />
+      )}
       </PageBody>
     </PageScreen>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Duplicate Series modal — cascades all events → menus → items via
+// duplicateSeriesTo. Lets you target any brand, including a brand-new one
+// (TargetPicker's inline + Add new brand…).
+// ─────────────────────────────────────────────────────────────────────────────
+function DuplicateSeriesModal({ sourceSeries, currentBrandId, onClose, onDuplicated }) {
+  const [name, setName] = useState(`${sourceSeries.name} (copy)`)
+  const [target, setTarget] = useState({ brandId: currentBrandId || '' })
+  const [setAllItemsToDraft, setSetAllItemsToDraft] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const eventCount = sourceSeries.events?.length || 0
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!name.trim())     { setError('Give the new series a name.'); return }
+    if (!target.brandId)  { setError('Pick a target brand.'); return }
+    setBusy(true); setError(null)
+    try {
+      await duplicateSeriesTo(sourceSeries.id, {
+        name: name.trim(),
+        targetBrandId: target.brandId,
+        setAllItemsToDraft,
+      })
+      onDuplicated?.()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title="Duplicate series" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="text-xs text-ink-500">
+          Cloning <strong className="text-ink-900">{sourceSeries.name}</strong>
+          {eventCount > 0 && <span> · {eventCount} event{eventCount === 1 ? '' : 's'} (cascades to every menu underneath)</span>}
+        </div>
+
+        <div>
+          <label className="label">New series name</label>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} required autoFocus />
+        </div>
+
+        <TargetPicker
+          levels={['brand']}
+          defaults={{ brandId: currentBrandId }}
+          onChange={setTarget}
+        />
+
+        <label className="inline-flex items-center gap-2 text-sm text-ink-700">
+          <input
+            type="checkbox"
+            checked={setAllItemsToDraft}
+            onChange={e => setSetAllItemsToDraft(e.target.checked)}
+            className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+          />
+          Set all copied items to <strong>Draft</strong>
+        </label>
+
+        <p className="text-[11px] text-ink-400">
+          Every event gets a blank date and no Figma link. Each cloned menu keeps its design + items but starts unsynced. Cloning a series with lots of events can take a moment.
+        </p>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
+          <button type="button" onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
+          <button type="submit" disabled={busy} className="btn-primary btn-sm">{busy ? 'Duplicating…' : 'Duplicate'}</button>
+        </div>
+      </form>
+    </Modal>
   )
 }

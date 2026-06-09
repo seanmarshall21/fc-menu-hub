@@ -14,6 +14,8 @@ import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
+import TargetPicker from '@/components/TargetPicker'
+import { duplicateMenuTo } from '@/lib/duplicate'
 import { formatPrice, resolveCurrencySpec } from '@/lib/formatPrice'
 import FigmaLogo from '@/components/FigmaLogo'
 import EventSponsorsTab from '@/components/EventSponsorsTab'
@@ -567,29 +569,22 @@ function MenuCardActionMenu({ menu, onDuplicate }) {
 }
 
 // ── Duplicate menu modal ─────────────────────────────────────────────────────
-// Clones a menu (and its items + sponsor toggles) under a new name. Target
-// event defaults to the source event; can be redirected to any other event
-// in the same series. Sync metadata is intentionally NOT copied — the new
-// menu starts unlinked from any Figma frame.
-function DuplicateMenuModal({ sourceMenu, currentEventId, onClose, onDuplicated }) {
+// Clones a menu (and its items + sponsor toggles) under a new name and into
+// any brand → series → event the user can reach — including a brand/series/
+// event that doesn't exist yet (TargetPicker has inline "+ Add new" for each
+// level). Sync metadata is intentionally NOT copied — the new menu starts
+// unlinked from any Figma frame.
+function DuplicateMenuModal({ sourceMenu, currentEventId, currentSeriesId, currentBrandId, onClose, onDuplicated }) {
   const [name, setName] = useState(`${sourceMenu.name} (copy)`)
-  const [targetEventId, setTargetEventId] = useState(currentEventId)
-  const [eventOptions, setEventOptions] = useState([])
+  const [target, setTarget] = useState({ brandId: currentBrandId || '', seriesId: currentSeriesId || '', eventId: currentEventId || '' })
   const [setAllDraft, setSetAllDraft] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [counts, setCounts] = useState({ items: null, sponsors: null })
 
-  // Load sibling events (same series) so duplicate can target a different
-  // event without leaving the page.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const { data: src } = await supabase.from('events').select('series_id').eq('id', sourceMenu.event_id).single()
-      if (!src) return
-      const { data: ev } = await supabase.from('events').select('id, name').eq('series_id', src.series_id).order('name')
-      if (!cancelled) setEventOptions(ev || [])
-      // Also count items + sponsors so the modal shows what'll be copied.
       const [{ count: ic }, { count: sc }] = await Promise.all([
         supabase.from('menu_items').select('id', { count: 'exact', head: true }).eq('menu_id', sourceMenu.id),
         supabase.from('menu_sponsors').select('id', { count: 'exact', head: true }).eq('menu_id', sourceMenu.id),
@@ -597,90 +592,19 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, onClose, onDuplicated 
       if (!cancelled) setCounts({ items: ic || 0, sponsors: sc || 0 })
     })()
     return () => { cancelled = true }
-  }, [sourceMenu.id, sourceMenu.event_id])
-
-  function slugify(s) {
-    return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-  }
+  }, [sourceMenu.id])
 
   async function handleDuplicate(e) {
     e.preventDefault()
-    if (!name.trim()) { setError('Give the new menu a name.'); return }
+    if (!name.trim())        { setError('Give the new menu a name.'); return }
+    if (!target.eventId)     { setError('Pick a target event.'); return }
     setBusy(true); setError(null)
     try {
-      // 1. Fetch full source menu row so we can carry forward style overrides,
-      //    category, size, icon, etc. — everything except the sync metadata
-      //    + the linked-frame fields.
-      const { data: src, error: srcErr } = await supabase.from('menus').select('*').eq('id', sourceMenu.id).single()
-      if (srcErr) throw srcErr
-      const baseSlug = slugify(name.trim()) || `menu-${Date.now()}`
-      // Ensure slug uniqueness within the target event
-      let slug = baseSlug
-      let attempt = 1
-      while (attempt < 50) {
-        const { data: clash } = await supabase
-          .from('menus').select('id', { head: true, count: 'exact' })
-          .eq('event_id', targetEventId).eq('slug', slug)
-        if (!clash || clash.length === 0) break
-        attempt++
-        slug = `${baseSlug}-${attempt}`
-      }
-
-      const newRow = {
-        event_id:                 targetEventId,
-        name:                     name.trim(),
-        slug,
-        category:                 src.category,
-        size:                     src.size,
-        icon_url:                 src.icon_url,
-        icon_name:                src.icon_name,
-        phase:                    'build',
-        style_spec:               src.style_spec,
-        fonts:                    src.fonts,
-        header_logo_url:          src.header_logo_url,
-        footer_url:               src.footer_url,
-        footer_show_diet_key:     src.footer_show_diet_key,
-        footer_show_tax_text:     src.footer_show_tax_text,
-        footer_custom_text:       src.footer_custom_text,
-        override_sponsor_order:   src.override_sponsor_order,
-        requires_sponsor_approval: src.requires_sponsor_approval,
-        notify_user_ids:          src.notify_user_ids,
-        // Intentionally NOT copied: last_synced_at, last_sync_digest,
-        // preview_image_url, sponsor_approved_at, sponsor_approved_by.
-      }
-      const { data: created, error: createErr } = await supabase
-        .from('menus').insert(newRow).select().single()
-      if (createErr) throw createErr
-
-      // 2. Clone items
-      const { data: items } = await supabase.from('menu_items').select('*').eq('menu_id', sourceMenu.id).order('sort_order')
-      if (items && items.length > 0) {
-        const cloned = items.map(it => {
-          const { id: _, menu_id: __, created_at: ___, last_edited_at: ____, last_edited_by: _____, ...rest } = it
-          return {
-            ...rest,
-            menu_id:     created.id,
-            edit_status: setAllDraft ? 'draft' : (it.edit_status === 'pending_approval' ? 'active' : it.edit_status),
-          }
-        })
-        const { error: itemsErr } = await supabase.from('menu_items').insert(cloned)
-        if (itemsErr) throw itemsErr
-      }
-
-      // 3. Clone sponsor toggles (these point at event_sponsors rows; only
-      //    valid if the target event is the same. For a cross-event clone,
-      //    skip sponsors — user will toggle them manually on the new menu.)
-      if (targetEventId === sourceMenu.event_id) {
-        const { data: sps } = await supabase.from('menu_sponsors').select('*').eq('menu_id', sourceMenu.id).order('sort_order')
-        if (sps && sps.length > 0) {
-          const cloned = sps.map(sp => {
-            const { id: _, menu_id: __, created_at: ___, ...rest } = sp
-            return { ...rest, menu_id: created.id }
-          })
-          await supabase.from('menu_sponsors').insert(cloned)
-        }
-      }
-
+      const created = await duplicateMenuTo(sourceMenu.id, {
+        name: name.trim(),
+        targetEventId: target.eventId,
+        setAllDraft,
+      })
       onDuplicated?.(created)
     } catch (e) {
       setError(e.message || String(e))
@@ -689,7 +613,7 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, onClose, onDuplicated 
     }
   }
 
-  const crossEvent = targetEventId !== sourceMenu.event_id
+  const crossEvent = target.eventId && target.eventId !== sourceMenu.event_id
 
   return (
     <Modal title="Duplicate menu" onClose={onClose}>
@@ -706,21 +630,17 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, onClose, onDuplicated 
           <input className="input" value={name} onChange={e => setName(e.target.value)} required autoFocus />
         </div>
 
-        <div>
-          <label className="label">Target event</label>
-          <select className="input" value={targetEventId} onChange={e => setTargetEventId(e.target.value)}>
-            {eventOptions.map(ev => (
-              <option key={ev.id} value={ev.id}>
-                {ev.name}{ev.id === sourceMenu.event_id ? ' (same event)' : ''}
-              </option>
-            ))}
-          </select>
-          {crossEvent && (
-            <p className="mt-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-              Sponsor toggles won't carry over — they're scoped to the source event. You'll add them on the new menu.
-            </p>
-          )}
-        </div>
+        <TargetPicker
+          levels={['brand', 'series', 'event']}
+          defaults={{ brandId: currentBrandId, seriesId: currentSeriesId, eventId: currentEventId }}
+          onChange={setTarget}
+        />
+
+        {crossEvent && (
+          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            Sponsor toggles won't carry over — they're scoped to the source event. You'll add them on the new menu.
+          </p>
+        )}
 
         <label className="inline-flex items-center gap-2 text-sm text-ink-700">
           <input
@@ -1190,12 +1110,14 @@ export default function EventPage() {
         <DuplicateMenuModal
           sourceMenu={duplicatingMenu}
           currentEventId={event.id}
+          currentSeriesId={series?.id}
+          currentBrandId={brand?.id}
           onClose={() => setDuplicatingMenu(null)}
           onDuplicated={(newMenu) => {
             setDuplicatingMenu(null)
             loadData()
-            // If duplicated into a different event, leave the user here;
-            // otherwise scroll to the new card (refresh handles that).
+            // If duplicated into the same event, jump to the new menu;
+            // otherwise stay put (the user's targeting a different event).
             if (newMenu?.event_id === event.id && newMenu?.slug) {
               navigate(`${baseUrl}/menus/${newMenu.slug}`)
             }

@@ -8,6 +8,8 @@ import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
 import SeriesSponsorsTab from '@/components/SeriesSponsorsTab'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
+import TargetPicker from '@/components/TargetPicker'
+import { duplicateEventTo } from '@/lib/duplicate'
 import FavoriteButton from '@/components/FavoriteButton'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { format } from 'date-fns'
@@ -33,6 +35,7 @@ export default function SeriesPage() {
   const [loading, setLoading] = useState(true)
 
   const [tab, setTab] = useState('events') // 'events' | 'styles'
+  const [duplicatingEvent, setDuplicatingEvent] = useState(null)
   const [showNewEvent, setShowNewEvent] = useState(false)
   const [eventName, setEventName] = useState('')
   const [eventSlugField, setEventSlugField] = useState('')
@@ -156,6 +159,7 @@ export default function SeriesPage() {
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Venue</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Menus</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Phase</th>
+                  {(isAdmin || isInternal) && <th className="px-4 sm:px-6 py-3"></th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
@@ -173,6 +177,17 @@ export default function SeriesPage() {
                     <td className="px-4 sm:px-6 py-3 text-ink-500 whitespace-nowrap">{event.venue || '—'}</td>
                     <td className="px-4 sm:px-6 py-3 text-ink-500">{event.menus?.length || 0}</td>
                     <td className="px-4 sm:px-6 py-3"><PhaseBadge phase={event.phase} /></td>
+                    {(isAdmin || isInternal) && (
+                      <td className="px-2 py-3 text-right">
+                        <button
+                          onClick={() => setDuplicatingEvent(event)}
+                          className="text-[11px] text-ink-500 hover:text-brand-600"
+                          title="Duplicate event (with all its menus)"
+                        >
+                          Duplicate
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -220,7 +235,92 @@ export default function SeriesPage() {
           </form>
         </Modal>
       )}
+
+      {duplicatingEvent && (
+        <DuplicateEventModal
+          sourceEvent={duplicatingEvent}
+          currentSeriesId={series?.id}
+          currentBrandId={brand?.id}
+          onClose={() => setDuplicatingEvent(null)}
+          onDuplicated={() => { setDuplicatingEvent(null); loadData() }}
+        />
+      )}
       </PageBody>
     </PageScreen>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Duplicate Event modal — cascades all menus underneath via duplicateEventTo.
+// ─────────────────────────────────────────────────────────────────────────────
+function DuplicateEventModal({ sourceEvent, currentSeriesId, currentBrandId, onClose, onDuplicated }) {
+  const [name, setName] = useState(`${sourceEvent.name} (copy)`)
+  const [target, setTarget] = useState({ brandId: currentBrandId || '', seriesId: currentSeriesId || '' })
+  const [setAllItemsToDraft, setSetAllItemsToDraft] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const menuCount = sourceEvent.menus?.length || 0
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!name.trim())       { setError('Give the new event a name.'); return }
+    if (!target.seriesId)   { setError('Pick a target series.'); return }
+    setBusy(true); setError(null)
+    try {
+      await duplicateEventTo(sourceEvent.id, {
+        name: name.trim(),
+        targetSeriesId: target.seriesId,
+        setAllItemsToDraft,
+      })
+      onDuplicated?.()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title="Duplicate event" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="text-xs text-ink-500">
+          Cloning <strong className="text-ink-900">{sourceEvent.name}</strong>
+          {menuCount > 0 && <span> · {menuCount} menu{menuCount === 1 ? '' : 's'} (with items + sponsors)</span>}
+        </div>
+
+        <div>
+          <label className="label">New event name</label>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} required autoFocus />
+        </div>
+
+        <TargetPicker
+          levels={['brand', 'series']}
+          defaults={{ brandId: currentBrandId, seriesId: currentSeriesId }}
+          onChange={setTarget}
+        />
+
+        <label className="inline-flex items-center gap-2 text-sm text-ink-700">
+          <input
+            type="checkbox"
+            checked={setAllItemsToDraft}
+            onChange={e => setSetAllItemsToDraft(e.target.checked)}
+            className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+          />
+          Set all copied items to <strong>Draft</strong>
+        </label>
+
+        <p className="text-[11px] text-ink-400">
+          The new event keeps the menus' design/config but gets a blank date, no Figma link, and no preview images.
+          Sponsor toggles on each menu only carry over when staying in the same event — for a brand-new event, you'll re-toggle on each menu.
+        </p>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
+          <button type="button" onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
+          <button type="submit" disabled={busy} className="btn-primary btn-sm">{busy ? 'Duplicating…' : 'Duplicate'}</button>
+        </div>
+      </form>
+    </Modal>
   )
 }
