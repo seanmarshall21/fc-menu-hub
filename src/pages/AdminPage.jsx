@@ -99,6 +99,21 @@ export default function AdminPage() {
     if (!err) setBrands(data || [])
   }
 
+  // ── Password reset ──────────────────────────────────────
+  async function sendPasswordReset(user) {
+    if (!user?.email) return
+    if (!confirm(`Send a password-reset email to ${user.email}?`)) return
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) throw error
+      alert(`Password-reset email sent to ${user.email}.`)
+    } catch (e) {
+      setError(`Could not send reset email: ${e.message || e}`)
+    }
+  }
+
   // ── Invite ──────────────────────────────────────────────
   function openInvite() {
     setInviteEmail(''); setInviteName(''); setInviteCompany(''); setInviteRole('external')
@@ -342,16 +357,28 @@ export default function AdminPage() {
                               </button>
                             </div>
                           ) : !isSelf && (
-                            <button
-                              onClick={() => startEdit(user)}
-                              className="w-8 h-8 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                              aria-label="Edit user"
-                              title="Edit user"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                onClick={() => sendPasswordReset(user)}
+                                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                                aria-label="Send password reset"
+                                title={`Email a password-reset link to ${user.email}`}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => startEdit(user)}
+                                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-ink-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                                aria-label="Edit user"
+                                title="Edit user"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

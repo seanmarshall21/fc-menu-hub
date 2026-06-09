@@ -77,9 +77,26 @@ export default function SponsorsPage() {
     try {
       const ext = (file.name.split('.').pop() || 'svg').toLowerCase()
       const path = `${slug || `tmp-${Date.now()}`}/logo-${Date.now()}.${ext}`
+
+      // SVG normalization: replace hard-coded colors with currentColor so the
+      // logo inherits the menu's color tokens at render time. Strip width/
+      // height attrs from the root <svg> so it scales freely. Skip for
+      // non-SVG files (PNG/JPG go up as-is). Best-effort — leaves the
+      // original file alone if anything goes wrong.
+      let uploadBody = file
+      let uploadType = file.type || 'image/svg+xml'
+      if (ext === 'svg' || (file.type || '').includes('svg')) {
+        try {
+          const raw = await file.text()
+          const normalized = normalizeSponsorSvg(raw)
+          uploadBody = new Blob([normalized], { type: 'image/svg+xml' })
+          uploadType = 'image/svg+xml'
+        } catch (_) { /* fall through with the original */ }
+      }
+
       const { error: upErr } = await supabase.storage
         .from('sponsor-logos')
-        .upload(path, file, { upsert: false, contentType: file.type || 'image/svg+xml' })
+        .upload(path, uploadBody, { upsert: false, contentType: uploadType })
       if (upErr) throw upErr
       const { data: pub } = supabase.storage.from('sponsor-logos').getPublicUrl(path)
       setSvgUrl(pub.publicUrl)
@@ -88,6 +105,39 @@ export default function SponsorsPage() {
     } finally {
       setUploading(false)
     }
+  }
+
+  // Rewrite fill/stroke colors → "currentColor" so the logo recolors with the
+  // surrounding text color in Menu Hub / Figma. Skip explicit "none" values
+  // (those mean "no fill" and shouldn't become a color). Also strip width/
+  // height + style="…" off the root <svg> so it scales to its container.
+  function normalizeSponsorSvg(svg) {
+    let out = svg
+    // Strip fill/stroke colors that aren't "none" (keep "none" as-is)
+    out = out.replace(/(\s)(fill|stroke)\s*=\s*"([^"]*)"/gi, (m, sp, attr, val) => {
+      const v = val.trim().toLowerCase()
+      if (v === 'none' || v === 'currentcolor' || v === '') return m
+      return `${sp}${attr}="currentColor"`
+    })
+    // Same for style="fill:#xxx; stroke:#yyy" inside style attributes
+    out = out.replace(/style\s*=\s*"([^"]*)"/gi, (m, body) => {
+      const replaced = body.replace(/(fill|stroke)\s*:\s*([^;"]+)/gi, (mm, prop, val) => {
+        const v = val.trim().toLowerCase()
+        if (v === 'none' || v === 'currentcolor' || v === '') return mm
+        return `${prop}:currentColor`
+      })
+      return `style="${replaced}"`
+    })
+    // Strip width/height and inline style on the root <svg> so it fills its
+    // container in the preview canvas. Only touch the FIRST <svg> tag.
+    out = out.replace(/<svg\b([^>]*)>/i, (m, attrs) => {
+      let a = attrs
+      a = a.replace(/\s(width|height)\s*=\s*"[^"]*"/gi, '')
+      a = a.replace(/\sstyle\s*=\s*"[^"]*"/gi, '')
+      if (!/preserveAspectRatio/i.test(a)) a += ' preserveAspectRatio="xMidYMid meet"'
+      return `<svg${a}>`
+    })
+    return out
   }
 
   async function handleSave(e) {

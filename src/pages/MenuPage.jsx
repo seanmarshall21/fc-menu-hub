@@ -171,6 +171,7 @@ export default function MenuPage() {
   const [editMenuCategory, setEditMenuCategory] = useState('bar')
   const [editMenuIconUrl, setEditMenuIconUrl] = useState(null)
   const [editMenuIconName, setEditMenuIconName] = useState(null)
+  const [editMenuRequiresSponsorApproval, setEditMenuRequiresSponsorApproval] = useState(false)
   const [editMenuSaving, setEditMenuSaving] = useState(false)
   const [editMenuError, setEditMenuError] = useState(null)
   // Delete menu modal state
@@ -280,12 +281,17 @@ export default function MenuPage() {
 
   async function toggleSponsor(sponsorId) {
     const sp = eventSponsors.find(s => s.id === sponsorId)
+    const sponsorName = sp?.name || sp?.slug || 'sponsor'
     if (menuSponsorIds.has(sponsorId)) {
       await supabase.from('menu_sponsors').delete()
         .eq('menu_id', menu.id)
         .eq('event_sponsor_id', sponsorId)
       setMenuSponsorIds(prev => { const next = new Set(prev); next.delete(sponsorId); return next })
       setMenuSponsorRows(prev => prev.filter(r => r.event_sponsor_id !== sponsorId))
+      // Log to edit log so reviewers can see who added/removed sponsors and when.
+      supabase.rpc('log_sponsor_change', {
+        p_menu_id: menu.id, p_sponsor_name: sponsorName, p_action: 'removed',
+      }).then(() => {}, () => {})
     } else {
       const sortOrder = menuSponsorRows.length
       await supabase.from('menu_sponsors').insert({
@@ -297,6 +303,9 @@ export default function MenuPage() {
         sort_order: sortOrder,
       })
       setMenuSponsorIds(prev => new Set([...prev, sponsorId]))
+      supabase.rpc('log_sponsor_change', {
+        p_menu_id: menu.id, p_sponsor_name: sponsorName, p_action: 'added',
+      }).then(() => {}, () => {})
       loadMenu() // refetch so we have the new menu_sponsors record with its id
     }
   }
@@ -540,6 +549,7 @@ export default function MenuPage() {
               setEditMenuCategory(menu.category || 'bar')
               setEditMenuIconUrl(menu.icon_url || null)
               setEditMenuIconName(menu.icon_name || null)
+              setEditMenuRequiresSponsorApproval(!!menu.requires_sponsor_approval)
               setEditMenuError(null)
               setShowEditMenu(true)
             }}
@@ -587,6 +597,7 @@ export default function MenuPage() {
                   category: editMenuCategory,
                   icon_url: editMenuIconUrl,
                   icon_name: editMenuIconName,
+                  requires_sponsor_approval: editMenuRequiresSponsorApproval,
                 })
                 .eq('id', menu.id)
               if (error) throw error
@@ -635,6 +646,18 @@ export default function MenuPage() {
                   fallbackColor={brand?.color}
                 />
               </ErrorBoundary>
+            </div>
+            <div className="pt-3 border-t border-surface-100">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={editMenuRequiresSponsorApproval}
+                  onChange={e => setEditMenuRequiresSponsorApproval(e.target.checked)}
+                  className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+                />
+                <span className="text-sm text-ink-700">Requires sponsor approval</span>
+              </label>
+              <p className="text-xs text-ink-400 mt-1 ml-6">Surfaces an amber "Needs sponsor approval" chip at the top of this menu until someone marks it approved.</p>
             </div>
             {editMenuError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editMenuError}</p>}
             <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">
@@ -717,6 +740,38 @@ export default function MenuPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100"
             >
               {pendingCount} edit{pendingCount === 1 ? '' : 's'} pending
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Sponsor approval state — only shown when the menu is flagged as
+          needing sponsor sign-off. Chip flips green once approved. */}
+      {menu.requires_sponsor_approval && (
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          {menu.sponsor_approved_at ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium"
+              title={`Approved by sponsor ${new Date(menu.sponsor_approved_at).toLocaleString()}`}>
+              ✓ Approved by sponsor
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+              ⏳ Needs sponsor approval
+            </span>
+          )}
+          {(isAdmin || isInternal) && (
+            <button
+              onClick={async () => {
+                const wasApproved = !!menu.sponsor_approved_at
+                const update = wasApproved
+                  ? { sponsor_approved_at: null, sponsor_approved_by: null }
+                  : { sponsor_approved_at: new Date().toISOString(), sponsor_approved_by: profile?.id || null }
+                await supabase.from('menus').update(update).eq('id', menu.id)
+                loadMenu()
+              }}
+              className="text-[11px] text-ink-500 hover:text-ink-700 underline-offset-2 hover:underline"
+            >
+              {menu.sponsor_approved_at ? 'Mark as not approved' : 'Mark as approved'}
             </button>
           )}
         </div>

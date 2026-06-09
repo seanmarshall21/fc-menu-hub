@@ -214,6 +214,26 @@ create policy "internal_items_rw" on menu_items for all using (
 create policy "internal_read_log" on edit_log for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
+
+-- Internal users: full read+write on sponsor library + series/event/menu
+-- sponsor join tables. They manage the sponsor lineup the same as admin.
+-- (sponsors, series_sponsors, event_sponsors tables — created via dashboard
+-- migration; these policies assume RLS is enabled on each.)
+do $$
+begin
+  if to_regclass('public.sponsors') is not null then
+    execute 'drop policy if exists "internal_sponsors_rw" on sponsors';
+    execute 'create policy "internal_sponsors_rw" on sponsors for all using (exists (select 1 from user_profiles where id = auth.uid() and role in (''admin'',''internal'')))';
+  end if;
+  if to_regclass('public.series_sponsors') is not null then
+    execute 'drop policy if exists "internal_series_sponsors_rw" on series_sponsors';
+    execute 'create policy "internal_series_sponsors_rw" on series_sponsors for all using (exists (select 1 from user_profiles where id = auth.uid() and role in (''admin'',''internal'')))';
+  end if;
+  if to_regclass('public.event_sponsors') is not null then
+    execute 'drop policy if exists "internal_event_sponsors_rw" on event_sponsors';
+    execute 'create policy "internal_event_sponsors_rw" on event_sponsors for all using (exists (select 1 from user_profiles where id = auth.uid() and role in (''admin'',''internal'')))';
+  end if;
+end$$;
 -- Internal users can also update edit_log (to archive / add reviewer notes / redact own).
 create policy "internal_update_log" on edit_log for update using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
@@ -241,6 +261,38 @@ begin
    where id = p_menu_id;
 end;
 $$ language plpgsql security definer;
+
+-- ─── Helper function: log a sponsor change on a menu ───────────────────────
+-- Called when a menu's active sponsor set changes. Writes one row to
+-- edit_log with menu_item_id = null and field_changed = 'sponsor' so the
+-- existing edit log UI can render it alongside item edits. SECURITY DEFINER
+-- so internal users can log without needing direct insert rights on edit_log.
+create or replace function log_sponsor_change(
+  p_menu_id      uuid,
+  p_sponsor_name text,
+  p_action       text  -- 'added' or 'removed'
+) returns void as $$
+begin
+  insert into edit_log (menu_item_id, menu_id, user_id, user_email, field_changed, old_value, new_value, phase_at_edit)
+  values (
+    null,
+    p_menu_id,
+    auth.uid(),
+    (select email from auth.users where id = auth.uid()),
+    'sponsor',
+    case when p_action = 'removed' then p_sponsor_name else '' end,
+    case when p_action = 'added'   then p_sponsor_name else '' end,
+    (select phase from menus where id = p_menu_id)
+  );
+end;
+$$ language plpgsql security definer;
+
+-- ─── Menus: sponsor-approval columns ─────────────────────────────────────────
+-- Per-menu flag so the team can mark whether a menu requires sign-off from
+-- the sponsor before it goes to print. Surfaced as a chip in the menu header.
+alter table menus add column if not exists requires_sponsor_approval boolean default false;
+alter table menus add column if not exists sponsor_approved_at       timestamptz;
+alter table menus add column if not exists sponsor_approved_by       uuid references auth.users(id);
 
 -- ─── Helper function: log an edit ────────────────────────────────────────────
 create or replace function log_menu_item_edit(
