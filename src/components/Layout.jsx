@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useBrands } from '@/hooks/useBrands'
 import { supabase } from '@/lib/supabase'
+import { setAppBadge } from '@/lib/pwa'
 import Modal from '@/components/Modal'
 import VersionWatcher from '@/components/VersionWatcher'
 import EntityIconPicker from '@/components/EntityIconPicker'
@@ -92,8 +93,8 @@ export default function Layout() {
     navigate('/profile')
   }
 
-  // Unread notification count — drives the badge on the Inbox nav link.
-  // Refreshes on route change so visiting the inbox clears the dot quickly.
+  // Unread notification count — drives the sidebar/bottom-tab badge AND
+  // the native app/dock badge (when installed as a PWA, where supported).
   const [unreadCount, setUnreadCount] = useState(0)
   useEffect(() => {
     if (!profile?.id) return
@@ -109,6 +110,12 @@ export default function Layout() {
     })()
     return () => { cancelled = true }
   }, [profile?.id, location.pathname])
+
+  // Mirror unread count to the native badge API (PWA installs only — graceful
+  // no-op on unsupported browsers).
+  useEffect(() => {
+    setAppBadge(unreadCount)
+  }, [unreadCount])
 
   // Close drawer on route change
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
