@@ -6,6 +6,7 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
+import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 
 function slugify(str) {
@@ -202,6 +203,26 @@ export default function BrandPage() {
         )}
         <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">{brand.name}</h1>
       </div>
+
+      {/* Brand-level "Notify for edits" — root of the cascade. Anyone toggled
+          here gets notified on every edit anywhere under this brand. */}
+      {(isAdmin || isInternal) && (
+        <div className="card p-5 mb-6 max-w-2xl">
+          <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
+          <p className="text-xs text-ink-500 mb-4">
+            People toggled here get an inbox notification for every edit on any menu under <strong>{brand.name}</strong>. They appear pre-checked at every level below (series → event → menu → item).
+          </p>
+          <NotifyForEditsEditor
+            table="brands"
+            entityId={brand.id}
+            current={brand.notify_user_ids || []}
+            inheritedIds={[]}
+            inheritedFromLabel={null}
+            canEdit={isAdmin || isInternal}
+            onSaved={loadData}
+          />
+        </div>
+      )}
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink-700">Series</h2>

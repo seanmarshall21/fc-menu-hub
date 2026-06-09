@@ -17,7 +17,7 @@ const STATUS_CLASSES = {
  * row on screens below the md breakpoint. Tap to open an edit modal that
  * reuses MenuItemEditForm.
  */
-export default function MenuItemCard({ item, menu, canEdit, currency, sections, onUpdated }) {
+export default function MenuItemCard({ item, menu, canEdit, currency, sections, onUpdated, defaultNotifyIds = [] }) {
   const { profile } = useAuth()
   const [editing, setEditing] = useState(false)
   const [approving, setApproving] = useState(false)
@@ -93,6 +93,7 @@ export default function MenuItemCard({ item, menu, canEdit, currency, sections, 
             item={item}
             menu={menu}
             sections={sections}
+            defaultNotifyIds={defaultNotifyIds}
             onSaved={() => { setEditing(false); onUpdated() }}
             onCancel={() => setEditing(false)}
           />

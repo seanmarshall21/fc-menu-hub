@@ -244,6 +244,11 @@ create policy "own_profile" on user_profiles for all using (id = auth.uid());
 create policy "admin_read_profiles" on user_profiles for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role = 'admin')
 );
+-- Internal users need to see other admin/internal users so they can be
+-- tagged for edit notifications.
+create policy "internal_read_profiles" on user_profiles for select using (
+  exists (select 1 from user_profiles up where up.id = auth.uid() and up.role in ('admin','internal'))
+);
 
 -- ─── Helper function: refresh just the preview thumbnail ────────────────────
 -- Called from the Menu Sync plugin when the user wants to re-export the Figma
@@ -346,12 +351,48 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Cascading "Notify for edits" — array of user ids on series → inherited by
--- event (unless overridden) → inherited by menu (unless overridden). Specific
--- per-edit tags from the item-edit form layer on top per-event.
+-- Cascading "Notify for edits" — list of user ids defined at each level.
+-- The resolver merges them top-down: brand ∪ series ∪ event ∪ menu, then
+-- the per-edit form lets the editor add/remove people for that single edit.
+-- A null column = "no entries at this level" (inherit only). An empty array
+-- {} also = "no entries at this level".
+alter table brands add column if not exists notify_user_ids uuid[] default '{}';
 alter table series add column if not exists notify_user_ids uuid[] default '{}';
-alter table events add column if not exists notify_user_ids uuid[]; -- null = inherit from series
-alter table menus  add column if not exists notify_user_ids uuid[]; -- null = inherit from event
+alter table events add column if not exists notify_user_ids uuid[] default '{}';
+alter table menus  add column if not exists notify_user_ids uuid[] default '{}';
+
+-- Resolve the effective notify list for a given menu by walking up the
+-- brand → series → event → menu chain and unioning every non-empty
+-- notify_user_ids array. Returns a deduplicated set.
+create or replace function resolve_menu_notify_ids(p_menu_id uuid)
+returns uuid[] as $$
+declare
+  v_result uuid[];
+begin
+  select array(
+    select distinct unnest(ids) from (
+      select b.notify_user_ids as ids from menus m
+        join events e on e.id = m.event_id
+        join series s on s.id = e.series_id
+        join brands b on b.id = s.brand_id
+       where m.id = p_menu_id
+      union all
+      select s.notify_user_ids from menus m
+        join events e on e.id = m.event_id
+        join series s on s.id = e.series_id
+       where m.id = p_menu_id
+      union all
+      select e.notify_user_ids from menus m
+        join events e on e.id = m.event_id
+       where m.id = p_menu_id
+      union all
+      select m.notify_user_ids from menus m where m.id = p_menu_id
+    ) sub
+    where ids is not null
+  ) into v_result;
+  return coalesce(v_result, '{}');
+end;
+$$ language plpgsql security definer stable;
 
 -- ─── Helper function: log an edit ────────────────────────────────────────────
 create or replace function log_menu_item_edit(

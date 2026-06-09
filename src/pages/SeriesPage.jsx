@@ -7,6 +7,7 @@ import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
 import SeriesSponsorsTab from '@/components/SeriesSponsorsTab'
+import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import FavoriteButton from '@/components/FavoriteButton'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { format } from 'date-fns'
@@ -42,7 +43,7 @@ export default function SeriesPage() {
   const [saveError, setSaveError] = useState(null)
 
   async function loadData() {
-    const { data: brandData } = await supabase.from('brands').select('id, name, slug, color').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id, name, slug, color, notify_user_ids').eq('slug', brandSlug).single()
     setBrand(brandData)
     if (brandData) {
       const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData.id).eq('slug', seriesSlug).single()
@@ -82,7 +83,12 @@ export default function SeriesPage() {
       actions={<FavoriteButton type="series" id={series.id} />}
       below={(
         <div className="flex items-center gap-1">
-          {[{ key: 'events', label: 'Events' }, { key: 'sponsors', label: 'Sponsors' }, { key: 'styles', label: 'Styles' }].map(t => (
+          {[
+            { key: 'events',   label: 'Events' },
+            { key: 'sponsors', label: 'Sponsors' },
+            { key: 'approvals',label: 'Approvals' },
+            ...(isAdmin ? [{ key: 'styles', label: 'Styles' }] : []),
+          ].map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -104,6 +110,26 @@ export default function SeriesPage() {
         <SeriesStylesTab series={series} canEdit={isAdmin || isInternal} onSaved={loadData} />
       ) : tab === 'sponsors' ? (
         <SeriesSponsorsTab series={series} canEdit={isAdmin || isInternal} />
+      ) : tab === 'approvals' ? (
+        <div className="space-y-4 max-w-2xl">
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              Anyone toggled here gets an inbox notification for every edit on any
+              menu under this series. Inherited people from the brand stay on
+              automatically and can only be removed at the brand level.
+            </p>
+            <NotifyForEditsEditor
+              table="series"
+              entityId={series.id}
+              current={series.notify_user_ids || []}
+              inheritedIds={brand?.notify_user_ids || []}
+              inheritedFromLabel={brand?.name ? `${brand.name} (brand)` : 'the brand'}
+              canEdit={isAdmin || isInternal}
+              onSaved={loadData}
+            />
+          </div>
+        </div>
       ) : (
       <div className="card overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-surface-200 flex items-center justify-between">

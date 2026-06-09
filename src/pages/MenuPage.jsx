@@ -15,6 +15,7 @@ import EntityIconPicker from '@/components/EntityIconPicker'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
+import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
@@ -139,6 +140,16 @@ export default function MenuPage() {
   const [menu, setMenu]     = useState(null)
   const [items, setItems]   = useState([])
   const [eventSponsors, setEventSponsors] = useState([])
+  // Resolved "Notify for edits" list — union of brand + series + event + menu.
+  // Pre-fills the item edit form so editors don't have to remember to tag
+  // people who are already configured upstream. Deduped via Set.
+  const resolvedNotifyIds = useMemo(() => {
+    const s = new Set()
+    ;[brand?.notify_user_ids, series?.notify_user_ids, event?.notify_user_ids, menu?.notify_user_ids]
+      .filter(Array.isArray).forEach(list => list.forEach(id => id && s.add(id)))
+    return [...s]
+  }, [brand?.notify_user_ids, series?.notify_user_ids, event?.notify_user_ids, menu?.notify_user_ids])
+
   // Sponsor state is split into draft (the live UI) + server (last-loaded
   // snapshot). The Sponsors tab uses a Save/Cancel pattern instead of
   // committing on every toggle, so anything the user changes lives in the
@@ -190,7 +201,7 @@ export default function MenuPage() {
   const [deleteError, setDeleteError] = useState(null)
 
   const loadMenu = useCallback(async () => {
-    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids').eq('slug', brandSlug).single()
     setBrand(brandData)
     const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     setSeries(seriesData)
@@ -932,6 +943,7 @@ export default function MenuPage() {
                     currency={currency}
                     sections={sectionNames}
                     onUpdated={loadMenu}
+                    defaultNotifyIds={resolvedNotifyIds}
                   />
                 ))}
                 {canEdit && (
@@ -982,6 +994,7 @@ export default function MenuPage() {
                       loadMenu={loadMenu}
                       onReorderSection={reorderItemsInSection}
                       columns={itemColumns}
+                      defaultNotifyIds={resolvedNotifyIds}
                     >
                       {/* The Add-item row stays in normal tbody render flow */}
                       {canEdit && addingToSection === group.key && (
@@ -1154,9 +1167,30 @@ export default function MenuPage() {
         />
       )}
 
-      {/* Sign-off tab */}
+      {/* Approvals tab — existing sign-off list + per-menu notify editor */}
       {tab === 'signoff' && (
-        <ApproversPanel targetType="menu" targetId={menu.id} title="Menu approvals" />
+        <div className="space-y-4 max-w-2xl">
+          <ApproversPanel targetType="menu" targetId={menu.id} title="Menu approvals" />
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People notified for every edit on this menu. Brand + series + event picks above stay on automatically.
+            </p>
+            <NotifyForEditsEditor
+              table="menus"
+              entityId={menu.id}
+              current={menu.notify_user_ids || []}
+              inheritedIds={Array.from(new Set([
+                ...((brand?.notify_user_ids) || []),
+                ...((series?.notify_user_ids) || []),
+                ...((event?.notify_user_ids) || []),
+              ]))}
+              inheritedFromLabel="brand + series + event"
+              canEdit={isAdmin || isInternal}
+              onSaved={loadMenu}
+            />
+          </div>
+        </div>
       )}
 
       {tab === 'styles' && isAdmin && (
@@ -1389,7 +1423,7 @@ export default function MenuPage() {
 // Drag-and-drop reorder for a single section's items. Lives inside <table>
 // rendering a real <tbody>, so the dnd-kit hooks attach directly to <tr>s.
 
-function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children }) {
+function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children, defaultNotifyIds }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -1418,6 +1452,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
               sectionNames={sectionNames}
               loadMenu={loadMenu}
               columns={columns}
+              defaultNotifyIds={defaultNotifyIds}
             />
           ))}
         </SortableContext>
@@ -1427,7 +1462,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
   )
 }
 
-function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns }) {
+function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns, defaultNotifyIds }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
   return (
@@ -1439,6 +1474,7 @@ function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu,
       sections={sectionNames}
       columns={columns}
       onUpdated={loadMenu}
+      defaultNotifyIds={defaultNotifyIds}
       dragRef={setNodeRef}
       dragStyle={style}
       dragAttributes={attributes}

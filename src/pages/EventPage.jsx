@@ -13,6 +13,7 @@ import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
+import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { formatPrice, resolveCurrencySpec } from '@/lib/formatPrice'
 import FigmaLogo from '@/components/FigmaLogo'
 import EventSponsorsTab from '@/components/EventSponsorsTab'
@@ -581,9 +582,12 @@ export default function EventPage() {
   const [spError, setSpError]                 = useState(null)
 
   async function loadData() {
-    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids').eq('slug', brandSlug).single()
     setBrand(brandData)
     const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
+    // Attach brand to series so the Approvals tab can resolve cascading
+    // notify_user_ids without re-fetching the brand row.
+    if (seriesData && brandData) seriesData.brand = brandData
     setSeries(seriesData)
     const { data: eventData } = await supabase.from('events').select('*').eq('series_id', seriesData?.id).eq('slug', eventSlug).single()
     setEvent(eventData)
@@ -1041,9 +1045,30 @@ export default function EventPage() {
         />
       )}
 
-      {/* ── SIGN-OFF TAB ── */}
+      {/* ── APPROVALS TAB ── existing sign-off list + new notify editor */}
       {tab === 'signoff' && (
-        <ApproversPanel targetType="event" targetId={event.id} title="Event approvals" />
+        <div className="space-y-4 max-w-2xl">
+          <ApproversPanel targetType="event" targetId={event.id} title="Event approvals" />
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People notified for every edit on any menu under this event.
+              Brand + series picks above stay on automatically.
+            </p>
+            <NotifyForEditsEditor
+              table="events"
+              entityId={event.id}
+              current={event.notify_user_ids || []}
+              inheritedIds={Array.from(new Set([
+                ...((series?.brand?.notify_user_ids) || []),
+                ...((series?.notify_user_ids) || []),
+              ]))}
+              inheritedFromLabel="brand + series"
+              canEdit={isAdmin || isInternal}
+              onSaved={loadData}
+            />
+          </div>
+        </div>
       )}
 
       {/* ── Edit Event Modal ── */}

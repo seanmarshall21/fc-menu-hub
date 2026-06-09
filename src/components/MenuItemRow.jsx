@@ -24,6 +24,7 @@ export const DEFAULT_ITEM_COLUMNS = [
 export default function MenuItemRow({
   item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast, currency,
   columns = DEFAULT_ITEM_COLUMNS,
+  defaultNotifyIds = [],
   // Optional drag-and-drop hooks supplied by a SortableContext parent
   dragRef, dragStyle, dragAttributes, dragListeners, isDragging,
 }) {
@@ -182,6 +183,7 @@ export default function MenuItemRow({
           item={item}
           menu={menu}
           sections={sections}
+          defaultNotifyIds={defaultNotifyIds}
           onSaved={() => { setEditing(false); onUpdated() }}
           onCancel={() => setEditing(false)}
         />
