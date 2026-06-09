@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import { ensurePushSubscription, clearPushSubscription, hasPushSubscription } from '@/lib/pwa'
 
 /**
  * Full-page profile / account settings.
@@ -139,9 +140,7 @@ export default function ProfilePage() {
           </form>
         </Section>
 
-        {/* Notification settings placeholder — fully wired when the notification
-            system lands. Hidden today rather than showing a useless empty form. */}
-        {/* <Section title="Notifications">…</Section> */}
+        <PushNotificationsSection />
 
         {/* Sign out */}
         <Section title="Sign out" subtitle="End your session on this device.">
@@ -151,6 +150,79 @@ export default function ProfilePage() {
         </Section>
       </PageBody>
     </PageScreen>
+  )
+}
+
+function PushNotificationsSection() {
+  const [enabled, setEnabled] = useState(false)
+  const [supported, setSupported] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setSupported(false); return
+    }
+    hasPushSubscription().then(setEnabled)
+  }, [])
+
+  async function turnOn() {
+    setBusy(true); setMsg(null)
+    const res = await ensurePushSubscription()
+    setBusy(false)
+    if (!res.ok) {
+      const reasonMsg = {
+        'vapid-not-configured': 'Push notifications aren\'t set up on the server yet. Ask Sean.',
+        'unsupported':          'This browser doesn\'t support push notifications.',
+        'denied':               'You blocked notifications. Re-enable them in your browser settings.',
+        'not-signed-in':        'Sign back in and try again.',
+      }[res.reason] || 'Something went wrong.'
+      setMsg({ kind: 'error', text: reasonMsg })
+      return
+    }
+    setEnabled(true)
+    setMsg({ kind: 'success', text: 'Push notifications enabled on this device.' })
+  }
+
+  async function turnOff() {
+    setBusy(true); setMsg(null)
+    await clearPushSubscription()
+    setEnabled(false); setBusy(false)
+    setMsg({ kind: 'success', text: 'Push notifications turned off on this device.' })
+  }
+
+  if (!supported) {
+    return (
+      <Section title="Push notifications" subtitle="Get a desktop alert when you're tagged on an edit or one of yours is resolved.">
+        <p className="text-xs text-ink-500">This browser doesn't support web push. Try Chrome, Edge, or Safari 16+.</p>
+      </Section>
+    )
+  }
+
+  return (
+    <Section title="Push notifications" subtitle="Get a desktop alert when you're tagged on an edit or one of yours is resolved. Settings are per device — turn it on once per browser/laptop you use.">
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-sm">
+          <div className={enabled ? 'text-emerald-700 font-medium' : 'text-ink-600'}>
+            {enabled ? '✓ Enabled on this device' : 'Disabled on this device'}
+          </div>
+          <div className="text-xs text-ink-500 mt-1">
+            {enabled ? 'You\'ll get a system notification when something hits your inbox.' : 'Click "Enable" to allow notifications. Your browser will ask for permission once.'}
+          </div>
+          {msg && (
+            <div className={`text-xs mt-2 ${msg.kind === 'success' ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={enabled ? turnOff : turnOn}
+          disabled={busy}
+          className={enabled ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
+        >
+          {busy ? '…' : (enabled ? 'Turn off' : 'Enable')}
+        </button>
+      </div>
+    </Section>
   )
 }
 

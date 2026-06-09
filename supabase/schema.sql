@@ -271,6 +271,61 @@ as $$
    order by up.full_name nulls last
 $$;
 
+-- ─── Push notification subscriptions ────────────────────────────────────────
+-- One row per (user, device/browser). The Service Worker on each device
+-- subscribes once and posts the resulting PushSubscription here. The
+-- send-push edge function reads from this table to fan out a notification.
+-- Endpoints are unique per (user, endpoint) to avoid duplicate inserts on
+-- re-subscribe; a user can have many endpoints (laptop, phone, work browser).
+create table if not exists push_subscriptions (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  endpoint    text not null,
+  p256dh      text not null,
+  auth_key    text not null,
+  user_agent  text,
+  created_at  timestamptz default now(),
+  last_seen   timestamptz default now(),
+  unique (user_id, endpoint)
+);
+alter table push_subscriptions enable row level security;
+-- Each user can manage their own subscriptions.
+create policy "own_push_sub" on push_subscriptions for all using (user_id = auth.uid());
+
+-- Fan-out trigger: when a notifications row is inserted, fire off the
+-- send-push edge function. Async via pg_net so the insert isn't blocked
+-- if the function is slow / down. Requires pg_net extension enabled in
+-- the Supabase dashboard (Database → Extensions → pg_net).
+create or replace function notify_push_on_insert()
+returns trigger as $$
+declare
+  v_url  text := current_setting('app.settings.supabase_url', true);
+  v_key  text := current_setting('app.settings.service_role_key', true);
+begin
+  -- If pg_net isn't available or settings are missing, no-op so inserts
+  -- still succeed. Pushes can be retried by another path (e.g. cron sweep
+  -- over unread notifications older than N minutes).
+  if v_url is null or v_key is null then return new; end if;
+  perform net.http_post(
+    url     := v_url || '/functions/v1/send-push',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_key
+    ),
+    body    := jsonb_build_object('notification_id', new.id)
+  );
+  return new;
+exception when others then
+  -- Never block the original insert because the push attempt failed.
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_notify_push on notifications;
+create trigger trg_notify_push
+  after insert on notifications
+  for each row execute function notify_push_on_insert();
+
 -- ─── Helper function: refresh just the preview thumbnail ────────────────────
 -- Called from the Menu Sync plugin when the user wants to re-export the Figma
 -- frame's PNG (e.g. after manual layout tweaks) WITHOUT marking the menu as
