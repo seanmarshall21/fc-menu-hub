@@ -183,6 +183,7 @@ export default function BrandPage() {
 
   return (
     <PageScreen
+      tourKey="brand"
       breadcrumbs={[{ label: brand.name }]}
       back
       icon={brand.logo_url || undefined}

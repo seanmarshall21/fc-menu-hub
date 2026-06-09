@@ -82,6 +82,7 @@ export default function SeriesPage() {
 
   return (
     <PageScreen
+      tourKey="series"
       breadcrumbs={[
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series.name },

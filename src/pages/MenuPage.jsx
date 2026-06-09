@@ -587,6 +587,7 @@ export default function MenuPage() {
 
   return (
     <PageScreen
+      tourKey="menu"
       breadcrumbs={[
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series?.name, to: `/brands/${brandSlug}/series/${seriesSlug}` },

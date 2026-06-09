@@ -935,6 +935,7 @@ export default function EventPage() {
 
   return (
     <PageScreen
+      tourKey="event"
       breadcrumbs={[
         { label: brand?.name, to: `/brands/${brandSlug}` },
         { label: series?.name, to: `/brands/${brandSlug}/series/${seriesSlug}` },

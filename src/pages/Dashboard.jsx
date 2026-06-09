@@ -76,6 +76,7 @@ export default function Dashboard() {
 
   return (
     <PageScreen
+      tourKey="dashboard"
       title={`Good ${timeOfDay()}, ${profile?.full_name?.split(' ')[0] || 'there'}`}
       subtitle="Menu Hub · BKSTG"
     >

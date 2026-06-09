@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import EntityIcon from './EntityIcon'
+import TourOverlay, { useTour } from './TourOverlay'
+import { TOURS } from '@/lib/tours'
 
 /**
  * Page chrome:
@@ -35,9 +38,19 @@ export default function PageScreen({
   actions,
   secondaryActions,
   below,
+  tourKey,        // optional — when set, shows a ? button in the header that
+                  // opens the matching onboarding tour from src/lib/tours.js
   children,
 }) {
   const navigate = useNavigate()
+  const tour = useTour(tourKey)
+  const tourDef = tourKey ? TOURS[tourKey] : null
+
+  // Auto-open the tour the first time the user lands on this page.
+  useEffect(() => {
+    if (tourKey) tour.autoOpenIfNew()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourKey])
 
   const last = breadcrumbs[breadcrumbs.length - 1]
   const parents = breadcrumbs.slice(0, -1)
@@ -111,11 +124,22 @@ export default function PageScreen({
                 </p>
               )}
             </div>
-            {actions && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {actions}
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {actions}
+              {/* Help / tour launcher — only renders when a tourKey exists */}
+              {tourDef && (
+                <button
+                  onClick={tour.show}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-full text-ink-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                  title={`Show tour: ${tourDef.title}`}
+                  aria-label="Show page tour"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {secondaryActions && (
@@ -138,6 +162,10 @@ export default function PageScreen({
       >
         {children}
       </div>
+
+      {tourKey && tour.open && (
+        <TourOverlay tourKey={tourKey} onClose={tour.close} />
+      )}
     </div>
   )
 }

@@ -54,7 +54,7 @@ import { useAuth } from '@/contexts/AuthContext'
 export default function HelpPage() {
   const { isAdmin } = useAuth()
   return (
-    <PageScreen breadcrumbs={[{ label: 'Help & Resources' }]}>
+    <PageScreen tourKey="help" breadcrumbs={[{ label: 'Help & Resources' }]}>
       <PageBody className="max-w-3xl">
       <p className="text-sm text-ink-400 mb-6">Templates, workflow guides, and reference for Menu Hub.</p>
 

@@ -78,6 +78,7 @@ export default function InboxPage() {
 
   return (
     <PageScreen
+      tourKey="inbox"
       breadcrumbs={[{ label: 'Inbox' }]}
       actions={active.length > 0 && (
         <div className="flex items-center gap-2">
