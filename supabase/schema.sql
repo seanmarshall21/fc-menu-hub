@@ -352,6 +352,67 @@ create policy "notif_admin_select" on notifications for select using (
 -- Inserts: gated through the create_notification RPC below (SECURITY DEFINER)
 -- so we don't have to grant general insert access on notifications to all users.
 
+-- Auto-notify the original editor when their pending edit gets resolved
+-- (approved or rejected). Fires on every menu_items.edit_status update.
+-- Skips the case where the editor is also the approver (no point notifying
+-- yourself about your own action).
+create or replace function trg_notify_edit_resolved()
+returns trigger as $$
+declare
+  v_outcome   text;
+  v_menu_name text;
+  v_menu_slug text;
+begin
+  if old.edit_status = 'pending_approval'
+     and new.edit_status in ('active','approved','rejected')
+     and new.last_edited_by is not null
+     and new.last_edited_by <> coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid)
+  then
+    v_outcome := case new.edit_status when 'approved' then 'approved' else 'rejected' end;
+    select name, slug into v_menu_name, v_menu_slug from menus where id = new.menu_id;
+    insert into notifications (user_id, kind, title, body, link_url, context, triggered_by)
+    values (
+      new.last_edited_by,
+      'edit_resolved',
+      'Your edit on ' || coalesce(new.title, 'a menu item') || ' was ' || v_outcome,
+      coalesce(v_menu_name, 'A menu') || ' · ' || initcap(v_outcome),
+      '/menus/' || coalesce(v_menu_slug, new.menu_id::text),
+      jsonb_build_object(
+        'menu_id', new.menu_id,
+        'menu_item_id', new.id,
+        'outcome', v_outcome
+      ),
+      auth.uid()
+    );
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists notify_edit_resolved on menu_items;
+create trigger notify_edit_resolved
+  after update of edit_status on menu_items
+  for each row
+  execute function trg_notify_edit_resolved();
+
+-- Prune archived notifications older than 30 days. Safe to run manually
+-- (returns the number of rows deleted) or schedule via Supabase pg_cron:
+--   select cron.schedule('prune-notifications', '0 3 * * *',
+--     'select prune_old_notifications()');
+create or replace function prune_old_notifications()
+returns integer
+language sql
+security definer
+as $$
+  with deleted as (
+    delete from notifications
+     where archived_at is not null
+       and archived_at < now() - interval '30 days'
+    returning id
+  )
+  select count(*)::integer from deleted
+$$;
+
 -- Helper function: create a notification for ONE user (called per recipient).
 create or replace function create_notification(
   p_user_id      uuid,
