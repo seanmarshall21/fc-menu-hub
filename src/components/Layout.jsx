@@ -79,34 +79,10 @@ export default function Layout() {
 
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // Profile edit modal
-  const [showProfile, setShowProfile]       = useState(false)
-  const [profileName, setProfileName]       = useState('')
-  const [profileSaving, setProfileSaving]   = useState(false)
-  const [profileError, setProfileError]     = useState(null)
-  const [profileSuccess, setProfileSuccess] = useState(false)
-
+  // Profile lives on a dedicated /profile page now — no modal state needed.
   function openProfile() {
-    setProfileName(profile?.full_name || '')
-    setProfileError(null)
-    setProfileSuccess(false)
-    setShowProfile(true)
     setDrawerOpen(false)
-  }
-
-  async function handleSaveProfile(e) {
-    e.preventDefault()
-    setProfileSaving(true); setProfileError(null); setProfileSuccess(false)
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({ full_name: profileName.trim() })
-      .eq('id', profile.id)
-    setProfileSaving(false)
-    if (error) { setProfileError(error.message); return }
-    setProfileSuccess(true)
-    // Refresh profile in auth context
-    await supabase.from('user_profiles').select('*').eq('id', profile.id).single()
-      .then(({ data }) => { if (data) Object.assign(profile, data) })
+    navigate('/profile')
   }
 
   // Close drawer on route change
@@ -337,62 +313,7 @@ export default function Layout() {
 
       <VersionWatcher />
 
-      {/* Profile edit modal */}
-      {showProfile && (
-        <Modal title="Edit Profile" onClose={() => setShowProfile(false)}>
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div>
-              <label className="label">Display Name</label>
-              <input
-                className="input"
-                value={profileName}
-                onChange={e => setProfileName(e.target.value)}
-                placeholder="Your name"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="label">Email</label>
-              <input className="input bg-surface-50 text-ink-400" value={profile?.email || ''} disabled />
-              <p className="text-xs text-ink-400 mt-1">Email can't be changed here. Contact an admin if needed.</p>
-            </div>
-            <div>
-              <label className="label">Role</label>
-              <input className="input bg-surface-50 text-ink-400 capitalize" value={profile?.role || ''} disabled />
-            </div>
-            {profileError && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{profileError}</p>
-            )}
-            {profileSuccess && (
-              <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">Name updated.</p>
-            )}
-            <div className="flex items-center justify-end gap-3 pt-1">
-              <button type="button" onClick={() => setShowProfile(false)} className="btn-secondary btn-sm">Close</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={profileSaving}>
-                {profileSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </form>
-          <div className="mt-5 pt-4 border-t border-surface-200 space-y-1">
-            <button
-              onClick={() => { setShowProfile(false); navigate('/help') }}
-              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-ink-700 hover:bg-surface-100 transition-colors"
-            >
-              <IconHelp />
-              Help &amp; CSV templates
-            </button>
-            <button
-              onClick={() => { setShowProfile(false); handleSignOut() }}
-              className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Sign out
-            </button>
-          </div>
-        </Modal>
-      )}
+      {/* Profile edit moved to its own /profile page route */}
 
       {/* New Brand modal */}
       {showNewBrand && (
