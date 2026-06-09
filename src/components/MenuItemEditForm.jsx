@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -18,12 +18,37 @@ const LAYOUT_OPTIONS = [
  * Calls onSaved() after a successful save or delete so the caller can refresh.
  * Calls onCancel() when the user dismisses.
  */
-export default function MenuItemEditForm({ item, menu, sections, onSaved, onCancel }) {
+export default function MenuItemEditForm({ item, menu, sections, defaultNotifyIds = [], onSaved, onCancel }) {
   const { profile } = useAuth()
   const [form, setForm] = useState({ ...item })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [saveError, setSaveError] = useState(null)
+
+  // "Notify for edits" — multi-select of users who should get a notification
+  // in their inbox when this edit is saved. Defaults to the cascading set
+  // resolved by the caller (series.notify_user_ids → event → menu).
+  const [notifyOptions, setNotifyOptions] = useState([]) // [{ id, full_name, email }]
+  const [notifyIds, setNotifyIds] = useState(() => new Set(defaultNotifyIds || []))
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, role')
+        .in('role', ['admin', 'internal'])
+        .order('full_name')
+      if (!cancelled) setNotifyOptions(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [])
+  function toggleNotify(id) {
+    setNotifyIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   async function save() {
     setSaving(true); setSaveError(null)
@@ -59,6 +84,28 @@ export default function MenuItemEditForm({ item, menu, sections, onSaved, onCanc
           p_field: e.field, p_old_value: e.old, p_new_value: e.new, p_phase: menu.phase,
         }).then(() => {}, () => {})
       }
+
+      // Fire one notification per tagged user. Skip self (no point notifying
+      // yourself about your own edit). Best-effort — failures are silent so
+      // they don't block the save flow.
+      const tagged = [...notifyIds].filter(id => id && id !== profile?.id)
+      if (tagged.length > 0 && logEntries.length > 0) {
+        const title = `Edits on ${item.title || 'a menu item'}`
+        const body  = `${profile?.full_name || profile?.email || 'Someone'} edited ${logEntries.length} field${logEntries.length === 1 ? '' : 's'} on this item.`
+        const link  = `/menus/${menu.slug || menu.id}#item-${item.id}`
+        const context = { series_id: menu.series_id || null, event_id: menu.event_id || null, menu_id: menu.id, menu_item_id: item.id }
+        for (const uid of tagged) {
+          supabase.rpc('create_notification', {
+            p_user_id:  uid,
+            p_kind:     'tagged_in_edit',
+            p_title:    title,
+            p_body:     body,
+            p_link_url: link,
+            p_context:  context,
+          }).then(() => {}, () => {})
+        }
+      }
+
       onSaved?.()
     } catch (e) {
       setSaveError(e?.message || String(e))
@@ -164,6 +211,46 @@ export default function MenuItemEditForm({ item, menu, sections, onSaved, onCanc
           </>
         )}
       </div>
+
+      {/* Notify for edits — multi-select of users who'll get an inbox
+          notification when this edit saves. Defaults to whatever the
+          series/event/menu cascade resolves to (passed in via defaultNotifyIds).
+          Pre-checked by default; uncheck anyone you don't want pinged. */}
+      {notifyOptions.length > 0 && (
+        <div className="mb-3 rounded-lg border border-surface-200 bg-surface-50 px-3 py-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-ink-700">Notify for edits</label>
+            <span className="text-[10px] text-ink-400">
+              {notifyIds.size === 0 ? 'No one will be notified' : `${notifyIds.size} selected`}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {notifyOptions.map(u => {
+              const active = notifyIds.has(u.id)
+              const isSelf = u.id === profile?.id
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleNotify(u.id)}
+                  disabled={isSelf}
+                  title={isSelf ? "You can't notify yourself" : u.email}
+                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                    isSelf
+                      ? 'bg-surface-100 text-ink-300 border-surface-200 cursor-not-allowed'
+                      : active
+                        ? 'bg-brand-500 text-white border-brand-500'
+                        : 'bg-white text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
+                  }`}
+                >
+                  {active && !isSelf && <span className="mr-1">✓</span>}
+                  {u.full_name || u.email}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mb-3">
         <label className="label">Notes <span className="text-ink-400 font-normal">(internal only)</span></label>

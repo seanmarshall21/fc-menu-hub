@@ -294,6 +294,65 @@ alter table menus add column if not exists requires_sponsor_approval boolean def
 alter table menus add column if not exists sponsor_approved_at       timestamptz;
 alter table menus add column if not exists sponsor_approved_by       uuid references auth.users(id);
 
+-- ─── Notifications ──────────────────────────────────────────────────────────
+-- Per-user inbox. A row is created when:
+--   • An editor tags users on an item edit (kind = 'tagged_in_edit')
+--   • An item the user edited gets approved/rejected/etc (kind = 'edit_resolved')
+--   • Future: cascading "Notify for edits" on a series/event/menu fires
+-- The reader UI flips `read_at` (visited inbox) or `archived_at` (dismissed).
+create table if not exists notifications (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  kind          text not null,                  -- 'tagged_in_edit' | 'edit_resolved' | future
+  title         text not null,
+  body          text,
+  link_url      text,                            -- internal app path, e.g. /menus/{slug}
+  context       jsonb default '{}',              -- { series_id, event_id, menu_id, menu_item_id, edit_log_id }
+  triggered_by  uuid references auth.users(id) on delete set null,
+  created_at    timestamptz default now(),
+  read_at       timestamptz,
+  archived_at   timestamptz
+);
+create index if not exists idx_notifications_user_unread on notifications(user_id, archived_at) where read_at is null;
+create index if not exists idx_notifications_user_active on notifications(user_id, archived_at);
+
+alter table notifications enable row level security;
+
+-- Owner can read + update + delete their own notifications.
+create policy "notif_own_select" on notifications for select using (user_id = auth.uid());
+create policy "notif_own_update" on notifications for update using (user_id = auth.uid());
+create policy "notif_own_delete" on notifications for delete using (user_id = auth.uid());
+
+-- Admins can read everyone's (helpful for support / audits).
+create policy "notif_admin_select" on notifications for select using (
+  exists (select 1 from user_profiles where id = auth.uid() and role = 'admin')
+);
+
+-- Inserts: gated through the create_notification RPC below (SECURITY DEFINER)
+-- so we don't have to grant general insert access on notifications to all users.
+
+-- Helper function: create a notification for ONE user (called per recipient).
+create or replace function create_notification(
+  p_user_id      uuid,
+  p_kind         text,
+  p_title        text,
+  p_body         text,
+  p_link_url     text,
+  p_context      jsonb
+) returns void as $$
+begin
+  insert into notifications (user_id, kind, title, body, link_url, context, triggered_by)
+  values (p_user_id, p_kind, p_title, p_body, p_link_url, coalesce(p_context, '{}'::jsonb), auth.uid());
+end;
+$$ language plpgsql security definer;
+
+-- Cascading "Notify for edits" — array of user ids on series → inherited by
+-- event (unless overridden) → inherited by menu (unless overridden). Specific
+-- per-edit tags from the item-edit form layer on top per-event.
+alter table series add column if not exists notify_user_ids uuid[] default '{}';
+alter table events add column if not exists notify_user_ids uuid[]; -- null = inherit from series
+alter table menus  add column if not exists notify_user_ids uuid[]; -- null = inherit from event
+
 -- ─── Helper function: log an edit ────────────────────────────────────────────
 create or replace function log_menu_item_edit(
   p_item_id     uuid,

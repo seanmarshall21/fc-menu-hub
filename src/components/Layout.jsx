@@ -43,17 +43,24 @@ function Logo() {
   )
 }
 
-function BottomTab({ to, end = false, label, icon }) {
+function BottomTab({ to, end = false, label, icon, badge = 0 }) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) => clsx(
-        'flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors',
+        'flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative',
         isActive ? 'text-brand-600' : 'text-ink-400'
       )}
     >
-      {icon}
+      <div className="relative">
+        {icon}
+        {badge > 0 && (
+          <span className="absolute -top-1.5 -right-2 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[9px] font-semibold leading-none">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+      </div>
       <span className="text-[10px] font-medium">{label}</span>
     </NavLink>
   )
@@ -84,6 +91,24 @@ export default function Layout() {
     setDrawerOpen(false)
     navigate('/profile')
   }
+
+  // Unread notification count — drives the badge on the Inbox nav link.
+  // Refreshes on route change so visiting the inbox clears the dot quickly.
+  const [unreadCount, setUnreadCount] = useState(0)
+  useEffect(() => {
+    if (!profile?.id) return
+    let cancelled = false
+    ;(async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .is('read_at', null)
+        .is('archived_at', null)
+      if (!cancelled) setUnreadCount(count || 0)
+    })()
+    return () => { cancelled = true }
+  }, [profile?.id, location.pathname])
 
   // Close drawer on route change
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
@@ -147,6 +172,18 @@ export default function Layout() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.86 5.706a1 1 0 00.95.69h6.001c.969 0 1.371 1.24.588 1.81l-4.857 3.527a1 1 0 00-.364 1.118l1.86 5.706c.3.921-.755 1.688-1.539 1.118l-4.857-3.527a1 1 0 00-1.176 0l-4.857 3.527c-.784.57-1.838-.197-1.539-1.118l1.86-5.706a1 1 0 00-.364-1.118L2.6 11.133c-.783-.57-.38-1.81.588-1.81h6.002a1 1 0 00.95-.69l1.86-5.706z" />
           </svg>
           Favorites
+        </NavLink>
+
+        <NavLink to="/inbox" className={navLinkClass}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span className="flex-1">Inbox</span>
+          {unreadCount > 0 && (
+            <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </NavLink>
 
         {(isAdmin || isInternal) && (
@@ -291,13 +328,11 @@ export default function Layout() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14-4H5m14 8H5m14 4H5" />
             </svg>
           } />
-          {(isAdmin || isInternal) && (
-            <BottomTab to="/sponsors" label="Sponsors" icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-            } />
-          )}
+          <BottomTab to="/inbox" label="Inbox" badge={unreadCount} icon={
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          } />
           <BottomTab to="/favorites" label="Favorites" icon={
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.86 5.706a1 1 0 00.95.69h6.001c.969 0 1.371 1.24.588 1.81l-4.857 3.527a1 1 0 00-.364 1.118l1.86 5.706c.3.921-.755 1.688-1.539 1.118l-4.857-3.527a1 1 0 00-1.176 0l-4.857 3.527c-.784.57-1.838-.197-1.539-1.118l1.86-5.706a1 1 0 00-.364-1.118L2.6 11.133c-.783-.57-.38-1.81.588-1.81h6.002a1 1 0 00.95-.69l1.86-5.706z" />
