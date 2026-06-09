@@ -111,7 +111,7 @@ export default function HelpPage() {
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs uppercase tracking-wider text-purple-700 font-semibold mb-1">Admin only · for the Vivo team</div>
+              <div className="text-xs uppercase tracking-wider text-purple-700 font-semibold mb-1">Admin only</div>
               <h2 className="text-lg font-bold text-ink-900 mb-1">Admin Walkthrough</h2>
               <p className="text-sm text-ink-600">
                 Setup, design system, Figma pipeline, data ops, troubleshooting — everything you and your team need to administrate Menu Hub.
