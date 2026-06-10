@@ -32,13 +32,14 @@ export default function PizzaLoader({
         playsInline
         aria-hidden
       >
-        {/* Safari prefers HEVC-with-alpha; Chrome/Firefox/Edge use VP9 WebM
-            with alpha. Browser picks the first one it can decode. */}
-        <source src="/loader/pizza-walk-alpha.mp4" type='video/mp4; codecs="hvc1"' />
-        <source src="/loader/pizza-walk.webm"      type='video/webm; codecs="vp9"' />
-        {/* Final fallback for browsers that can't do either format —
-            still plays, just on a white square. */}
-        <source src="/loader/pizza-walk.mp4"       type="video/mp4" />
+        {/* WebM VP9 gives Chrome/Firefox/Edge real per-pixel alpha. Safari
+            (desktop + iOS) can't read it and falls through to the H.264
+            mp4. That fallback has a white frame background, which
+            mix-blend-mode: multiply (in CSS below) erases visually. The
+            blend is also harmless on WebM since its transparent pixels
+            stay transparent. */}
+        <source src="/loader/pizza-walk.webm" type='video/webm; codecs="vp9"' />
+        <source src="/loader/pizza-walk.mp4"  type="video/mp4" />
       </video>
       {message && <div className="pizza-loader-message">{message}</div>}
     </div>
@@ -69,6 +70,12 @@ const styles = /* css */`
     height: var(--mascot-size);
     object-fit: contain;
     pointer-events: none;
+    /* Erases the white frame background on browsers that fall back to
+       the plain H.264 mp4 (Safari, iOS). Harmless on WebM since its
+       transparent pixels stay transparent under multiply. The cartoon
+       colors get a barely-perceptible mute against the warm overlay,
+       acceptable for a loader. */
+    mix-blend-mode: multiply;
   }
   .pizza-loader-message {
     font-size: 13px; font-weight: 500;
