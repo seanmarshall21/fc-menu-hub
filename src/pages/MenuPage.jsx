@@ -832,7 +832,7 @@ export default function MenuPage() {
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-700 text-[11px] font-medium hover:bg-surface-50"
-              title="Install the Menu Hub Figma plugin"
+              title="Install Menu Sync from Figma Community"
             >
               <FigmaLogo size={12} />
               Plugin

@@ -47,7 +47,7 @@ function Code({ children }) {
 }
 
 import PageScreen, { PageBody } from '@/components/PageScreen'
-import { PLUGIN_INSTALL_URL, PLUGIN_LOCAL_INSTALL_DOC } from '@/lib/figmaPlugin'
+import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -214,32 +214,21 @@ export default function HelpPage() {
       </Section>
 
       {/* ── Figma Plugin Workflow ── */}
-      <Section title="Install the Menu Hub Figma plugin">
+      <Section title="Install the Menu Sync Figma plugin">
         <p className="text-sm text-ink-500 mb-3">
-          The plugin runs inside Figma and reads menu data from this app to populate your templates. Install it once per Figma account.
+          Menu Sync runs inside Figma and reads menu data from this app to populate your templates. Install it once per Figma account — anyone can install, but the dropdowns only populate for users with Menu Hub access.
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
           <a
             href={PLUGIN_INSTALL_URL}
             target="_blank"
             rel="noreferrer"
-            className="btn-primary btn-sm gap-2 inline-flex"
+            className="btn-primary btn-sm gap-2 inline-flex whitespace-nowrap"
           >
             <FigmaLogo size={14} />
-            Install Menu Hub Figma plugin
-          </a>
-          <a
-            href={PLUGIN_LOCAL_INSTALL_DOC}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-secondary btn-sm"
-          >
-            Manual install (ask an admin)
+            Install Menu Sync from Figma Community
           </a>
         </div>
-        <p className="text-xs text-ink-400 mt-3">
-          If the install button leads to a 404, the plugin hasn't been published to Figma Community yet — ask an admin for the zipped plugin folder and import it via Figma → Menu → Plugins → Development → Import plugin from manifest.
-        </p>
       </Section>
 
       <Section title="Syncing to Figma">
