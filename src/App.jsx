@@ -20,14 +20,12 @@ import SponsorsPage from '@/pages/SponsorsPage'
 import SearchPage from '@/pages/SearchPage'
 import ProfilePage from '@/pages/ProfilePage'
 import InboxPage from '@/pages/InboxPage'
+import PizzaLoader from '@/components/PizzaLoader'
 
 function ProtectedRoute({ children }) {
   const { session, loading, isPending } = useAuth()
-  if (loading) return (
-    <div className="flex items-center justify-center h-screen text-sm text-ink-400">
-      Loading…
-    </div>
-  )
+  if (loading) return <PizzaLoader message="Warming up the oven…" />
+
   if (!session) return <Navigate to="/login" replace />
   if (isPending) return <PendingPage />
   return <ErrorBoundary fallback={({ error, reset }) => (
