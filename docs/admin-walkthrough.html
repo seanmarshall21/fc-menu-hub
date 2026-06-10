@@ -463,25 +463,53 @@
     <section class="chunk" id="plugin">
       <div class="section-head"><div class="num">10</div><h2>Menu Sync plugin</h2></div>
       <p>The Figma plugin that pulls menu content from Menu Hub into your Figma menu templates.</p>
-      <h3>Layer naming convention</h3>
-      <p>Every templated frame must follow this structure (the plugin's <code>detectPrefix</code> recognizes either form):</p>
-      <pre class="sql"><code>menu-template_med_2x3                  ← root frame (also matches _sm _lg or small/med/large)
-  cf26f--menu_head_md                  ← any prefixed child confirms the prefix
-  cf26f--menu-items_column             ← OR just "menu-items_column" (newer templates)
-    cf26f--menu-items_section
-      cf26f--section_label
+      <h3>Architecture: brand-prefixed masters, bare layers everywhere else</h3>
+      <p>One Figma file holds every brand's masters and every event's pages. The plugin disambiguates which brand's masters to use via the brand's <strong>Figma component prefix</strong> (set in Edit Brand → defaults to the brand slug).</p>
+      <p><strong>Master components</strong> (the source of truth — one set per brand, lives wherever you organize them in the file):</p>
+      <pre class="sql"><code>crssd--menu-item_layout_main         ← brand prefix on the master
+crssd--menu-item_layout_alt
+crssd--menu-items_section
+utbs--menu-item_layout_main          ← UTBS has its own masters
+utbs--menu-item_layout_alt
+utbs--menu-items_section</code></pre>
+      <p><strong>Sponsor logos</strong> — prefix only if the styling is brand-specific. Shared logos can stay bare:</p>
+      <pre class="sql"><code>crssd--sponsor--bulleit              ← if Bulleit needs brand-specific style
+sponsor--bulleit                     ← if the same Bulleit logo is reused across brands</code></pre>
+      <p><strong>Inside each event page</strong> — all layer names are bare. Duplicate the page, edit content, sync. No renaming:</p>
+      <pre class="sql"><code>menu-template_med_2x3                ← root frame (matches _sm _lg or small/med/large)
+  menu_head_md
+  menu-items_column
+    menu-items_section
+      section_label
       menu-items_section-items
-        cf26f--menu-item_layout_main   ← cloned per item on sync
-          cf26f--menu-item_details
-          cf26f--menu-item_price-group-column
-            cf26f--menu-item_price_group
+        menu-item_layout_main        ← instance of the brand's master
+          menu-item_details
+          menu-item_price-group-column
+            menu-item_price_group
               menu-item_size
               menu-item_price
-            cf26f--menu-item_price_group   ← second price (two-size items)
+            menu-item_price_group    ← second price (two-size items)
   menu_footer
     sponsors-row
-      sponsor--bulleit               ← can also be "cf26f--sponsor--bulleit"
-        logo--bulleit</code></pre>
+      sponsor--bulleit               ← keep the sponsor-- prefix; brand prefix optional</code></pre>
+      <h3>Setting the brand's prefix</h3>
+      <p>Brand page → <strong>Edit Brand</strong> → <strong>Figma component prefix</strong> field. Defaults to the brand slug — change only if your master components use something different (legacy <code>cf26f</code> instead of <code>crssd</code>, etc.).</p>
+      <h3>Setting up a new brand</h3>
+      <ol>
+        <li>Create the brand in Menu Hub. The slug becomes the default prefix</li>
+        <li>In Figma, create the brand's master components: <code>&lt;slug&gt;--menu-item_layout_main</code>, <code>&lt;slug&gt;--menu-item_layout_alt</code>, <code>&lt;slug&gt;--menu-items_section</code> (one time per brand, ~2 min)</li>
+        <li>Build a template page using instances of those masters with bare layer names</li>
+        <li>Sync — works immediately. Every future event under that brand just duplicates the page</li>
+      </ol>
+      <h3>Setting up a new event under an existing brand</h3>
+      <ol>
+        <li>Right-click the most recent event's page in Figma → Duplicate page</li>
+        <li>Rename the page (e.g. UTBS 26 → UTBS 27)</li>
+        <li>Update the event's <code>Figma Page Name</code> in Menu Hub to match</li>
+        <li>Sync. No layer renaming, ever</li>
+      </ol>
+      <h3>Legacy templates with prefixed layers still work</h3>
+      <p>If you have older templates where every layer is prefixed (<code>cf26f--menu-item_title</code>, etc.), the plugin still handles them — every name lookup OR's the prefixed and unprefixed forms. You can migrate them on your own schedule by editing the file in Figma; you don't have to do it in one go.</p>
       <h3>Sync flow</h3>
       <ol>
         <li>Plugin opens → cascading Brand → Series → Event → Menu dropdowns</li>
