@@ -24,13 +24,20 @@ export default function PizzaLoader({
       <style>{styles}</style>
       <video
         className="pizza-loader-video"
-        src="/loader/pizza-walk.mp4"
         autoPlay
         loop
         muted
         playsInline
         aria-hidden
-      />
+      >
+        {/* Safari prefers HEVC-with-alpha; Chrome/Firefox/Edge use VP9 WebM
+            with alpha. Browser picks the first one it can decode. */}
+        <source src="/loader/pizza-walk-alpha.mp4" type='video/mp4; codecs="hvc1"' />
+        <source src="/loader/pizza-walk.webm"      type='video/webm; codecs="vp9"' />
+        {/* Final fallback for browsers that can't do either format —
+            still plays, just on a white square. */}
+        <source src="/loader/pizza-walk.mp4"       type="video/mp4" />
+      </video>
       {message && <div className="pizza-loader-message">{message}</div>}
     </div>
   )
@@ -59,9 +66,6 @@ const styles = /* css */`
     width: var(--mascot-size);
     height: var(--mascot-size);
     object-fit: contain;
-    /* The video's frame background is white. multiply lets the warm
-       overlay color come through so the mascot looks integrated. */
-    mix-blend-mode: multiply;
     pointer-events: none;
   }
   .pizza-loader-message {
