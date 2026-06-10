@@ -39,6 +39,7 @@ export default function BrandPage() {
   const [editBrandColor, setEditBrandColor] = useState('#6366f1')
   const [editBrandLogoUrl, setEditBrandLogoUrl] = useState(null)
   const [editBrandIconName, setEditBrandIconName] = useState(null)
+  const [editBrandFigmaPrefix, setEditBrandFigmaPrefix] = useState('')
   const [editBrandSaving, setEditBrandSaving] = useState(false)
   const [editBrandError, setEditBrandError] = useState(null)
 
@@ -112,6 +113,7 @@ export default function BrandPage() {
     setEditBrandColor(brand.color || '#6366f1')
     setEditBrandLogoUrl(brand.logo_url || null)
     setEditBrandIconName(brand.icon_name || null)
+    setEditBrandFigmaPrefix(brand.figma_component_prefix || brand.slug || '')
     setEditBrandError(null)
     setShowEditBrand(true)
   }
@@ -126,6 +128,7 @@ export default function BrandPage() {
         color: editBrandColor,
         logo_url: editBrandLogoUrl,
         icon_name: editBrandIconName,
+        figma_component_prefix: (editBrandFigmaPrefix || '').trim() || null,
       })
       .eq('id', brand.id)
     setEditBrandSaving(false)
@@ -442,6 +445,22 @@ export default function BrandPage() {
                 fallbackText={editBrandName || brand.name}
                 fallbackColor={editBrandColor}
               />
+            </div>
+            <div>
+              <label className="label">Figma component prefix</label>
+              <input
+                type="text"
+                className="input font-mono"
+                value={editBrandFigmaPrefix}
+                onChange={e => setEditBrandFigmaPrefix(e.target.value)}
+                placeholder={brand.slug || 'crssd'}
+                spellCheck={false}
+              />
+              <p className="text-[11px] text-ink-400 mt-1 leading-relaxed">
+                The Menu Sync plugin uses this to locate your brand's master components in Figma.
+                For a master named <code className="bg-surface-100 px-1 rounded">crssd--menu-item_layout_main</code>, the prefix is <code className="bg-surface-100 px-1 rounded">crssd</code>.
+                Defaults to the brand slug ({brand.slug}). Layer names inside event pages stay bare — only the master components and sponsor logos use this prefix.
+              </p>
             </div>
             {editBrandError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editBrandError}</p>

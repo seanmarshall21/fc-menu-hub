@@ -271,6 +271,18 @@ as $$
    order by up.full_name nulls last
 $$;
 
+-- ─── Per-brand Figma component prefix ──────────────────────────────────────
+-- Each brand owns a slug-prefixed set of master components in the shared
+-- Figma file (e.g. "crssd--menu-item_layout_main", "utbs--menu-item_layout_main").
+-- The plugin uses this value to find the right masters during sync, so a
+-- single file can host every brand without component-name collisions.
+--
+-- Defaults to brand.slug but can be overridden in the Admin → Brands UI
+-- when the team wants a different prefix (legacy 'cf26f' instead of 'crssd',
+-- shared-with-another-brand prefix, etc.).
+alter table brands add column if not exists figma_component_prefix text;
+update brands set figma_component_prefix = slug where figma_component_prefix is null;
+
 -- ─── Frame deep-link for the Sync chip ──────────────────────────────────────
 -- When the plugin syncs a menu it writes the target frame's Figma node id
 -- here. The Sync needed chip on MenuPage appends ?node-id={value} so clicking
