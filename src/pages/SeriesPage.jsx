@@ -102,6 +102,7 @@ export default function SeriesPage() {
           ].map(t => (
             <button
               key={t.key}
+              data-tour={`series-tab-${t.key}`}
               onClick={() => setTab(t.key)}
               className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 tab === t.key

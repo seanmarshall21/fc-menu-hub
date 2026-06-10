@@ -673,6 +673,7 @@ export default function MenuPage() {
           {tabs.map(t => (
             <button
               key={t.key}
+              data-tour={`menu-tab-${t.key}`}
               onClick={() => setTab(t.key)}
               className={`relative px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
                 tab === t.key

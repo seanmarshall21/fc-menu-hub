@@ -54,14 +54,16 @@ export const TOURS = {
       {
         title: 'Series under this brand',
         body: 'Every brand has one or more series (think: CRSSD Festival, CRSSD Lights). Each series groups events together. Click a series to see its events.',
+        target: '[data-tour="brand-tab-series"]',
       },
       {
         title: 'Approvals tab',
         body: 'Set who gets notified for every edit on every menu under this brand. Everyone added here is pre-checked on edits all the way down — series, event, menu, individual item.',
+        target: '[data-tour="brand-tab-approvals"]',
       },
       {
-        title: 'Add a new series',
-        body: 'The + New Series button creates a series instantly. Series can be duplicated too (⋯ on each card), which cascades through every event and menu underneath.',
+        title: 'Duplicate or delete from the card',
+        body: 'The ⋯ on each series card lets you Edit, Duplicate, or Delete. Duplicating cascades — clones every event and menu underneath.',
       },
     ],
   },
@@ -74,18 +76,22 @@ export const TOURS = {
       {
         title: 'Events tab',
         body: 'Every event under this series. Each row has a ⋯ menu with Edit, Duplicate, and Delete. Duplicating an event cascades — clones every menu underneath.',
+        target: '[data-tour="series-tab-events"]',
       },
       {
         title: 'Sponsors tab',
         body: 'Pick which sponsors from your global library are eligible for this series. Events under this series can then activate any subset.',
+        target: '[data-tour="series-tab-sponsors"]',
       },
       {
         title: 'Approvals tab',
         body: 'Brand-level notification picks appear here as inherited (grayed). Add anyone specific to this series — they get pinged on every edit on every menu under it.',
+        target: '[data-tour="series-tab-approvals"]',
       },
       {
         title: 'Styles tab (admin only)',
         body: 'The full design spec — fonts, type sizes, spacing, dietary icons. Event and menu styles inherit from here unless explicitly overridden.',
+        target: '[data-tour="series-tab-styles"]',
       },
     ],
   },
@@ -97,23 +103,28 @@ export const TOURS = {
     steps: [
       {
         title: 'Menus tab',
-        body: 'Every menu for this event as a card. Each card shows pending edits (red badge), Figma sync status (green = up to date, amber = needs sync), and a ⋯ menu with Duplicate.',
+        body: 'Every menu for this event as a card. Each card shows pending edits (red badge), Figma sync status (green = up to date, amber = needs sync), and a ⋯ menu with Duplicate or Delete.',
+        target: '[data-tour="event-tab-menus"]',
       },
       {
         title: 'Preview all',
         body: 'Visual previews of every menu in one view. Handy for review meetings and quick sanity checks before sync.',
+        target: '[data-tour="event-tab-preview"]',
       },
       {
         title: 'Sponsors',
         body: 'Activate which series sponsors apply to this event, and reorder them if needed. Each menu can then further toggle which ones appear.',
+        target: '[data-tour="event-tab-sponsors"]',
       },
       {
         title: 'Approvals',
         body: 'Event-level sign-off list + the Notify-for-edits picker. Brand and series picks show as inherited.',
+        target: '[data-tour="event-tab-signoff"]',
       },
       {
         title: 'Templates & Styles (admin)',
         body: 'Templates configures the per-size background image + color palette the previews and Figma sync use. Styles override series defaults if you need event-specific tweaks.',
+        target: '[data-tour="event-tab-templates"]',
       },
     ],
   },
@@ -126,22 +137,27 @@ export const TOURS = {
       {
         title: 'Items tab',
         body: 'Add, edit, reorder, and section your items. Click any item row to open the edit form. Changes save when you press Save — not before. External edits land as Pending Approval.',
-      },
-      {
-        title: 'Notify for edits',
-        body: 'The chip selector above Notes in the edit form lets you tag teammates for this specific edit. Brand/series/event/menu picks are pre-checked from the cascade — uncheck for this edit only if needed.',
+        target: '[data-tour="menu-tab-items"]',
       },
       {
         title: 'Preview',
         body: 'Live preview of the menu the way it will appear in print. Click the expand icon for a full-screen lightbox with zoom.',
+        target: '[data-tour="menu-tab-preview"]',
       },
       {
         title: 'Edit Log',
         body: 'Every change ever made to this menu, grouped into Pending / Approved / Rejected / History accordions. Add review notes, approve or reject pending edits, archive resolved ones.',
+        target: '[data-tour="menu-tab-editlog"]',
       },
       {
-        title: 'Sync chip + sponsor approval',
-        body: 'The chip near the top tells you if Figma is in sync. If this menu is sponsor-gated, a green or amber "Approved by sponsor" / "Needs sponsor approval" chip lives next to it.',
+        title: 'Sponsors',
+        body: 'Toggle which sponsors appear on this specific menu (subset of the event\'s active set), and reorder them if needed.',
+        target: '[data-tour="menu-tab-sponsors"]',
+      },
+      {
+        title: 'Approvals',
+        body: 'Per-menu sign-off list + Notify-for-edits picker. Brand/series/event picks show as inherited and pre-fill each item\'s edit form.',
+        target: '[data-tour="menu-tab-signoff"]',
       },
     ],
   },
@@ -154,6 +170,7 @@ export const TOURS = {
       {
         title: 'Three buckets',
         body: 'Tagged in edits = someone explicitly notified you. My edits = your edit was approved or rejected. Archived = dismissed (collapses for clutter).',
+        target: '[data-tour="inbox-link"]',
       },
       {
         title: 'Per-row actions',

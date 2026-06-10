@@ -1010,6 +1010,7 @@ export default function EventPage() {
           ].map(t => (
             <button
               key={t.id}
+              data-tour={`event-tab-${t.id}`}
               onClick={() => setTab(t.id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
                 tab === t.id
