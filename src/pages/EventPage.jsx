@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
+import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PizzaLoader from '@/components/PizzaLoader'
@@ -686,6 +687,11 @@ export default function EventPage() {
   const [brand, setBrand]   = useState(null)
   const [series, setSeries] = useState(null)
   const [event, setEvent]   = useState(null)
+  // Preview all → Export Previews state. When selectMode is on, each
+  // preview card grows a checkbox + the toolbar shows Selected count
+  // and Export.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedPreviewIds, setSelectedPreviewIds] = useState(() => new Set())
   const [duplicatingMenu, setDuplicatingMenu] = useState(null)
   const [deletingMenu, setDeletingMenu]       = useState(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -1227,18 +1233,95 @@ export default function EventPage() {
               <p className="text-sm text-ink-400">No menus to preview yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {menus.map(menu => {
+            <>
+              {/* Export toolbar — toggles selection mode, surfaces count
+                  + Export. Non-modal so it stays out of your way when
+                  you just want to scan previews. */}
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <div className="text-xs text-ink-500">
+                  {selectMode
+                    ? `${selectedPreviewIds.size} of ${menus.filter(m => m.preview_image_url).length} selected`
+                    : `${menus.length} menu${menus.length === 1 ? '' : 's'} · ${menus.filter(m => m.preview_image_url).length} with preview images`}
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectMode ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          const allIds = menus.filter(m => m.preview_image_url).map(m => m.id)
+                          setSelectedPreviewIds(prev => prev.size === allIds.length ? new Set() : new Set(allIds))
+                        }}
+                        className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
+                      >
+                        {selectedPreviewIds.size === menus.filter(m => m.preview_image_url).length ? 'Clear' : 'Select all'}
+                      </button>
+                      <button
+                        onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
+                        className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => openPreviewExportWindow(
+                          menus.filter(m => selectedPreviewIds.has(m.id) && m.preview_image_url),
+                          event?.name || 'Menus',
+                        )}
+                        disabled={selectedPreviewIds.size === 0}
+                        className="btn-primary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+                      >
+                        Export {selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setSelectMode(true)}
+                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
+                      </svg>
+                      Export Previews
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {menus.map(menu => {
                 const items = menu.menu_items || []
                 const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
                 const everSynced  = !!menu.last_synced_at
                 const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+                const isSelectable = selectMode && !!menu.preview_image_url
+                const isSelected = selectedPreviewIds.has(menu.id)
+
+                // In selection mode, the card becomes a label-like target
+                // (no <Link>) so clicking toggles the checkbox instead of
+                // navigating. We keep keyboard accessibility via the
+                // checkbox itself.
+                const CardTag = selectMode ? 'div' : Link
+                const cardProps = selectMode
+                  ? {
+                      onClick: () => {
+                        if (!isSelectable) return
+                        setSelectedPreviewIds(prev => {
+                          const next = new Set(prev)
+                          if (next.has(menu.id)) next.delete(menu.id); else next.add(menu.id)
+                          return next
+                        })
+                      },
+                      className: `card overflow-hidden transition-all flex flex-col cursor-pointer ${
+                        isSelected ? 'ring-2 ring-brand-500 border-brand-500' :
+                        isSelectable ? 'hover:shadow-md hover:border-brand-100' :
+                        'opacity-50 cursor-not-allowed'
+                      }`,
+                    }
+                  : {
+                      to: `${baseUrl}/menus/${menu.slug}`,
+                      className: 'card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col',
+                    }
+
                 return (
-                  <Link
-                    key={menu.id}
-                    to={`${baseUrl}/menus/${menu.slug}`}
-                    className="card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col"
-                  >
+                  <CardTag key={menu.id} {...cardProps}>
                     <div className="relative w-full aspect-[2/3] bg-surface-50 border-b border-surface-100 overflow-hidden">
                       {menu.preview_image_url ? (
                         <img
@@ -1255,6 +1338,15 @@ export default function EventPage() {
                           <span>Sync this menu to see a preview</span>
                         </div>
                       )}
+                      {selectMode && menu.preview_image_url && (
+                        <div className="absolute top-2 left-2">
+                          <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
+                            isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white/80 border-white'
+                          }`}>
+                            {isSelected && '✓'}
+                          </div>
+                        </div>
+                      )}
                       <div className="absolute top-2 right-2 flex items-center gap-1.5">
                         {pendingCount > 0 && (
                           <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
@@ -1267,15 +1359,16 @@ export default function EventPage() {
                     </div>
                     <div className="px-4 py-3 flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className="text-sm font-medium text-ink-900 group-hover:text-brand-600 transition-colors truncate">{menu.name}</h3>
+                        <h3 className="text-sm font-medium text-ink-900 truncate">{menu.name}</h3>
                         <div className="text-[11px] text-ink-400 capitalize">{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</div>
                       </div>
                       <PhaseBadge phase={menu.phase} />
                     </div>
-                  </Link>
+                  </CardTag>
                 )
               })}
-            </div>
+              </div>
+            </>
           )}
         </>
       )}
