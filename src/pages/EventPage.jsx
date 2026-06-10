@@ -735,6 +735,7 @@ export default function EventPage() {
   const [editFigmaPage, setEditFigmaPage]   = useState('')
   const [editIconUrl, setEditIconUrl]       = useState(null)
   const [editIconName, setEditIconName]     = useState(null)
+  const [editFigmaPrefix, setEditFigmaPrefix] = useState('')
   const [editSaving, setEditSaving]         = useState(false)
   const [editError, setEditError]           = useState(null)
 
@@ -766,7 +767,7 @@ export default function EventPage() {
   const [spError, setSpError]                 = useState(null)
 
   async function loadData() {
-    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix').eq('slug', brandSlug).single()
     setBrand(brandData)
     const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     // Attach brand to series so the Approvals tab can resolve cascading
@@ -884,6 +885,7 @@ export default function EventPage() {
     setEditFigmaPage(event.figma_page_name || '')
     setEditIconUrl(event.icon_url || null)
     setEditIconName(event.icon_name || null)
+    setEditFigmaPrefix(event.figma_component_prefix || '')
     setEditError(null)
     setShowEditEvent(true)
   }
@@ -892,15 +894,16 @@ export default function EventPage() {
     e.preventDefault()
     setEditSaving(true); setEditError(null)
     const patch = {
-      name:            editName.trim(),
-      slug:            slugify(editSlug),
-      event_date:      editDate || null,
-      venue:           editVenue.trim() || null,
-      phase:           editPhase,
-      figma_file_url:  editFigmaUrl.trim() || null,
-      figma_page_name: editFigmaPage.trim() || null,
-      icon_url:        editIconUrl,
-      icon_name:       editIconName,
+      name:                  editName.trim(),
+      slug:                  slugify(editSlug),
+      event_date:            editDate || null,
+      venue:                 editVenue.trim() || null,
+      phase:                 editPhase,
+      figma_file_url:        editFigmaUrl.trim() || null,
+      figma_page_name:       editFigmaPage.trim() || null,
+      icon_url:              editIconUrl,
+      icon_name:             editIconName,
+      figma_component_prefix: (editFigmaPrefix || '').trim() || null,
     }
     const { error } = await supabase.from('events').update(patch).eq('id', event.id)
     setEditSaving(false)
@@ -1477,6 +1480,20 @@ export default function EventPage() {
               <input className="input font-mono text-sm" value={editFigmaPage}
                 onChange={e => setEditFigmaPage(e.target.value)}
                 placeholder="e.g. CF Spring 26" />
+            </div>
+            <div>
+              <label className="label">Figma component prefix <span className="text-ink-400 font-normal">(optional override)</span></label>
+              <input
+                type="text"
+                className="input font-mono"
+                value={editFigmaPrefix}
+                onChange={e => setEditFigmaPrefix(e.target.value)}
+                placeholder={`Inherits from series / brand${series?.figma_component_prefix ? `: ${series.figma_component_prefix}` : (brand?.figma_component_prefix ? `: ${brand.figma_component_prefix}` : '')}`}
+                spellCheck={false}
+              />
+              <p className="text-[11px] text-ink-400 mt-1 leading-relaxed">
+                Leave blank to inherit. Override only when this event uses a different master-component set than the rest of the series (e.g. a one-off festival with bespoke templates).
+              </p>
             </div>
             <div>
               <label className="label">Icon</label>

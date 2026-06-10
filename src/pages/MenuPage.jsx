@@ -195,6 +195,7 @@ export default function MenuPage() {
   const [editMenuIconUrl, setEditMenuIconUrl] = useState(null)
   const [editMenuIconName, setEditMenuIconName] = useState(null)
   const [editMenuRequiresSponsorApproval, setEditMenuRequiresSponsorApproval] = useState(false)
+  const [editMenuFigmaPrefix, setEditMenuFigmaPrefix] = useState('')
   const [editMenuSaving, setEditMenuSaving] = useState(false)
   const [editMenuError, setEditMenuError] = useState(null)
   // Delete menu modal state
@@ -205,7 +206,7 @@ export default function MenuPage() {
   const [deleteError, setDeleteError] = useState(null)
 
   const loadMenu = useCallback(async () => {
-    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix').eq('slug', brandSlug).single()
     setBrand(brandData)
     const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     setSeries(seriesData)
@@ -660,6 +661,7 @@ export default function MenuPage() {
               setEditMenuIconUrl(menu.icon_url || null)
               setEditMenuIconName(menu.icon_name || null)
               setEditMenuRequiresSponsorApproval(!!menu.requires_sponsor_approval)
+              setEditMenuFigmaPrefix(menu.figma_component_prefix || '')
               setEditMenuError(null)
               setShowEditMenu(true)
             }}
@@ -710,6 +712,7 @@ export default function MenuPage() {
                   icon_url: editMenuIconUrl,
                   icon_name: editMenuIconName,
                   requires_sponsor_approval: editMenuRequiresSponsorApproval,
+                  figma_component_prefix: (editMenuFigmaPrefix || '').trim() || null,
                 })
                 .eq('id', menu.id)
               if (error) throw error
@@ -770,6 +773,20 @@ export default function MenuPage() {
                 <span className="text-sm text-ink-700">Requires sponsor approval</span>
               </label>
               <p className="text-xs text-ink-400 mt-1 ml-6">Surfaces an amber "Needs sponsor approval" chip at the top of this menu until someone marks it approved.</p>
+            </div>
+            <div className="pt-3 border-t border-surface-100">
+              <label className="label">Figma component prefix <span className="text-ink-400 font-normal">(optional override)</span></label>
+              <input
+                type="text"
+                className="input font-mono"
+                value={editMenuFigmaPrefix}
+                onChange={e => setEditMenuFigmaPrefix(e.target.value)}
+                placeholder={`Inherits from event / series / brand${event?.figma_component_prefix ? `: ${event.figma_component_prefix}` : (series?.figma_component_prefix ? `: ${series.figma_component_prefix}` : (brand?.figma_component_prefix ? `: ${brand.figma_component_prefix}` : ''))}`}
+                spellCheck={false}
+              />
+              <p className="text-[11px] text-ink-400 mt-1 leading-relaxed">
+                Leave blank to inherit. Override only when this specific menu uses a different master-component set (e.g. a sponsor-takeover menu with a totally different template than the rest of the event).
+              </p>
             </div>
             {editMenuError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editMenuError}</p>}
             <div className="flex items-center justify-end gap-3 pt-2 border-t border-surface-100">

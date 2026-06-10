@@ -271,16 +271,20 @@ as $$
    order by up.full_name nulls last
 $$;
 
--- ─── Per-brand Figma component prefix ──────────────────────────────────────
--- Each brand owns a slug-prefixed set of master components in the shared
--- Figma file (e.g. "crssd--menu-item_layout_main", "utbs--menu-item_layout_main").
--- The plugin uses this value to find the right masters during sync, so a
--- single file can host every brand without component-name collisions.
+-- ─── Cascading Figma component prefix ──────────────────────────────────────
+-- Set per brand by default. Each level below (series, event, menu) can
+-- override with its own prefix when a sub-section of the brand uses a
+-- different master-component set. At sync time the plugin walks
+-- menu → event → series → brand and picks the first non-null value.
 --
--- Defaults to brand.slug but can be overridden in the Admin → Brands UI
--- when the team wants a different prefix (legacy 'cf26f' instead of 'crssd',
--- shared-with-another-brand prefix, etc.).
+-- Use case: CRSSD typically uses `crssd--menu-item_layout_main`, but one
+-- bespoke event with a wholly different template can set its own prefix
+-- without forcing the whole brand to switch.
 alter table brands add column if not exists figma_component_prefix text;
+alter table series add column if not exists figma_component_prefix text;
+alter table events add column if not exists figma_component_prefix text;
+alter table menus  add column if not exists figma_component_prefix text;
+-- Backfill brand-level only; lower levels stay null (= inherit by default).
 update brands set figma_component_prefix = slug where figma_component_prefix is null;
 
 -- ─── Frame deep-link for the Sync chip ──────────────────────────────────────

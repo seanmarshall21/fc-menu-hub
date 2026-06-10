@@ -137,11 +137,14 @@ export default function BrandPage() {
     loadData()
   }
 
+  const [editSeriesFigmaPrefix, setEditSeriesFigmaPrefix] = useState('')
+
   function openEditSeries(s) {
     setEditingSeries(s)
     setEditSeriesName(s.name || '')
     setEditSeriesIconUrl(s.icon_url || null)
     setEditSeriesIconName(s.icon_name || null)
+    setEditSeriesFigmaPrefix(s.figma_component_prefix || '')
     setEditSeriesError(null)
     setOpenMenuSeriesId(null)
   }
@@ -155,6 +158,7 @@ export default function BrandPage() {
         name: editSeriesName.trim(),
         icon_url: editSeriesIconUrl,
         icon_name: editSeriesIconName,
+        figma_component_prefix: (editSeriesFigmaPrefix || '').trim() || null,
       })
       .eq('id', editingSeries.id)
     setEditSeriesSaving(false)
@@ -369,6 +373,20 @@ export default function BrandPage() {
                 fallbackText={editSeriesName}
                 fallbackColor={brand?.color}
               />
+            </div>
+            <div>
+              <label className="label">Figma component prefix <span className="text-ink-400 font-normal">(optional override)</span></label>
+              <input
+                type="text"
+                className="input font-mono"
+                value={editSeriesFigmaPrefix}
+                onChange={e => setEditSeriesFigmaPrefix(e.target.value)}
+                placeholder={`Inherits from brand: ${brand?.figma_component_prefix || brand?.slug || ''}`}
+                spellCheck={false}
+              />
+              <p className="text-[11px] text-ink-400 mt-1 leading-relaxed">
+                Leave blank to inherit the brand's prefix. Override only when this series uses a different set of master components (e.g. a special sub-brand styled differently from the rest).
+              </p>
             </div>
             {editSeriesError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editSeriesError}</p>

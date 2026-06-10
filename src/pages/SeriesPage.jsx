@@ -52,7 +52,7 @@ export default function SeriesPage() {
   const [saveError, setSaveError] = useState(null)
 
   async function loadData() {
-    const { data: brandData } = await supabase.from('brands').select('id, name, slug, color, notify_user_ids').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id, name, slug, color, notify_user_ids, figma_component_prefix').eq('slug', brandSlug).single()
     setBrand(brandData)
     if (brandData) {
       const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData.id).eq('slug', seriesSlug).single()
