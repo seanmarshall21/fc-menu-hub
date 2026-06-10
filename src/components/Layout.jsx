@@ -181,7 +181,7 @@ export default function Layout() {
           Favorites
         </NavLink>
 
-        <NavLink to="/inbox" className={navLinkClass}>
+        <NavLink to="/inbox" data-tour="inbox-link" className={navLinkClass}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
@@ -277,7 +277,7 @@ export default function Layout() {
     <div className="flex h-[100dvh] bg-white overflow-hidden">
 
       {/* ── DESKTOP sidebar (md+) ── */}
-      <aside className="hidden md:flex w-60 flex-shrink-0 bg-white border-r border-surface-200 flex-col">
+      <aside data-tour="sidebar" className="hidden md:flex w-60 flex-shrink-0 bg-white border-r border-surface-200 flex-col">
         <div className="px-5 py-5 border-b border-surface-200 flex items-center gap-2.5">
           <Logo />
           <span className="font-semibold text-ink-900 text-sm tracking-tight">Menu Hub</span>

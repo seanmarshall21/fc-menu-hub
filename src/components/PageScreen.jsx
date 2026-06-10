@@ -130,6 +130,7 @@ export default function PageScreen({
               {tourDef && (
                 <button
                   onClick={tour.show}
+                  data-tour="help-button"
                   className="w-8 h-8 inline-flex items-center justify-center rounded-full text-ink-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
                   title={`Show tour: ${tourDef.title}`}
                   aria-label="Show page tour"

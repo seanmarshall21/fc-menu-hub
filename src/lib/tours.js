@@ -2,12 +2,20 @@
 // Onboarding tours.
 //
 // Each tour is keyed by page (the route or a logical page name). A tour is
-// an ordered list of steps; each step has a title, body, and optional
-// `target` (CSS selector that gets highlighted).
+// an ordered list of steps; each step has a title, body, and optionally:
+//   - `target` — CSS selector. The overlay spotlights the matching element
+//                (cutout + pulsing ring) and auto-places the step card so
+//                it never covers what's highlighted. Prefer the stable
+//                `[data-tour="…"]` attributes added in the markup over
+//                class-based selectors, which can break with restyles.
+//   - `image`  — public-relative path to a screenshot. Renders inline in
+//                the card. Use this when the step is about a place the
+//                user hasn't navigated to (e.g. illustrating a modal that
+//                isn't open). Drop PNGs into public/tour/.
 //
 // First-visit auto-open is handled by the useTour hook. Manual re-trigger
-// lives in the PageScreen header (the ? button). Seen-state is stored in
-// localStorage keyed by user id, so each user gets their own onboarding.
+// lives in the PageScreen header (the ? button). Seen-state is per-user in
+// localStorage so onboarding is independent for each account.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TOURS = {
@@ -23,16 +31,17 @@ export const TOURS = {
       {
         title: 'Brands live in the sidebar',
         body: 'Click a brand to drill into its series, then events, then individual menus. The breadcrumb at the top of every page lets you jump back up.',
-        target: 'aside nav',
+        target: '[data-tour="sidebar"]',
       },
       {
         title: 'Inbox sits in the sidebar too',
         body: 'Anyone who tags you on an edit lands a notification there. The red badge counts your unread ones.',
-        target: 'aside nav a[href="/inbox"]',
+        target: '[data-tour="inbox-link"]',
       },
       {
         title: 'Help when you need it',
-        body: 'The ? icon in the page header (top-right of any screen) reopens this tour — or jumps you to the support docs.',
+        body: 'The ? icon in the page header (top-right of any screen) reopens this tour anytime. Every page that has one of these icons has a tour available.',
+        target: '[data-tour="help-button"]',
       },
     ],
   },
