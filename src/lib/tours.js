@@ -130,34 +130,120 @@ export const TOURS = {
   },
 
   // ── MENU ─────────────────────────────────────────────────────────────────
+  // The menu page is the deepest surface in the app — five tabs, each with
+  // multiple actions. The tour walks through each tab in order, using
+  // clickFirst on tab targets so the actual tab content opens as the
+  // spotlight moves. Per-element steps within each tab follow.
   menu: {
     title: 'Menu page',
-    summary: 'The day-to-day editing surface. Items, preview, edit log, approvals.',
+    summary: 'A guided walk through every tab — items, preview, edit log, sponsors, approvals.',
     steps: [
+      // ── Top-of-page chips ────────────────────────────────────────────────
+      {
+        title: 'Edit menu settings',
+        body: 'Change the menu name, size (SM / MD / LG), category, icon, and whether this menu needs sponsor approval before going live. The size choice drives which Figma template the plugin auto-targets.',
+        target: '[data-tour="menu-edit-button"]',
+      },
+      {
+        title: 'Approve the whole menu',
+        body: 'When everything looks good, Approve Menu locks it (status → Approved). Subsequent item edits still save, but they get flagged as pending approval until you re-approve.',
+        target: '[data-tour="menu-approve-button"]',
+      },
+      {
+        title: 'Sync chip jumps to Figma',
+        body: 'When Menu Hub data has drifted ahead of Figma, this amber Sync needed chip appears. Clicking it opens the linked Figma frame directly — desktop app if installed, browser if not.',
+        target: '[data-tour="menu-sync-chip"]',
+      },
+      {
+        title: 'Pending edits chip',
+        body: 'Red count of edits that haven\'t been approved yet. Click to jump to the Edit Log tab pre-filtered to Pending.',
+        target: '[data-tour="menu-pending-chip"]',
+      },
+
+      // ── Items tab ───────────────────────────────────────────────────────
       {
         title: 'Items tab',
-        body: 'Add, edit, reorder, and section your items. Click any item row to open the edit form. Changes save when you press Save — not before. External edits land as Pending Approval.',
+        body: 'The day-to-day editing surface — every item with section headers, prices, dietary flags, status.',
         target: '[data-tour="menu-tab-items"]',
+        clickFirst: true,
       },
       {
-        title: 'Preview',
-        body: 'Live preview of the menu the way it will appear in print. Click the expand icon for a full-screen lightbox with zoom.',
+        title: 'CSV import / export',
+        body: 'Import bulk-edited menus from a CSV (or the Master Google Sheet). Export to send to a designer or external reviewer. Column order matches the template — Section, Title, VT, VE, GF, Description, …',
+        target: '[data-tour="menu-csv-toolbar"]',
+      },
+      {
+        title: 'Add new item',
+        body: 'Quick-add a new item to an existing section, or create a new section on the fly. Click an item row to edit it inline (drawer opens on the right).',
+        target: '[data-tour="menu-add-item-button"]',
+      },
+
+      // ── Preview tab ─────────────────────────────────────────────────────
+      {
+        title: 'Preview tab',
+        body: 'Live preview of the menu rendered the way it will appear in print, using the current style spec from series → event → menu inheritance.',
         target: '[data-tour="menu-tab-preview"]',
+        clickFirst: true,
       },
       {
-        title: 'Edit Log',
-        body: 'Every change ever made to this menu, grouped into Pending / Approved / Rejected / History accordions. Add review notes, approve or reject pending edits, archive resolved ones.',
+        title: 'Test different sizes',
+        body: 'The Edit button lets you set the size (SM / MD / LG). Preview re-renders to that page format so you can see which size fits your content best.',
+      },
+      {
+        title: 'Zoom into the preview',
+        body: 'Click the expand icon on the preview canvas for a full-screen lightbox with zoom controls. Esc to close.',
+      },
+
+      // ── Edit Log tab ────────────────────────────────────────────────────
+      {
+        title: 'Edit Log tab',
+        body: 'Every change ever made to this menu — who, when, what changed, old → new value. Grouped into Pending (default open), Approved, Rejected, History, Archived (collapsed by default).',
         target: '[data-tour="menu-tab-editlog"]',
+        clickFirst: true,
       },
       {
-        title: 'Sponsors',
-        body: 'Toggle which sponsors appear on this specific menu (subset of the event\'s active set), and reorder them if needed.',
+        title: 'Approving an edit',
+        body: 'Approve marks the change as live, flips the item back to Active, and notifies the original editor via Inbox. The edit log row drops into the Approved accordion.',
+      },
+      {
+        title: 'Rejecting an edit',
+        body: 'Reject reverts the item to its pre-edit values (walks every pending edit_log row for that item, takes the earliest old_value per field). The original editor gets notified. Row drops into Rejected.',
+      },
+      {
+        title: 'Review notes',
+        body: 'Each edit row can have a review note attached. Add your reasoning before approving or rejecting; the editor sees it in their inbox notification.',
+      },
+      {
+        title: 'Archive cleans things up',
+        body: 'Once an edit is resolved (approved or rejected), Archive moves it out of the active buckets so the log stays scannable. Restore brings it back. Admins can also Delete archived rows permanently.',
+      },
+
+      // ── Sponsors tab ────────────────────────────────────────────────────
+      {
+        title: 'Sponsors tab',
+        body: 'Toggle which sponsors appear on this specific menu. By default the menu inherits the full active set from the event — turn ones off here that don\'t belong on this particular menu.',
         target: '[data-tour="menu-tab-sponsors"]',
+        clickFirst: true,
       },
       {
-        title: 'Approvals',
-        body: 'Per-menu sign-off list + Notify-for-edits picker. Brand/series/event picks show as inherited and pre-fill each item\'s edit form.',
+        title: 'Reorder sponsors',
+        body: 'Drag the ⋮⋮ handle to change order. Override sponsor order applies just to this menu; un-toggle the override to fall back to the event\'s order.',
+      },
+
+      // ── Approvals tab ───────────────────────────────────────────────────
+      {
+        title: 'Approvals tab',
+        body: 'Two things live here: the sign-off list (named people whose explicit approval is required) and Notify for edits (people automatically tagged on every edit on this menu).',
         target: '[data-tour="menu-tab-signoff"]',
+        clickFirst: true,
+      },
+      {
+        title: 'Inherited from above',
+        body: 'Brand → Series → Event notify picks show as inherited (grayed). Add anyone specific to this menu on top — they get pinged for every edit here.',
+      },
+      {
+        title: 'You\'re set',
+        body: 'That\'s every tab. Click the ? in the header anytime to relaunch this tour. Add the screenshot/feature you want highlighted next? Ask Sean.',
       },
     ],
   },

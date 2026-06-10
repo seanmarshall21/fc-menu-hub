@@ -46,10 +46,28 @@ export default function TourOverlay({ tourKey, onClose }) {
 
   // Re-measure the target on step change + window resize + scroll.
   useLayoutEffect(() => {
+    // If the step opts into clickFirst, simulate a click on the target
+    // before measuring so the spotlight can highlight content that's
+    // initially hidden behind a tab / accordion / dropdown. Defer the
+    // measurement one tick so React can re-render the click result.
+    let measureTimeout = null
     function measure() {
       setVp(viewport())
       if (!step?.target) { setBox(null); return }
       const el = document.querySelector(step.target)
+      if (!el) { setBox(null); return }
+      if (step.clickFirst && typeof el.click === 'function') {
+        el.click()
+        // Wait one frame for the click's side effects to render, then
+        // re-measure to catch the new bounding rect (e.g. a tab panel
+        // that just opened may have shifted the layout).
+        measureTimeout = setTimeout(measure2, 0)
+        return
+      }
+      measure2(el)
+    }
+    function measure2(maybeEl) {
+      const el = maybeEl || document.querySelector(step.target)
       if (!el) { setBox(null); return }
       const r = el.getBoundingClientRect()
       const pad = 8
@@ -73,11 +91,12 @@ export default function TourOverlay({ tourKey, onClose }) {
     window.addEventListener('resize', measure)
     window.addEventListener('scroll', measure, true)
     return () => {
+      if (measureTimeout) clearTimeout(measureTimeout)
       ro.disconnect()
       window.removeEventListener('resize', measure)
       window.removeEventListener('scroll', measure, true)
     }
-  }, [stepIdx, step?.target])
+  }, [stepIdx, step?.target, step?.clickFirst])
 
   function next()  { if (isLast) close(); else setStepIdx(i => i + 1) }
   function back()  { if (stepIdx > 0) setStepIdx(i => i - 1) }

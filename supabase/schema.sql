@@ -271,6 +271,12 @@ as $$
    order by up.full_name nulls last
 $$;
 
+-- ─── Frame deep-link for the Sync chip ──────────────────────────────────────
+-- When the plugin syncs a menu it writes the target frame's Figma node id
+-- here. The Sync needed chip on MenuPage appends ?node-id={value} so clicking
+-- it opens Figma right at the frame, not just the file.
+alter table menus add column if not exists last_synced_frame_id text;
+
 -- ─── Push notification subscriptions ────────────────────────────────────────
 -- One row per (user, device/browser). The Service Worker on each device
 -- subscribes once and posts the resulting PushSubscription here. The
@@ -339,6 +345,30 @@ create or replace function update_menu_preview(
 begin
   update menus
      set preview_image_url = p_preview_url
+   where id = p_menu_id;
+end;
+$$ language plpgsql security definer;
+
+-- ─── Helper function: mark a menu as freshly synced ─────────────────────────
+-- Plugin calls this after each successful Sync to:
+--   - bump last_synced_at
+--   - stash the content fingerprint (digest) for drift detection
+--   - update the preview thumbnail URL (optional)
+--   - record the linked Figma frame id so the Sync chip can deep-link
+-- Wrapped in SECURITY DEFINER so the anon-key plugin can bypass RLS for
+-- exactly these four fields without granting broader menu write access.
+create or replace function mark_menu_synced(
+  p_menu_id           uuid,
+  p_preview_url       text default null,
+  p_content_digest    text default null,
+  p_frame_id          text default null
+) returns void as $$
+begin
+  update menus
+     set last_synced_at        = now(),
+         preview_image_url     = coalesce(p_preview_url,    preview_image_url),
+         last_sync_digest      = coalesce(p_content_digest, last_sync_digest),
+         last_synced_frame_id  = coalesce(p_frame_id,       last_synced_frame_id)
    where id = p_menu_id;
 end;
 $$ language plpgsql security definer;

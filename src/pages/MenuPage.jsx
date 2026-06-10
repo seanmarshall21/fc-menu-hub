@@ -644,7 +644,8 @@ export default function MenuPage() {
         ) : (
           <button
             onClick={approveMenu}
-            className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium"
+            data-tour="menu-approve-button"
+            className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap"
             title="Mark this menu as Approved"
           >
             Approve Menu
@@ -662,7 +663,8 @@ export default function MenuPage() {
               setEditMenuError(null)
               setShowEditMenu(true)
             }}
-            className="btn-secondary btn-sm"
+            data-tour="menu-edit-button"
+            className="btn-secondary btn-sm whitespace-nowrap"
           >
             Edit
           </button>
@@ -803,8 +805,8 @@ export default function MenuPage() {
           {menu.size && <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-400 text-xs font-mono uppercase not-capitalize">{menu.size}</span>}
         </p>
         {isInternal && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={() => setShowImport(v => !v)} className="btn-secondary btn-sm">Import CSV</button>
+          <div data-tour="menu-csv-toolbar" className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setShowImport(v => !v)} data-tour="menu-import-csv" className="btn-secondary btn-sm whitespace-nowrap">Import CSV</button>
             <CsvExport menu={menu} items={items} />
           </div>
         )}
@@ -815,13 +817,25 @@ export default function MenuPage() {
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           {syncNeeded && event?.figma_file_url && (
             <a
-              href={event.figma_file_url}
+              href={(() => {
+                // Deep-link to the specific frame when we know its id (the
+                // plugin writes it to menus.last_synced_frame_id on every
+                // sync). Figma respects ?node-id=… and scrolls to + selects
+                // the matching node, in either browser or desktop app.
+                let url = event.figma_file_url
+                if (menu.last_synced_frame_id) {
+                  const sep = url.includes('?') ? '&' : '?'
+                  url = `${url}${sep}node-id=${encodeURIComponent(menu.last_synced_frame_id)}`
+                }
+                return url
+              })()}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100"
+              data-tour="menu-sync-chip"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100 whitespace-nowrap"
               title={menu.last_synced_at
-                ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since`
-                : 'Never synced to Figma. Open the Figma file and run the Menu Hub plugin.'}
+                ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since. Opens the linked Figma frame.`
+                : 'Never synced to Figma. Open the Figma file and run the Menu Sync plugin.'}
             >
               <FigmaLogo variant="line" size={12} />
               Sync needed
@@ -847,7 +861,8 @@ export default function MenuPage() {
           {pendingCount > 0 && (isAdmin || isInternal) && (
             <button
               onClick={() => setTab('log')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100"
+              data-tour="menu-pending-chip"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100 whitespace-nowrap"
             >
               {pendingCount} edit{pendingCount === 1 ? '' : 's'} pending
             </button>
@@ -1069,7 +1084,8 @@ export default function MenuPage() {
               ) : (
                 <button
                   onClick={() => setAddingToSection('__new__')}
-                  className="text-xs text-brand-500 hover:text-brand-700 font-medium flex items-center gap-1.5"
+                  data-tour="menu-add-item-button"
+                  className="text-xs text-brand-500 hover:text-brand-700 font-medium flex items-center gap-1.5 whitespace-nowrap"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
