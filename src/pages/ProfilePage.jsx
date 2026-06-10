@@ -217,7 +217,7 @@ function PushNotificationsSection() {
           type="button"
           onClick={enabled ? turnOff : turnOn}
           disabled={busy}
-          className={enabled ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
+          className={`whitespace-nowrap flex-shrink-0 ${enabled ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}`}
         >
           {busy ? '…' : (enabled ? 'Turn off' : 'Enable')}
         </button>
