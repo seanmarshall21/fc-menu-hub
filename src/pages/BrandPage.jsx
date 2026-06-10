@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import PizzaLoader from '@/components/PizzaLoader'
+import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import Modal from '@/components/Modal'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
@@ -21,6 +23,7 @@ export default function BrandPage() {
   const [brand, setBrand] = useState(null)
   const [series, setSeries] = useState([])
   const [loading, setLoading] = useState(true)
+  const showPageLoader = useDelayedLoader(loading)
   const [tab, setTab] = useState('series') // 'series' | 'approvals'
   const [duplicatingSeries, setDuplicatingSeries] = useState(null)
 
@@ -178,7 +181,8 @@ export default function BrandPage() {
     loadData()
   }
 
-  if (loading) return <div className="px-8 py-8 text-sm text-ink-400">Loading…</div>
+  if (showPageLoader) return <PizzaLoader />
+  if (loading) return null
   if (!brand) return <div className="px-8 py-8 text-sm text-red-500">Brand not found.</div>
 
   return (

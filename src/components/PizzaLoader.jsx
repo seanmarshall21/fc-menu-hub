@@ -17,7 +17,9 @@ export default function PizzaLoader({
   message = 'Hang tight…',
   size = 'md',
 }) {
-  const dims = { sm: 120, md: 180, lg: 260 }[size] || 180
+  // Sizes bumped ~15% from the original 120/180/260 for a touch more
+  // presence — at the old md size it read a little small in context.
+  const dims = { sm: 138, md: 207, lg: 299 }[size] || 207
 
   const stage = (
     <div className="pizza-loader-stage" style={{ '--mascot-size': `${dims}px` }}>

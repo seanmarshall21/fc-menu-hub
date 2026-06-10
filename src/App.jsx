@@ -21,10 +21,13 @@ import SearchPage from '@/pages/SearchPage'
 import ProfilePage from '@/pages/ProfilePage'
 import InboxPage from '@/pages/InboxPage'
 import PizzaLoader from '@/components/PizzaLoader'
+import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 
 function ProtectedRoute({ children }) {
   const { session, loading, isPending } = useAuth()
-  if (loading) return <PizzaLoader message="Warming up the oven…" />
+  const showLoader = useDelayedLoader(loading)
+  if (showLoader) return <PizzaLoader message="Warming up the oven…" />
+  if (loading) return null
 
   if (!session) return <Navigate to="/login" replace />
   if (isPending) return <PendingPage />

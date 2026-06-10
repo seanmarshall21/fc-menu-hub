@@ -4,6 +4,8 @@ import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import PizzaLoader from '@/components/PizzaLoader'
+import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
 import SyncChip from '@/components/SyncChip'
 import Modal from '@/components/Modal'
@@ -707,6 +709,7 @@ export default function EventPage() {
   const [menus, setMenus]   = useState([])
   const [sponsors, setSponsors] = useState([])
   const [loading, setLoading]   = useState(true)
+  const showPageLoader = useDelayedLoader(loading)
   const [tab, setTab]           = useState('menus') // 'menus' | 'sponsors' | 'templates'
   const [templates, setTemplates] = useState({}) // keyed by size
 
@@ -958,7 +961,8 @@ export default function EventPage() {
     }
   }
 
-  if (loading) return <div className="px-8 py-8 text-sm text-ink-400">Loading…</div>
+  if (showPageLoader) return <PizzaLoader />
+  if (loading) return null
   if (!event) return <div className="px-8 py-8 text-sm text-red-500">Event not found.</div>
 
   const baseUrl = `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`

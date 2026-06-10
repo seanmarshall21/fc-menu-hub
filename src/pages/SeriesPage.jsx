@@ -4,6 +4,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import PizzaLoader from '@/components/PizzaLoader'
+import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
 import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
@@ -34,6 +36,7 @@ export default function SeriesPage() {
   const [series, setSeries] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const showPageLoader = useDelayedLoader(loading)
 
   const [tab, setTab] = useState('events') // 'events' | 'styles'
   const [duplicatingEvent, setDuplicatingEvent] = useState(null)
@@ -77,7 +80,8 @@ export default function SeriesPage() {
     setShowNewEvent(false); loadData()
   }
 
-  if (loading) return <div className="px-8 py-8 text-sm text-ink-400">Loading…</div>
+  if (showPageLoader) return <PizzaLoader />
+  if (loading) return null
   if (!series) return <div className="px-8 py-8 text-sm text-red-500">Series not found.</div>
 
   return (

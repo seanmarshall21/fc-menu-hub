@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import PizzaLoader from '@/components/PizzaLoader'
+import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
 import MenuItemRow from '@/components/MenuItemRow'
 import MenuItemCard from '@/components/MenuItemCard'
@@ -166,6 +168,7 @@ export default function MenuPage() {
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const showPageLoader = useDelayedLoader(loading)
   const [tab, setTab] = useState('items')
   // Escape always closes the lightbox — safety net in case the close button
   // ever gets covered. Switching tabs also closes it so you can't get stuck.
@@ -527,7 +530,8 @@ export default function MenuPage() {
     }
   }
 
-  if (loading) return <div className="px-8 py-8 text-sm text-ink-400">Loading…</div>
+  if (showPageLoader) return <PizzaLoader />
+  if (loading) return null
   if (!menu) return <div className="px-8 py-8 text-sm text-red-500">Menu not found.</div>
 
   // Consecutive section groups — preserves duplicate section names at different positions
