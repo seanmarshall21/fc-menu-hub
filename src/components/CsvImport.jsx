@@ -5,14 +5,19 @@ import { formatPrice } from '@/lib/formatPrice'
 
 // CSV column map — matches the Master Menu Template format and the Google
 // Sheets script vocabulary. Accepts both legacy ("added") and canonical
-// ("active") status text, plus "pending approval" → draft (drafts in the
-// app don't sync to Figma, mirroring how the Sheet treats Pending).
+// ("active") status text.
+//
+// Default for blank/missing/unknown status is ACTIVE: if you're importing a
+// menu you almost always want the items to show immediately (and in the
+// preview, which only renders active items). Only an EXPLICIT "Draft",
+// "Not Added", or "Pending Approval" in the CSV hides an item.
 function mapStatus(raw) {
   const s = (raw || '').toString().trim().toLowerCase()
-  if (s === 'active' || s === 'added')        return 'active'
   if (s === 'not added' || s === 'not_added') return 'not_added'
-  // Pending Approval, Draft, blank, anything unknown → draft (won't sync)
-  return 'draft'
+  if (s === 'draft')                          return 'draft'
+  if (s === 'pending approval' || s === 'pending_approval') return 'draft'
+  // active, added, blank, or anything else → active (visible)
+  return 'active'
 }
 
 // Normalize an imported price using the menu's currency spec so the form
