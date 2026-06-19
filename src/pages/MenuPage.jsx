@@ -163,6 +163,8 @@ export default function MenuPage() {
   const [menuSponsorRowsServer, setMenuSponsorRowsServer] = useState([])
   const [menuOverrideOrderDraft, setMenuOverrideOrderDraft] = useState(false)
   const [menuSponsorsSaving, setMenuSponsorsSaving] = useState(false)
+  const [selectedItemIds, setSelectedItemIds] = useState(new Set())
+  const [batchBusy, setBatchBusy] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
@@ -179,6 +181,8 @@ export default function MenuPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [lightboxOpen])
   useEffect(() => { setLightboxOpen(false) }, [tab])
+  // Drop batch selection when leaving the items tab so it doesn't linger.
+  useEffect(() => { if (tab !== 'items') setSelectedItemIds(new Set()) }, [tab])
   const [showImport, setShowImport] = useState(false)
   const [addingToSection, setAddingToSection] = useState(null) // section name | '__new__' | null
   const [exporting, setExporting] = useState(false)
@@ -313,6 +317,50 @@ export default function MenuPage() {
   // Sponsor toggle/reorder/override — DRAFT only. Nothing hits the DB until
   // the user presses Save Changes on the sponsor bar. saveMenuSponsors below
   // diffs draft vs server and runs the actual writes.
+  // ── Batch selection on the items table ───────────────────────────────────
+  function toggleItemSelect(id) {
+    setSelectedItemIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function clearItemSelection() { setSelectedItemIds(new Set()) }
+  function selectAllItems() {
+    setSelectedItemIds(new Set((items || []).map(i => i.id)))
+  }
+  async function batchSetStatus(status) {
+    const ids = [...selectedItemIds]
+    if (!ids.length) return
+    setBatchBusy(true)
+    try {
+      await supabase.from('menu_items').update({ status }).in('id', ids)
+      clearItemSelection()
+      await loadMenu()
+    } finally { setBatchBusy(false) }
+  }
+  async function batchApproveEdits() {
+    const ids = [...selectedItemIds]
+    if (!ids.length) return
+    setBatchBusy(true)
+    try {
+      await supabase.from('menu_items').update({ edit_status: 'approved' }).in('id', ids)
+      clearItemSelection()
+      await loadMenu()
+    } finally { setBatchBusy(false) }
+  }
+  async function batchDelete() {
+    const ids = [...selectedItemIds]
+    if (!ids.length) return
+    if (!confirm(`Delete ${ids.length} item${ids.length === 1 ? '' : 's'}? This can't be undone.`)) return
+    setBatchBusy(true)
+    try {
+      await supabase.from('menu_items').delete().in('id', ids)
+      clearItemSelection()
+      await loadMenu()
+    } finally { setBatchBusy(false) }
+  }
+
   function toggleSponsor(sponsorId) {
     const sp = eventSponsors.find(s => s.id === sponsorId)
     if (menuSponsorIds.has(sponsorId)) {
@@ -949,6 +997,28 @@ export default function MenuPage() {
       {tab === 'items' && (
         <div className="space-y-8">
           {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu} />}
+
+          {/* Batch action bar — appears when items are selected via the
+              checkboxes in the item column. */}
+          {canEdit && selectedItemIds.size > 0 && (
+            <div className="sticky top-0 z-20 -mt-4 mb-2 rounded-lg border border-brand-200 bg-brand-50 shadow-sm px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 text-sm">
+                <span className="font-semibold text-brand-700">{selectedItemIds.size} selected</span>
+                <button onClick={selectAllItems} className="text-xs text-brand-600 hover:text-brand-800 underline-offset-2 hover:underline whitespace-nowrap">Select all {items.length}</button>
+                <button onClick={clearItemSelection} className="text-xs text-ink-500 hover:text-ink-700 underline-offset-2 hover:underline whitespace-nowrap">Clear</button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-ink-400 mr-1">Set status:</span>
+                <button onClick={() => batchSetStatus('active')}    disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Active</button>
+                <button onClick={() => batchSetStatus('draft')}     disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Draft</button>
+                <button onClick={() => batchSetStatus('not_added')} disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Not&nbsp;Added</button>
+                {(isAdmin || isInternal) && (
+                  <button onClick={batchApproveEdits} disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Approve edits</button>
+                )}
+                <button onClick={batchDelete} disabled={batchBusy} className="text-xs px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-medium whitespace-nowrap">Delete</button>
+              </div>
+            </div>
+          )}
           {lastApprovedIds.length > 0 && pendingCount === 0 && (
             <div className="card border-emerald-200 bg-emerald-50 p-3 flex items-center justify-between gap-3">
               <div className="text-sm text-emerald-800">
@@ -1068,6 +1138,8 @@ export default function MenuPage() {
                       onReorderSection={reorderItemsInSection}
                       columns={itemColumns}
                       defaultNotifyIds={resolvedNotifyIds}
+                      selectedIds={selectedItemIds}
+                      onToggleSelect={toggleItemSelect}
                     >
                       {/* The Add-item row stays in normal tbody render flow */}
                       {canEdit && addingToSection === group.key && (
@@ -1498,7 +1570,7 @@ export default function MenuPage() {
 // Drag-and-drop reorder for a single section's items. Lives inside <table>
 // rendering a real <tbody>, so the dnd-kit hooks attach directly to <tr>s.
 
-function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children, defaultNotifyIds }) {
+function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children, defaultNotifyIds, selectedIds, onToggleSelect }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -1528,6 +1600,8 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
               loadMenu={loadMenu}
               columns={columns}
               defaultNotifyIds={defaultNotifyIds}
+              selected={selectedIds ? selectedIds.has(item.id) : false}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </SortableContext>
@@ -1537,7 +1611,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
   )
 }
 
-function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns, defaultNotifyIds }) {
+function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns, defaultNotifyIds, selected, onToggleSelect }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
   return (
@@ -1550,6 +1624,8 @@ function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu,
       columns={columns}
       onUpdated={loadMenu}
       defaultNotifyIds={defaultNotifyIds}
+      selected={selected}
+      onToggleSelect={onToggleSelect}
       dragRef={setNodeRef}
       dragStyle={style}
       dragAttributes={attributes}

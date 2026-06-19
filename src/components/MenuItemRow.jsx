@@ -25,6 +25,9 @@ export default function MenuItemRow({
   item, menu, canEdit, onUpdated, sections, onMoveUp, onMoveDown, isFirst, isLast, currency,
   columns = DEFAULT_ITEM_COLUMNS,
   defaultNotifyIds = [],
+  // Batch selection (optional). When onToggleSelect is provided, a checkbox
+  // renders in the frozen item cell.
+  selected = false, onToggleSelect,
   // Optional drag-and-drop hooks supplied by a SortableContext parent
   dragRef, dragStyle, dragAttributes, dragListeners, isDragging,
 }) {
@@ -55,6 +58,16 @@ export default function MenuItemRow({
         return (
           <td className="px-4 py-3" style={baseStyle}>
             <div className="flex items-start gap-1.5">
+              {canEdit && onToggleSelect && (
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => onToggleSelect(item.id)}
+                  onClick={e => e.stopPropagation()}
+                  className="mt-1 flex-shrink-0 rounded border-surface-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                  aria-label={`Select ${item.title}`}
+                />
+              )}
               {canEdit && dragListeners && (
                 <button
                   {...dragListeners}
