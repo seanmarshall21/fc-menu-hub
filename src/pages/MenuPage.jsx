@@ -345,7 +345,8 @@ export default function MenuPage() {
     if (!ids.length) return
     setBatchBusy(true)
     try {
-      await supabase.from('menu_items').update({ edit_status: 'approved' }).in('id', ids)
+      const { error } = await supabase.from('menu_items').update({ edit_status: 'approved' }).in('id', ids)
+      if (error) { alert(error.message.includes('Not authorized') ? 'You are not a designated edit approver for this menu.' : error.message); return }
       clearItemSelection()
       await loadMenu()
     } finally { setBatchBusy(false) }
@@ -670,7 +671,8 @@ export default function MenuPage() {
 
   async function approveMenu() {
     if (isApproved) return
-    await supabase.from('menus').update({ phase: 'approved' }).eq('id', menu.id)
+    const { error } = await supabase.from('menus').update({ phase: 'approved' }).eq('id', menu.id)
+    if (error) { alert(error.message.includes('Not authorized') ? 'You are not a designated approver for this menu.' : error.message); return }
     loadMenu()
   }
 

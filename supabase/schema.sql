@@ -326,6 +326,67 @@ alter table series add column if not exists edit_approver_ids uuid[] default '{}
 alter table events add column if not exists edit_approver_ids uuid[] default '{}';
 alter table menus  add column if not exists edit_approver_ids uuid[] default '{}';
 
+-- Hard enforcement (DB-level) of the approver lists. The app UI gates the
+-- buttons; these triggers gate the actual writes so the rule holds even if
+-- someone hits the API directly.
+--   user_can_approve(menu_id, kind) → admin always; empty union → internal
+--   default; else must be in the resolved union. Null auth.uid() (service
+--   role / backend) bypasses.
+create or replace function user_can_approve(p_menu_id uuid, p_kind text)
+returns boolean language plpgsql security definer stable as $$
+declare v_uid uuid := auth.uid(); v_role text; v_approvers uuid[];
+begin
+  if v_uid is null then return true; end if;
+  select role into v_role from user_profiles where id = v_uid;
+  if v_role = 'admin' then return true; end if;
+  if p_kind = 'menu' then
+    select array(select distinct unnest(ids) from (
+        select b.menu_approver_ids ids from menus m join events e on e.id=m.event_id join series s on s.id=e.series_id join brands b on b.id=s.brand_id where m.id=p_menu_id
+        union all select s.menu_approver_ids from menus m join events e on e.id=m.event_id join series s on s.id=e.series_id where m.id=p_menu_id
+        union all select e.menu_approver_ids from menus m join events e on e.id=m.event_id where m.id=p_menu_id
+        union all select m.menu_approver_ids from menus m where m.id=p_menu_id
+      ) q where ids is not null) into v_approvers;
+  else
+    select array(select distinct unnest(ids) from (
+        select b.edit_approver_ids ids from menus m join events e on e.id=m.event_id join series s on s.id=e.series_id join brands b on b.id=s.brand_id where m.id=p_menu_id
+        union all select s.edit_approver_ids from menus m join events e on e.id=m.event_id join series s on s.id=e.series_id where m.id=p_menu_id
+        union all select e.edit_approver_ids from menus m join events e on e.id=m.event_id where m.id=p_menu_id
+        union all select m.edit_approver_ids from menus m where m.id=p_menu_id
+      ) q where ids is not null) into v_approvers;
+  end if;
+  if v_approvers is null or array_length(v_approvers,1) is null then return v_role = 'internal'; end if;
+  return v_uid = any(v_approvers);
+end; $$;
+
+create or replace function trg_enforce_menu_approval()
+returns trigger language plpgsql security definer as $$
+begin
+  if NEW.phase is distinct from OLD.phase and ('approved' in (NEW.phase, OLD.phase)) then
+    if not user_can_approve(NEW.id, 'menu') then
+      raise exception 'Not authorized to change this menu''s approval status';
+    end if;
+  end if;
+  return NEW;
+end; $$;
+drop trigger if exists enforce_menu_approval on menus;
+create trigger enforce_menu_approval before update on menus
+  for each row execute function trg_enforce_menu_approval();
+
+create or replace function trg_enforce_edit_approval()
+returns trigger language plpgsql security definer as $$
+begin
+  if (OLD.edit_status = 'pending_approval' and NEW.edit_status is distinct from 'pending_approval')
+     or (NEW.edit_status = 'approved' and OLD.edit_status is distinct from 'approved') then
+    if not user_can_approve(NEW.menu_id, 'edit') then
+      raise exception 'Not authorized to approve or reject edits on this menu';
+    end if;
+  end if;
+  return NEW;
+end; $$;
+drop trigger if exists enforce_edit_approval on menu_items;
+create trigger enforce_edit_approval before update on menu_items
+  for each row execute function trg_enforce_edit_approval();
+
 -- ─── Push notification subscriptions ────────────────────────────────────────
 -- One row per (user, device/browser). The Service Worker on each device
 -- subscribes once and posts the resulting PushSubscription here. The
