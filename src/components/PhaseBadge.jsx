@@ -8,11 +8,13 @@ const PHASE_LABELS = {
   archived:   'Archived',
 }
 
+// Color progression reads as a status journey: Build (neutral) → Proof
+// (blue, in review) → Approved (green, done). Print Prep amber, Archived gray.
 const PHASE_CLASSES = {
-  build:      'phase-badge bg-blue-100 text-blue-800',
-  proof:      'phase-badge bg-emerald-100 text-emerald-800',
+  build:      'phase-badge bg-surface-200 text-ink-600',
+  proof:      'phase-badge bg-blue-100 text-blue-800',
   print_prep: 'phase-badge bg-amber-100 text-amber-800',
-  approved:   'phase-badge bg-indigo-100 text-indigo-800',
+  approved:   'phase-badge bg-emerald-100 text-emerald-800',
   archived:   'phase-badge bg-surface-200 text-ink-500',
 }
 

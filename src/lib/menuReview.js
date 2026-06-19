@@ -113,33 +113,50 @@ export function reviewMenuItems(items) {
     }
   }
 
-  // ── Cross-item consistency ──────────────────────────────────────────────
-  // Same word capitalized differently across items.
-  const wordVariants = new Map()       // lowercase → Map(actualForm → [itemIds])
-  for (const item of active) {
-    const allWords = `${item.title || ''} ${item.description || ''}`
-      .split(/\s+/)
-      .filter(w => /^[A-Za-z][A-Za-z'’-]{2,}$/.test(w))   // skip prices, sizes, single chars
-    for (const w of allWords) {
-      const key = w.toLowerCase()
-      if (!wordVariants.has(key)) wordVariants.set(key, new Map())
-      const m = wordVariants.get(key)
-      if (!m.has(w)) m.set(w, [])
-      m.get(w).push(item.id)
+  // ── Cross-item consistency (capitalization) ─────────────────────────────
+  // Compare a word's casing ONLY within the same field type — titles against
+  // titles, descriptions against descriptions. Titles are Title Case and
+  // descriptions are sentence case, so "Tacos" in a title and "tacos" in a
+  // description is expected, not a discrepancy. We also skip the first word
+  // of each description (legit sentence-start capitalization).
+  //
+  // Each finding carries `occurrences` ({ itemId, itemTitle, field, form })
+  // and `targetForms` (distinct forms, most-common first) so the UI can show
+  // details + offer "make all use X" fixes.
+  for (const fieldType of ['title', 'description']) {
+    const wordMap = new Map() // lowercaseKey → Map(form → [{ itemId, itemTitle, field }])
+    for (const item of active) {
+      const raw = String(item[fieldType] || '')
+      if (!raw.trim()) continue
+      const words = raw.split(/\s+/)
+      words.forEach((w, idx) => {
+        // skip sentence-start word in descriptions (expected capital)
+        if (fieldType === 'description' && idx === 0) return
+        // strip trailing punctuation for the comparison, keep letters/’'-
+        const cleaned = w.replace(/^[^A-Za-z]+|[^A-Za-z'’-]+$/g, '')
+        if (!/^[A-Za-z][A-Za-z'’-]{2,}$/.test(cleaned)) return // skip prices/sizes/short
+        const key = cleaned.toLowerCase()
+        if (!wordMap.has(key)) wordMap.set(key, new Map())
+        const forms = wordMap.get(key)
+        if (!forms.has(cleaned)) forms.set(cleaned, [])
+        forms.get(cleaned).push({ itemId: item.id, itemTitle: item.title, field: fieldType })
+      })
     }
-  }
-  for (const [key, variants] of wordVariants) {
-    if (variants.size > 1) {
-      // Skip cases where the difference is just first-word-of-sentence capitalization.
-      const forms = [...variants.keys()]
-      const onlyCaseFirst = forms.every(f => f.toLowerCase() === key)
-      if (!onlyCaseFirst) continue
-      // Add a single finding for the inconsistency, listing forms.
+    for (const [key, forms] of wordMap) {
+      if (forms.size < 2) continue
+      // only a casing difference (same letters lowercased)
+      const formList = [...forms.keys()]
+      if (!formList.every(f => f.toLowerCase() === key)) continue
+      const sorted = [...forms.entries()].sort((a, b) => b[1].length - a[1].length)
+      const occurrences = sorted.flatMap(([form, occ]) => occ.map(o => ({ ...o, form })))
       findings.push({
-        itemId: null, itemTitle: null, field: 'multiple',
+        itemId: null, itemTitle: null, field: fieldType,
         kind: 'consistency',
-        message: `"${key}" appears as ${forms.map(f => `"${f}"`).join(' and ')} across items`,
-        affectedItemIds: [...new Set([...variants.values()].flat())],
+        word: key,
+        message: `"${key}" appears as ${formList.map(f => `"${f}"`).join(' and ')} across ${fieldType === 'title' ? 'titles' : 'descriptions'}`,
+        affectedItemIds: [...new Set(occurrences.map(o => o.itemId))],
+        occurrences,
+        targetForms: sorted.map(([form, occ]) => ({ form, count: occ.length })),
       })
     }
   }

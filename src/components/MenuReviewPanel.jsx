@@ -1,16 +1,44 @@
 import { useMemo, useState } from 'react'
 import { reviewMenuItems } from '@/lib/menuReview'
+import { supabase } from '@/lib/supabase'
+import Modal from '@/components/Modal'
 
 /**
  * Inline review banner for a menu's items. Runs the deterministic checks
- * from menuReview.js and shows a collapsible list of findings. Click a
- * finding to scroll/highlight the item (if it has a known id).
+ * from menuReview.js and shows a collapsible list of findings.
  *
- * Used on MenuPage above the items table when there are any findings.
+ * Single-item findings (spacing/typo/repeat) get an inline "Accept edit"
+ * that writes the suggested value. Consistency findings get a "Details"
+ * modal that lists every occurrence + offers one-click "make all use X".
+ *
+ * Props:
+ *   items        — the menu's items
+ *   onJumpToItem — (itemId) => void, scroll/highlight an item row
+ *   onChanged    — () => void, called after any edit is written (refetch)
  */
-export default function MenuReviewPanel({ items, onJumpToItem }) {
+
+// Replace whole-word occurrences of `wordLower` with `targetForm`, keeping
+// surrounding spacing + punctuation intact.
+function replaceWordPreservingPunct(text, wordLower, targetForm) {
+  return String(text).split(/(\s+)/).map(tok => {
+    const m = tok.match(/^([^A-Za-z'’-]*)([A-Za-z'’-]+)([^A-Za-z'’-]*)$/)
+    if (!m) return tok
+    if (m[2].toLowerCase() === wordLower) return m[1] + targetForm + m[3]
+    return tok
+  }).join('')
+}
+
+export default function MenuReviewPanel({ items, onJumpToItem, onChanged }) {
   const findings = useMemo(() => reviewMenuItems(items), [items])
   const [open, setOpen] = useState(false)
+  const [detail, setDetail] = useState(null)   // a consistency finding
+  const [busyId, setBusyId] = useState(null)
+
+  const itemsById = useMemo(() => {
+    const m = new Map()
+    for (const it of (items || [])) m.set(it.id, it)
+    return m
+  }, [items])
 
   if (!findings.length) {
     return (
@@ -29,6 +57,16 @@ export default function MenuReviewPanel({ items, onJumpToItem }) {
     return acc
   }, {})
   const total = findings.length
+
+  // Apply a single-item suggestion (spacing/typo/repeat).
+  async function acceptSuggestion(f, idx) {
+    if (!f.itemId || f.suggestion == null) return
+    setBusyId(`s${idx}`)
+    try {
+      await supabase.from('menu_items').update({ [f.field]: f.suggestion }).eq('id', f.itemId)
+      onChanged?.()
+    } finally { setBusyId(null) }
+  }
 
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 mb-4 overflow-hidden">
@@ -80,12 +118,128 @@ export default function MenuReviewPanel({ items, onJumpToItem }) {
                     </div>
                   )}
                 </div>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  {/* Single-item findings with a concrete suggestion → inline accept */}
+                  {f.itemId && f.suggestion != null && (
+                    <button
+                      type="button"
+                      onClick={() => acceptSuggestion(f, i)}
+                      disabled={busyId === `s${i}`}
+                      className="btn-primary btn-sm whitespace-nowrap"
+                    >
+                      {busyId === `s${i}` ? '…' : 'Accept edit'}
+                    </button>
+                  )}
+                  {/* Consistency findings → details modal */}
+                  {f.kind === 'consistency' && f.occurrences && (
+                    <button
+                      type="button"
+                      onClick={() => setDetail(f)}
+                      className="btn-secondary btn-sm whitespace-nowrap"
+                    >
+                      Details
+                    </button>
+                  )}
+                </div>
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      {detail && (
+        <ConsistencyDetailModal
+          finding={detail}
+          itemsById={itemsById}
+          onClose={() => setDetail(null)}
+          onChanged={onChanged}
+        />
+      )}
     </div>
+  )
+}
+
+// ── Consistency details modal ────────────────────────────────────────────────
+function ConsistencyDetailModal({ finding, itemsById, onClose, onChanged }) {
+  const { word, field, targetForms, occurrences } = finding
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Make every affected item use `targetForm` for this word in this field.
+  async function makeAll(targetForm) {
+    setBusy(true); setError(null)
+    try {
+      const itemIds = [...new Set(occurrences.map(o => o.itemId))]
+      for (const id of itemIds) {
+        const item = itemsById.get(id)
+        if (!item) continue
+        const current = String(item[field] || '')
+        const next = replaceWordPreservingPunct(current, word, targetForm)
+        if (next !== current) {
+          const { error: err } = await supabase.from('menu_items').update({ [field]: next }).eq('id', id)
+          if (err) throw err
+        }
+      }
+      onChanged?.()
+      onClose()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <Modal title={`"${word}" — ${field === 'title' ? 'title' : 'description'} casing`} onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-ink-600">
+          This word is capitalized inconsistently across {field === 'title' ? 'titles' : 'descriptions'}.
+          Pick the form everything should use:
+        </p>
+
+        {/* Quick bulk actions */}
+        <div className="flex flex-wrap gap-2">
+          {targetForms.map(({ form, count }) => (
+            <button
+              key={form}
+              type="button"
+              onClick={() => makeAll(form)}
+              disabled={busy}
+              className="btn-primary btn-sm whitespace-nowrap"
+              title={`Currently used in ${count} item${count === 1 ? '' : 's'}`}
+            >
+              Make all “{form}”
+            </button>
+          ))}
+        </div>
+
+        {/* Per-occurrence breakdown */}
+        <div className="border border-surface-200 rounded-lg overflow-hidden">
+          <div className="px-3 py-1.5 bg-surface-50 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+            {occurrences.length} occurrence{occurrences.length === 1 ? '' : 's'}
+          </div>
+          <ul className="divide-y divide-surface-100">
+            {occurrences.map((o, i) => {
+              const item = itemsById.get(o.itemId)
+              const value = item ? String(item[field] || '') : ''
+              return (
+                <li key={i} className="px-3 py-2 text-sm flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium text-ink-800 truncate">{o.itemTitle || '(untitled)'}</div>
+                    <div className="text-[11px] text-ink-500 truncate">{value}</div>
+                  </div>
+                  <span className="flex-shrink-0 px-2 py-0.5 rounded bg-surface-100 text-ink-600 text-xs font-mono">{o.form}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="flex items-center justify-end pt-1">
+          <button type="button" onClick={onClose} className="btn-secondary btn-sm" disabled={busy}>Close</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

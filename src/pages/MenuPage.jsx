@@ -928,7 +928,7 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
-          {canEdit && <MenuReviewPanel items={items} />}
+          {canEdit && <MenuReviewPanel items={items} onJumpToItem={() => {}} onChanged={loadMenu} />}
           {lastApprovedIds.length > 0 && pendingCount === 0 && (
             <div className="card border-emerald-200 bg-emerald-50 p-3 flex items-center justify-between gap-3">
               <div className="text-sm text-emerald-800">
