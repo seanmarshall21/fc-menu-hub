@@ -213,6 +213,17 @@ create policy "internal_read" on events for select using (
 create policy "internal_read" on menus for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
+-- Internal users build + edit menus (including the event-level CSV importer
+-- which creates menu rows). INSERT + UPDATE only — DELETE stays admin-only
+-- via admins_all so external/internal can't drop menus.
+create policy "internal_insert_menus" on menus for insert with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+create policy "internal_update_menus" on menus for update using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
 create policy "internal_items_rw" on menu_items for all using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
