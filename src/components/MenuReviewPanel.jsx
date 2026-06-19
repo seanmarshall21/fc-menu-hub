@@ -28,11 +28,35 @@ function replaceWordPreservingPunct(text, wordLower, targetForm) {
   }).join('')
 }
 
-export default function MenuReviewPanel({ items, onJumpToItem, onChanged }) {
-  const findings = useMemo(() => reviewMenuItems(items), [items])
+// Stable signature for a finding so an "ignore" survives recomputation.
+function findingKey(f) {
+  return [f.kind, f.field || '', f.itemId || '', f.word || f.message || ''].join('|')
+}
+
+export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged }) {
+  const allFindings = useMemo(() => reviewMenuItems(items), [items])
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState(null)   // a consistency finding
   const [busyId, setBusyId] = useState(null)
+
+  // Ignored flags persist per-menu in localStorage (per-device). Advisory
+  // checks recompute every render, so we suppress by stable signature.
+  const storageKey = `menuReviewIgnored:${menuId || 'unknown'}`
+  const [ignored, setIgnored] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')) }
+    catch { return new Set() }
+  })
+  function persistIgnored(next) {
+    setIgnored(next)
+    try { localStorage.setItem(storageKey, JSON.stringify([...next])) } catch { /* quota */ }
+  }
+  function ignore(f) {
+    const next = new Set(ignored); next.add(findingKey(f)); persistIgnored(next)
+  }
+  function clearIgnored() { persistIgnored(new Set()) }
+
+  const findings = allFindings.filter(f => !ignored.has(findingKey(f)))
+  const ignoredCount = allFindings.length - findings.length
 
   const itemsById = useMemo(() => {
     const m = new Map()
@@ -47,7 +71,14 @@ export default function MenuReviewPanel({ items, onJumpToItem, onChanged }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
         <span className="font-medium">Looks clean</span>
-        <span className="text-emerald-700">— no spelling or consistency issues caught.</span>
+        <span className="text-emerald-700">
+          — no spelling or consistency issues{ignoredCount > 0 ? ` (${ignoredCount} ignored)` : ' caught'}.
+        </span>
+        {ignoredCount > 0 && (
+          <button onClick={clearIgnored} className="ml-auto text-[11px] text-emerald-700 underline hover:text-emerald-900">
+            Reset ignored
+          </button>
+        )}
       </div>
     )
   }
@@ -140,11 +171,27 @@ export default function MenuReviewPanel({ items, onJumpToItem, onChanged }) {
                       Details
                     </button>
                   )}
+                  {/* Dismiss this flag (false positive / intentional) */}
+                  <button
+                    type="button"
+                    onClick={() => ignore(f)}
+                    className="text-[11px] text-ink-400 hover:text-ink-700 whitespace-nowrap px-1"
+                    title="Hide this flag — it won't show again on this menu"
+                  >
+                    Ignore
+                  </button>
                 </div>
               </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {open && ignoredCount > 0 && (
+        <div className="px-4 py-1.5 bg-white border-t border-amber-100 text-[11px] text-ink-400 flex items-center justify-between">
+          <span>{ignoredCount} flag{ignoredCount === 1 ? '' : 's'} ignored on this menu</span>
+          <button onClick={clearIgnored} className="underline hover:text-ink-700">Reset ignored</button>
+        </div>
       )}
 
       {detail && (

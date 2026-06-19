@@ -333,6 +333,26 @@ export default function MenuPage() {
     }
   }
 
+  // Master on/off for the whole sponsor list. on → every event sponsor
+  // active (preserving event order); off → none. Goes through the same
+  // draft state so the Save/Cancel bar applies.
+  function setAllSponsors(active) {
+    if (active) {
+      setMenuSponsorIds(new Set(eventSponsors.map(es => es.id)))
+      setMenuSponsorRows(eventSponsors.map((es, i) => ({
+        id: `draft-${es.id}`,
+        event_sponsor_id: es.id,
+        sort_order: i,
+        _draft: true,
+        name: es.name || '',
+        slug: es.slug || '',
+      })))
+    } else {
+      setMenuSponsorIds(new Set())
+      setMenuSponsorRows([])
+    }
+  }
+
   function toggleMenuOverrideOrder(next) {
     if (next === menuOverrideOrderDraft) return
     setMenuOverrideOrderDraft(next)
@@ -928,7 +948,7 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
-          {canEdit && <MenuReviewPanel items={items} onJumpToItem={() => {}} onChanged={loadMenu} />}
+          {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu} />}
           {lastApprovedIds.length > 0 && pendingCount === 0 && (
             <div className="card border-emerald-200 bg-emerald-50 p-3 flex items-center justify-between gap-3">
               <div className="text-sm text-emerald-800">
@@ -1269,6 +1289,7 @@ export default function MenuPage() {
             onToggle={toggleSponsor}
             onToggleOverride={toggleMenuOverrideOrder}
             onReorder={reorderMenuSponsors}
+            onSetAll={setAllSponsors}
           />
 
           {/* Sticky Save/Cancel bar — appears only when the draft differs
@@ -1550,7 +1571,7 @@ const SPONSOR_ORDER_OPTS = [
 
 function MenuSponsorsPanel({
   eventSponsors, menuSponsorIds, menuSponsorRows, menuOverrideOrder,
-  canEdit, onToggle, onToggleOverride, onReorder,
+  canEdit, onToggle, onToggleOverride, onReorder, onSetAll,
 }) {
   // Map event_sponsor_id → menu_sponsors row so we can grab row IDs for the reorder
   const menuRowByEsId = new Map(menuSponsorRows.map(r => [r.event_sponsor_id, r]))
@@ -1588,13 +1609,39 @@ function MenuSponsorsPanel({
           <h2 className="text-sm font-semibold text-ink-900">Sponsors</h2>
           <p className="text-xs text-ink-400 mt-0.5">Toggle which event sponsors appear on this menu.</p>
         </div>
-        {canEdit && activeRows.length > 0 && (
-          <SegmentedToggle
-            value={menuOverrideOrder ? 'override' : 'inherit'}
-            options={SPONSOR_ORDER_OPTS}
-            onChange={v => onToggleOverride(v === 'override')}
-          />
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Master on/off for the whole list */}
+          {canEdit && onSetAll && (
+            <div className="inline-flex items-center rounded-md border border-surface-200 overflow-hidden text-xs">
+              <button
+                type="button"
+                onClick={() => onSetAll(true)}
+                disabled={activeEventSponsors.length === eventSponsors.length}
+                className="px-2.5 py-1 font-medium text-ink-600 hover:bg-surface-50 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                title="Turn every sponsor on for this menu"
+              >
+                All on
+              </button>
+              <span className="w-px self-stretch bg-surface-200" />
+              <button
+                type="button"
+                onClick={() => onSetAll(false)}
+                disabled={activeEventSponsors.length === 0}
+                className="px-2.5 py-1 font-medium text-ink-600 hover:bg-surface-50 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                title="Turn every sponsor off for this menu"
+              >
+                All off
+              </button>
+            </div>
+          )}
+          {canEdit && activeRows.length > 0 && (
+            <SegmentedToggle
+              value={menuOverrideOrder ? 'override' : 'inherit'}
+              options={SPONSOR_ORDER_OPTS}
+              onChange={v => onToggleOverride(v === 'override')}
+            />
+          )}
+        </div>
       </div>
 
       <ul className="divide-y divide-surface-100">
