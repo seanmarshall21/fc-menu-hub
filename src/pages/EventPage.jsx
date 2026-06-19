@@ -259,6 +259,9 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
   const existing = Object.values(templates)[0] || {}
   const [colorSection,   setColorSection]   = useState(existing.color_section   || '#1a1a1a')
   const [colorTitle,     setColorTitle]     = useState(existing.color_title     || '#1a1a1a')
+  // Item title falls back to the menu title color when not explicitly set,
+  // so existing templates keep their current look until this is changed.
+  const [colorItemTitle, setColorItemTitle] = useState(existing.color_item_title || existing.color_title || '#1a1a1a')
   const [colorDesc,      setColorDesc]      = useState(existing.color_description || '#555555')
   const [colorPrice,     setColorPrice]     = useState(existing.color_price     || '#1a1a1a')
   const [colorSizeLabel, setColorSizeLabel] = useState(existing.color_size_label || '#888888')
@@ -300,6 +303,7 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
         background_url: publicUrl,
         color_section:     colorSection   || current.color_section,
         color_title:       colorTitle     || current.color_title,
+        color_item_title:  colorItemTitle || current.color_item_title,
         color_description: colorDesc      || current.color_description,
         color_price:       colorPrice     || current.color_price,
         color_size_label:  colorSizeLabel || current.color_size_label,
@@ -331,6 +335,7 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
       const payload = {
         color_section:     colorSection,
         color_title:       colorTitle,
+        color_item_title:  colorItemTitle,
         color_description: colorDesc,
         color_price:       colorPrice,
         color_size_label:  colorSizeLabel,
@@ -448,9 +453,10 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
             <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-3">Colors</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                { label: 'Section',    value: colorSection,   set: setColorSection   },
-                { label: 'Title',      value: colorTitle,     set: setColorTitle     },
-                { label: 'Desc',       value: colorDesc,      set: setColorDesc      },
+                { label: 'Section',     value: colorSection,   set: setColorSection   },
+                { label: 'Menu Title',  value: colorTitle,     set: setColorTitle     },
+                { label: 'Item Title',  value: colorItemTitle, set: setColorItemTitle },
+                { label: 'Desc',        value: colorDesc,      set: setColorDesc      },
                 { label: 'Price',      value: colorPrice,     set: setColorPrice     },
                 { label: 'Size Label', value: colorSizeLabel, set: setColorSizeLabel },
                 { label: 'Divider',    value: colorDivider,   set: setColorDivider   },

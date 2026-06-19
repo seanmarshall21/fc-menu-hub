@@ -304,6 +304,13 @@ update brands set figma_component_prefix = slug where figma_component_prefix is 
 -- it opens Figma right at the frame, not just the file.
 alter table menus add column if not exists last_synced_frame_id text;
 
+-- ─── Separate color for menu title vs item title ────────────────────────────
+-- event_templates.color_title styles the big menu title; color_item_title
+-- styles individual item names. Falls back to color_title when unset so
+-- existing templates render unchanged.
+alter table event_templates add column if not exists color_item_title text;
+update event_templates set color_item_title = color_title where color_item_title is null;
+
 -- ─── Push notification subscriptions ────────────────────────────────────────
 -- One row per (user, device/browser). The Service Worker on each device
 -- subscribes once and posts the resulting PushSubscription here. The

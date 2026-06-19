@@ -242,7 +242,7 @@ function ItemRow({ item, spec, fonts, colors, gapBlock, currency }) {
     <div data-item="1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: contentToPrice, width: '100%' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ ...roleStyle(spec.item_title, fonts), color: colors.title }}>{item.title}</span>
+          <span style={{ ...roleStyle(spec.item_title, fonts), color: colors.itemTitle }}>{item.title}</span>
           <DietaryIcons item={item} icons={spec.dietary_icons} size={spec.dietary_icon_size} />
         </div>
         {!isAlt && item.description && (
@@ -484,6 +484,9 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const colors = {
     section:     template?.color_section     || '#1a1a1a',
     title:       template?.color_title       || '#1a1a1a',
+    // Item title falls back to the menu title color when unset, so existing
+    // templates render identically until an item-title color is chosen.
+    itemTitle:   template?.color_item_title  || template?.color_title || '#1a1a1a',
     description: template?.color_description || '#555555',
     price:       template?.color_price       || '#1a1a1a',
     sizeLabel:   template?.color_size_label  || '#888888',
