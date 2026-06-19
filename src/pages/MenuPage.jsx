@@ -18,6 +18,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
+import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
@@ -135,7 +136,7 @@ function AddItemRow({ menuId, sections, defaultSection, onSaved, nextSortOrder }
 export default function MenuPage() {
   const { brandSlug, seriesSlug, eventSlug, menuSlug } = useParams()
   const navigate = useNavigate()
-  const { isAdmin, isInternal, canEditStyles } = useAuth()
+  const { isAdmin, isInternal, canEditStyles, profile } = useAuth()
 
   const [brand, setBrand]   = useState(null)
   const [series, setSeries] = useState(null)
@@ -210,7 +211,7 @@ export default function MenuPage() {
   const [deleteError, setDeleteError] = useState(null)
 
   const loadMenu = useCallback(async () => {
-    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix,menu_approver_ids,edit_approver_ids').eq('slug', brandSlug).single()
     setBrand(brandData)
     const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     setSeries(seriesData)
@@ -608,6 +609,13 @@ export default function MenuPage() {
   const sectionNames = [...new Set(items.map(i => i.section))] // unique names for datalist only
   const canEdit = (isAdmin || isInternal) && menu.phase !== 'approved'
 
+  // Cascading approver permissions (brand → series → event → menu union).
+  const role = profile?.role
+  const menuApprovers = resolveApprovers([brand, series, event, menu], 'menu_approver_ids')
+  const editApprovers = resolveApprovers([brand, series, event, menu], 'edit_approver_ids')
+  const canApproveMenu  = canApprove(role, profile?.id, menuApprovers)
+  const canApproveEdits = canApprove(role, profile?.id, editApprovers)
+
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
   const isApproved = menu.phase === 'approved'
@@ -704,13 +712,14 @@ export default function MenuPage() {
       secondaryActions={(isAdmin || isInternal) && (<>
         {isApproved ? (
           <button
-            onClick={unapproveMenu}
-            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium"
-            title="Click to move back to Proof"
+            onClick={canApproveMenu ? unapproveMenu : undefined}
+            disabled={!canApproveMenu}
+            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            title={canApproveMenu ? 'Click to move back to Proof' : 'Only designated approvers can change menu approval'}
           >
             ✓ Approved
           </button>
-        ) : (
+        ) : canApproveMenu ? (
           <button
             onClick={approveMenu}
             data-tour="menu-approve-button"
@@ -719,6 +728,13 @@ export default function MenuPage() {
           >
             Approve Menu
           </button>
+        ) : (
+          <span
+            className="text-xs px-3 py-1.5 rounded-md bg-surface-50 text-ink-400 border border-surface-200 font-medium whitespace-nowrap"
+            title="Only designated approvers can approve this menu"
+          >
+            Approval restricted
+          </span>
         )}
         {canEdit && (
           <button
@@ -1012,7 +1028,7 @@ export default function MenuPage() {
                 <button onClick={() => batchSetStatus('active')}    disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Active</button>
                 <button onClick={() => batchSetStatus('draft')}     disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Draft</button>
                 <button onClick={() => batchSetStatus('not_added')} disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Not&nbsp;Added</button>
-                {(isAdmin || isInternal) && (
+                {canApproveEdits && (
                   <button onClick={batchApproveEdits} disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Approve edits</button>
                 )}
                 <button onClick={batchDelete} disabled={batchBusy} className="text-xs px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-medium whitespace-nowrap">Delete</button>
@@ -1140,6 +1156,7 @@ export default function MenuPage() {
                       defaultNotifyIds={resolvedNotifyIds}
                       selectedIds={selectedItemIds}
                       onToggleSelect={toggleItemSelect}
+                      canApproveEdits={canApproveEdits}
                     >
                       {/* The Add-item row stays in normal tbody render flow */}
                       {canEdit && addingToSection === group.key && (
@@ -1307,7 +1324,8 @@ export default function MenuPage() {
         <EditLog
           menuId={menu.id}
           onChange={loadMenu}
-          onApproveAll={pendingCount > 0 && (isAdmin || isInternal)
+          canApprove={canApproveEdits}
+          onApproveAll={pendingCount > 0 && canApproveEdits
             ? async () => { if (confirm(`Approve all ${pendingCount} pending edits at once?`)) await approveAllPending() }
             : null}
         />
@@ -1333,6 +1351,54 @@ export default function MenuPage() {
               ]))}
               inheritedFromLabel="brand + series + event"
               canEdit={isAdmin || isInternal}
+              onSaved={loadMenu}
+            />
+          </div>
+
+          {/* Who can approve this menu */}
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Who can approve this menu</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              If anyone is listed (here or inherited), only they (plus admins) can flip this menu to Approved.
+              Leave empty to let any internal user approve.
+            </p>
+            <NotifyForEditsEditor
+              table="menus"
+              entityId={menu.id}
+              column="menu_approver_ids"
+              addLabel="Add or remove menu approvers at this level:"
+              current={menu.menu_approver_ids || []}
+              inheritedIds={Array.from(new Set([
+                ...((brand?.menu_approver_ids) || []),
+                ...((series?.menu_approver_ids) || []),
+                ...((event?.menu_approver_ids) || []),
+              ]))}
+              inheritedFromLabel="brand + series + event"
+              canEdit={isAdmin}
+              onSaved={loadMenu}
+            />
+          </div>
+
+          {/* Who can approve edits */}
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Who can approve edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              If anyone is listed (here or inherited), only they (plus admins) can approve or reject pending item edits.
+              Leave empty to let any internal user approve.
+            </p>
+            <NotifyForEditsEditor
+              table="menus"
+              entityId={menu.id}
+              column="edit_approver_ids"
+              addLabel="Add or remove edit approvers at this level:"
+              current={menu.edit_approver_ids || []}
+              inheritedIds={Array.from(new Set([
+                ...((brand?.edit_approver_ids) || []),
+                ...((series?.edit_approver_ids) || []),
+                ...((event?.edit_approver_ids) || []),
+              ]))}
+              inheritedFromLabel="brand + series + event"
+              canEdit={isAdmin}
               onSaved={loadMenu}
             />
           </div>
@@ -1570,7 +1636,7 @@ export default function MenuPage() {
 // Drag-and-drop reorder for a single section's items. Lives inside <table>
 // rendering a real <tbody>, so the dnd-kit hooks attach directly to <tr>s.
 
-function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children, defaultNotifyIds, selectedIds, onToggleSelect }) {
+function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, onReorderSection, columns, children, defaultNotifyIds, selectedIds, onToggleSelect, canApproveEdits }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -1602,6 +1668,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
               defaultNotifyIds={defaultNotifyIds}
               selected={selectedIds ? selectedIds.has(item.id) : false}
               onToggleSelect={onToggleSelect}
+              canApproveEdits={canApproveEdits}
             />
           ))}
         </SortableContext>
@@ -1611,7 +1678,7 @@ function SectionTbody({ group, menu, canEdit, currency, sectionNames, loadMenu, 
   )
 }
 
-function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns, defaultNotifyIds, selected, onToggleSelect }) {
+function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu, columns, defaultNotifyIds, selected, onToggleSelect, canApproveEdits }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
   return (
@@ -1626,6 +1693,7 @@ function SortableItemTr({ item, menu, canEdit, currency, sectionNames, loadMenu,
       defaultNotifyIds={defaultNotifyIds}
       selected={selected}
       onToggleSelect={onToggleSelect}
+      canApproveEdits={canApproveEdits}
       dragRef={setNodeRef}
       dragStyle={style}
       dragAttributes={attributes}

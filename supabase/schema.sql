@@ -311,6 +311,21 @@ alter table menus add column if not exists last_synced_frame_id text;
 alter table event_templates add column if not exists color_item_title text;
 update event_templates set color_item_title = color_title where color_item_title is null;
 
+-- ─── Cascading approver permissions ─────────────────────────────────────────
+-- Like notify_user_ids: resolved as the UNION of the column across
+-- brand → series → event → menu. menu_approver_ids gates "flip menu to
+-- Approved"; edit_approver_ids gates "approve/reject pending item edits".
+-- Admins can always approve. Empty resolved list = any internal user can
+-- approve (default). Non-empty = only listed users (plus admins).
+alter table brands add column if not exists menu_approver_ids uuid[] default '{}';
+alter table series add column if not exists menu_approver_ids uuid[] default '{}';
+alter table events add column if not exists menu_approver_ids uuid[] default '{}';
+alter table menus  add column if not exists menu_approver_ids uuid[] default '{}';
+alter table brands add column if not exists edit_approver_ids uuid[] default '{}';
+alter table series add column if not exists edit_approver_ids uuid[] default '{}';
+alter table events add column if not exists edit_approver_ids uuid[] default '{}';
+alter table menus  add column if not exists edit_approver_ids uuid[] default '{}';
+
 -- ─── Push notification subscriptions ────────────────────────────────────────
 -- One row per (user, device/browser). The Service Worker on each device
 -- subscribes once and posts the resulting PushSubscription here. The

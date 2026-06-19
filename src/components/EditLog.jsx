@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 
-export default function EditLog({ menuId, onApproveAll, onChange }) {
-  const { session, isAdmin, isInternal } = useAuth()
+export default function EditLog({ menuId, onApproveAll, onChange, canApprove = false }) {
+  const { session, isAdmin } = useAuth()
   const user = session?.user
-  const canApprove = isAdmin || isInternal
+  // canApprove is passed in by MenuPage from the cascading edit-approver list
 
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)

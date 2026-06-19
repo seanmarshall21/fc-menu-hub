@@ -21,6 +21,11 @@ import { supabase } from '@/lib/supabase'
 export default function NotifyForEditsEditor({
   table, entityId, current, inheritedIds = [], inheritedFromLabel,
   onSaved, canEdit = true,
+  // The DB column this editor writes. Defaults to notify_user_ids so existing
+  // call sites keep working; pass 'menu_approver_ids' / 'edit_approver_ids'
+  // to reuse the same cascading UI for approver permissions.
+  column = 'notify_user_ids',
+  addLabel = 'Add or remove people notified at this level:',
 }) {
   const [users, setUsers]   = useState([])
   const [draft, setDraft]   = useState(() => new Set(current || []))
@@ -66,7 +71,7 @@ export default function NotifyForEditsEditor({
     const next = [...draft]
     const { error: err } = await supabase
       .from(table)
-      .update({ notify_user_ids: next.length ? next : [] })
+      .update({ [column]: next.length ? next : [] })
       .eq('id', entityId)
     setSaving(false)
     if (err) { setError(err.message); return }
@@ -103,7 +108,7 @@ export default function NotifyForEditsEditor({
 
       {/* Add at this level */}
       <div>
-        <div className="text-xs text-ink-500 mb-1.5">Add or remove people notified at this level:</div>
+        <div className="text-xs text-ink-500 mb-1.5">{addLabel}</div>
         <div className="flex flex-wrap gap-1.5">
           {users.length === 0 && <span className="text-xs text-ink-300 italic">Loading…</span>}
           {users.map(u => {

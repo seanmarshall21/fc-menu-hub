@@ -28,6 +28,8 @@ export default function MenuItemRow({
   // Batch selection (optional). When onToggleSelect is provided, a checkbox
   // renders in the frozen item cell.
   selected = false, onToggleSelect,
+  // Edit-approval permission (cascading approver list). Gates the inline ✓.
+  canApproveEdits = true,
   // Optional drag-and-drop hooks supplied by a SortableContext parent
   dragRef, dragStyle, dragAttributes, dragListeners, isDragging,
 }) {
@@ -152,7 +154,7 @@ export default function MenuItemRow({
               </span>
               {canEdit && (
                 <>
-                  {pendingFlag && (
+                  {pendingFlag && canApproveEdits && (
                     <button onClick={approveItem} disabled={saving} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium" title="Approve this edit">
                       {saving ? '…' : '✓'}
                     </button>

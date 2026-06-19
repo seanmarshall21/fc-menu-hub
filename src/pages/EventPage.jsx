@@ -773,7 +773,7 @@ export default function EventPage() {
   const [spError, setSpError]                 = useState(null)
 
   async function loadData() {
-    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix').eq('slug', brandSlug).single()
+    const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix,menu_approver_ids,edit_approver_ids').eq('slug', brandSlug).single()
     setBrand(brandData)
     const { data: seriesData } = await supabase.from('series').select('*').eq('brand_id', brandData?.id).eq('slug', seriesSlug).single()
     // Attach brand to series so the Approvals tab can resolve cascading
@@ -1435,6 +1435,40 @@ export default function EventPage() {
               inheritedFromLabel="brand + series"
               canEdit={isAdmin || isInternal}
               onSaved={loadData}
+            />
+          </div>
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Who can approve menus</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People who may flip menus under this event to Approved. Inherited from brand + series; menus can add more. Empty = any internal user.
+            </p>
+            <NotifyForEditsEditor
+              table="events" entityId={event.id} column="menu_approver_ids"
+              addLabel="Add or remove menu approvers at the event level:"
+              current={event.menu_approver_ids || []}
+              inheritedIds={Array.from(new Set([
+                ...((series?.brand?.menu_approver_ids) || []),
+                ...((series?.menu_approver_ids) || []),
+              ]))}
+              inheritedFromLabel="brand + series"
+              canEdit={isAdmin} onSaved={loadData}
+            />
+          </div>
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Who can approve edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People who may approve/reject pending item edits under this event. Empty = any internal user.
+            </p>
+            <NotifyForEditsEditor
+              table="events" entityId={event.id} column="edit_approver_ids"
+              addLabel="Add or remove edit approvers at the event level:"
+              current={event.edit_approver_ids || []}
+              inheritedIds={Array.from(new Set([
+                ...((series?.brand?.edit_approver_ids) || []),
+                ...((series?.edit_approver_ids) || []),
+              ]))}
+              inheritedFromLabel="brand + series"
+              canEdit={isAdmin} onSaved={loadData}
             />
           </div>
         </div>

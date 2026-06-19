@@ -241,22 +241,50 @@ export default function BrandPage() {
         <h1 className="text-xl sm:text-2xl font-semibold text-ink-900 tracking-tight">{brand.name}</h1>
       </div>
 
-      {/* ── Approvals tab — brand-level "Notify for edits" lives here ── */}
+      {/* ── Approvals tab — brand-level notify + approver lists ── */}
       {tab === 'approvals' && (
-        <div className="card p-5 max-w-2xl">
-          <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
-          <p className="text-xs text-ink-500 mb-4">
-            People toggled here get an inbox notification for every edit on any menu under <strong>{brand.name}</strong>. They appear pre-checked at every level below (series → event → menu → item).
-          </p>
-          <NotifyForEditsEditor
-            table="brands"
-            entityId={brand.id}
-            current={brand.notify_user_ids || []}
-            inheritedIds={[]}
-            inheritedFromLabel={null}
-            canEdit={isAdmin || isInternal}
-            onSaved={loadData}
-          />
+        <div className="space-y-4 max-w-2xl">
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People toggled here get an inbox notification for every edit on any menu under <strong>{brand.name}</strong>. They appear pre-checked at every level below (series → event → menu → item).
+            </p>
+            <NotifyForEditsEditor
+              table="brands"
+              entityId={brand.id}
+              current={brand.notify_user_ids || []}
+              inheritedIds={[]}
+              inheritedFromLabel={null}
+              canEdit={isAdmin || isInternal}
+              onSaved={loadData}
+            />
+          </div>
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Who can approve menus</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People who may flip menus to Approved across all of <strong>{brand.name}</strong>. Inherited downward; series/event/menu can add more. Empty = any internal user can approve.
+            </p>
+            <NotifyForEditsEditor
+              table="brands" entityId={brand.id} column="menu_approver_ids"
+              addLabel="Add or remove menu approvers at the brand level:"
+              current={brand.menu_approver_ids || []}
+              inheritedIds={[]} inheritedFromLabel={null}
+              canEdit={isAdmin} onSaved={loadData}
+            />
+          </div>
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Who can approve edits</h2>
+            <p className="text-xs text-ink-500 mb-4">
+              People who may approve/reject pending item edits across all of <strong>{brand.name}</strong>. Empty = any internal user can approve.
+            </p>
+            <NotifyForEditsEditor
+              table="brands" entityId={brand.id} column="edit_approver_ids"
+              addLabel="Add or remove edit approvers at the brand level:"
+              current={brand.edit_approver_ids || []}
+              inheritedIds={[]} inheritedFromLabel={null}
+              canEdit={isAdmin} onSaved={loadData}
+            />
+          </div>
         </div>
       )}
 
