@@ -1822,11 +1822,18 @@ function MenuSponsorRow({ sp, active, canEdit, onToggle, handleListeners }) {
       {handleListeners && canEdit && active && <DragHandle listeners={handleListeners} />}
       {canEdit ? (
         <button
+          type="button"
           onClick={() => onToggle(sp.id)}
-          className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 relative ${active ? 'bg-brand-500' : 'bg-surface-300'}`}
+          aria-pressed={active}
+          // Padded so the tappable area clears the ~44px mobile minimum even
+          // though the switch itself is compact. touch-manipulation removes
+          // the 300ms tap delay / double-tap-zoom on the control.
+          className="-m-2 p-2 flex-shrink-0 touch-manipulation"
           title={active ? 'Remove from menu' : 'Add to menu'}
         >
-          <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${active ? 'left-4' : 'left-0.5'}`} />
+          <span className={`block w-11 h-6 rounded-full transition-colors relative ${active ? 'bg-brand-500' : 'bg-surface-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${active ? 'left-[22px]' : 'left-0.5'}`} />
+          </span>
         </button>
       ) : (
         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? 'bg-emerald-400' : 'bg-surface-300'}`} />
