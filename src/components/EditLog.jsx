@@ -68,6 +68,18 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
     })
   }
 
+  // Selection is tracked by menu_item_id (approve/reject operate per item;
+  // a single item can have several edit_log rows).
+  const [selected, setSelected] = useState(new Set())
+  function toggleSelect(itemId) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId)
+      return next
+    })
+  }
+  const [batchBusy, setBatchBusy] = useState(false)
+
   async function approveItem(menuItemId) {
     setBusyId(menuItemId)
     try {
@@ -76,6 +88,54 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
     } finally {
       setBusyId(null)
     }
+  }
+
+  // Core reject logic, no confirm — reused by single + batch reject.
+  async function rejectItemCore(menuItemId) {
+    const { data: pendingLogs } = await supabase
+      .from('edit_log')
+      .select('id, field_changed, old_value, note, created_at')
+      .eq('menu_item_id', menuItemId)
+      .is('archived_at', null)
+      .order('created_at', { ascending: true })
+    const revertable = new Set(['title','description','price1','size1','price2','size2','status'])
+    const revertMap = {}
+    for (const log of (pendingLogs || [])) {
+      if (!revertable.has(log.field_changed)) continue
+      if (!(log.field_changed in revertMap)) {
+        revertMap[log.field_changed] = log.old_value === '' ? null : log.old_value
+      }
+    }
+    await supabase.from('menu_items')
+      .update({ ...revertMap, edit_status: 'active', last_edited_at: null, last_edited_by: null })
+      .eq('id', menuItemId)
+    for (const log of (pendingLogs || [])) {
+      const tagged = log.note
+        ? (log.note.includes('[rejected]') ? log.note : `${log.note} [rejected]`)
+        : '[rejected]'
+      await supabase.from('edit_log').update({ note: tagged }).eq('id', log.id)
+    }
+  }
+
+  async function batchApproveSelected() {
+    if (selected.size === 0) return
+    setBatchBusy(true)
+    try {
+      await supabase.from('menu_items').update({ edit_status: 'approved' }).in('id', [...selected])
+      setSelected(new Set())
+      await load(); onChange?.()
+    } finally { setBatchBusy(false) }
+  }
+
+  async function batchRejectSelected() {
+    if (selected.size === 0) return
+    if (!confirm(`Reject edits on ${selected.size} item${selected.size === 1 ? '' : 's'}? Each reverts to its pre-edit values. This cannot be undone.`)) return
+    setBatchBusy(true)
+    try {
+      for (const id of selected) await rejectItemCore(id)
+      setSelected(new Set())
+      await load(); onChange?.()
+    } finally { setBatchBusy(false) }
   }
 
   async function rejectItem(menuItemId) {
@@ -168,8 +228,11 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
   const rejected    = active.filter(l => l.menu_item?.edit_status === 'rejected')
   const historical  = active.filter(l => !['pending_approval', 'approved', 'rejected'].includes(l.menu_item?.edit_status))
 
-  function renderTable(rows, headingLabel, colorClass, extra = null, headless = false) {
+  function renderTable(rows, headingLabel, colorClass, extra = null, headless = false, selectable = false) {
     if (rows.length === 0) return null
+    // Distinct selectable items in this bucket (for the select-all checkbox).
+    const itemIdsHere = [...new Set(rows.map(r => r.menu_item?.id).filter(Boolean))]
+    const allSelected = selectable && itemIdsHere.length > 0 && itemIdsHere.every(id => selected.has(id))
     // When wrapped in <Accordion>, skip our own card+header — the accordion
     // supplies both. Keeps double-shells from stacking up.
     const Wrap = headless ? 'div' : 'div'
@@ -188,6 +251,24 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="border-b border-surface-100 bg-surface-50">
+                {selectable && (
+                  <th className="pl-3 pr-1 py-2.5 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() => {
+                        setSelected(prev => {
+                          const next = new Set(prev)
+                          if (allSelected) itemIdsHere.forEach(id => next.delete(id))
+                          else itemIdsHere.forEach(id => next.add(id))
+                          return next
+                        })
+                      }}
+                      className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+                      title="Select all"
+                    />
+                  </th>
+                )}
                 <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">When</th>
                 <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">By</th>
                 <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-ink-400">Item</th>
@@ -205,6 +286,18 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
               const isBusy = busyId === log.menu_item?.id
               return (
                 <tr key={log.id} className="table-row-hover align-top">
+                  {selectable && (
+                    <td className="pl-3 pr-1 py-2.5">
+                      {log.menu_item?.id && (
+                        <input
+                          type="checkbox"
+                          checked={selected.has(log.menu_item.id)}
+                          onChange={() => toggleSelect(log.menu_item.id)}
+                          className="rounded border-surface-300 text-brand-600 focus:ring-brand-500"
+                        />
+                      )}
+                    </td>
+                  )}
                   <td className="px-3 sm:px-4 py-2.5 text-xs text-ink-500 whitespace-nowrap">
                     <div className="font-medium text-ink-700">{format(new Date(log.created_at), 'MMM d, yyyy')}</div>
                     <div className="text-ink-400 text-[11px]">{format(new Date(log.created_at), 'h:mma').toLowerCase()}</div>
@@ -327,16 +420,36 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
         count={pending.length}
         defaultOpen={true}
         headColor="bg-amber-50 text-amber-800 border-amber-200"
-        extra={onApproveAll && pending.length > 0 && (
+        extra={canApprove && onApproveAll && pending.length > 0 && (
           <button
             onClick={async (e) => { e.stopPropagation(); await onApproveAll(); onChange?.() }}
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap"
           >
             ✓ Approve all
           </button>
         )}
       >
-        {renderTable(pending, 'Pending approval', 'bg-amber-50 text-amber-800', null, /*headless*/ true)}
+        {/* Batch action bar — appears when items are selected via checkboxes */}
+        {canApprove && selected.size > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-brand-50 border-b border-brand-100 flex-wrap">
+            <span className="text-xs font-medium text-ink-700">{selected.size} selected</span>
+            <div className="flex items-center gap-2 ml-auto">
+              <button onClick={batchApproveSelected} disabled={batchBusy}
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap flex-shrink-0 disabled:opacity-50">
+                {batchBusy ? 'Working…' : `✓ Approve ${selected.size}`}
+              </button>
+              <button onClick={batchRejectSelected} disabled={batchBusy}
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-white border border-red-200 text-red-600 hover:bg-red-50 whitespace-nowrap flex-shrink-0 disabled:opacity-50">
+                ✕ Reject {selected.size}
+              </button>
+              <button onClick={() => setSelected(new Set())} disabled={batchBusy}
+                className="text-[11px] text-ink-500 hover:text-ink-700 whitespace-nowrap flex-shrink-0">
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+        {renderTable(pending, 'Pending approval', 'bg-amber-50 text-amber-800', null, /*headless*/ true, /*selectable*/ canApprove)}
       </Accordion>
 
       <Accordion title="Approved" count={approved.length} defaultOpen={false} headColor="bg-emerald-50 text-emerald-800 border-emerald-200">
