@@ -55,8 +55,47 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   }
   function clearIgnored() { persistIgnored(new Set()) }
 
-  const findings = allFindings.filter(f => !ignored.has(findingKey(f)))
-  const ignoredCount = allFindings.length - findings.length
+  // AI review (LLM): spelling, grammar, semantic naming consistency. Runs on
+  // demand via the review-menu edge function. Results merge with the
+  // heuristic findings and respect the same ignore list.
+  const [aiFindings, setAiFindings] = useState([])
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState(null)
+  const [aiRan, setAiRan] = useState(false)
+
+  async function runAiReview() {
+    setAiBusy(true); setAiError(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items } })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setAiFindings(Array.isArray(data?.findings) ? data.findings : [])
+      setAiRan(true)
+    } catch (e) {
+      setAiError(e.message || 'AI review failed')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  const findings = [...allFindings, ...aiFindings].filter(f => !ignored.has(findingKey(f)))
+  const ignoredCount = (allFindings.length + aiFindings.length) - findings.length
+
+  // Reusable AI-review button shown in both the clean banner + the flags header.
+  const aiButton = (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); runAiReview() }}
+      disabled={aiBusy}
+      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-purple-200 text-purple-700 hover:bg-purple-50 inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+      title="Run an AI pass for spelling, grammar, and naming consistency"
+    >
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z" />
+      </svg>
+      {aiBusy ? 'Reviewing…' : aiRan ? 'Re-run AI review' : 'AI review'}
+    </button>
+  )
 
   const itemsById = useMemo(() => {
     const m = new Map()
@@ -66,19 +105,23 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
 
   if (!findings.length) {
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 mb-4 flex items-center gap-2 text-sm text-emerald-800">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 mb-4 flex items-center gap-2 text-sm text-emerald-800 flex-wrap">
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
         <span className="font-medium">Looks clean</span>
         <span className="text-emerald-700">
-          — no spelling or consistency issues{ignoredCount > 0 ? ` (${ignoredCount} ignored)` : ' caught'}.
+          — no {aiRan ? '' : 'basic '}spelling or consistency issues{ignoredCount > 0 ? ` (${ignoredCount} ignored)` : aiRan ? ' caught' : ' (run AI for a deeper pass)'}.
         </span>
-        {ignoredCount > 0 && (
-          <button onClick={clearIgnored} className="ml-auto text-[11px] text-emerald-700 underline hover:text-emerald-900">
-            Reset ignored
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {ignoredCount > 0 && (
+            <button onClick={clearIgnored} className="text-[11px] text-emerald-700 underline hover:text-emerald-900">
+              Reset ignored
+            </button>
+          )}
+          {aiButton}
+        </div>
+        {aiError && <p className="w-full text-[11px] text-red-600 mt-1">{aiError}</p>}
       </div>
     )
   }
@@ -115,8 +158,12 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
             {Object.entries(counts).map(([k, v]) => `${v} ${kindLabel(k)}`).join(' · ')}
           </span>
         </div>
-        <span className="text-[11px] text-amber-700">{open ? 'Hide' : 'Show'}</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {aiButton}
+          <span className="text-[11px] text-amber-700">{open ? 'Hide' : 'Show'}</span>
+        </div>
       </button>
+      {aiError && <p className="px-4 pb-2 text-[11px] text-red-600">{aiError}</p>}
       {open && (
         <ul className="divide-y divide-amber-100 bg-white">
           {findings.map((f, i) => (
@@ -292,6 +339,8 @@ function ConsistencyDetailModal({ finding, itemsById, onClose, onChanged }) {
 
 function kindLabel(k) {
   if (k === 'typo') return 'typo'
+  if (k === 'spelling') return 'spelling'
+  if (k === 'grammar') return 'grammar'
   if (k === 'spacing') return 'spacing'
   if (k === 'duplicate-word') return 'repeat'
   if (k === 'consistency') return 'consistency'
@@ -300,6 +349,8 @@ function kindLabel(k) {
 }
 function kindShort(k) {
   if (k === 'typo') return 'sp'
+  if (k === 'spelling') return 'sp'
+  if (k === 'grammar') return 'gr'
   if (k === 'spacing') return 'sp'
   if (k === 'duplicate-word') return '2x'
   if (k === 'consistency') return '!='
@@ -308,6 +359,7 @@ function kindShort(k) {
 }
 function kindBadgeClass(k) {
   if (k === 'consistency') return 'bg-blue-100 text-blue-700'
-  if (k === 'typo')        return 'bg-red-100 text-red-700'
+  if (k === 'typo' || k === 'spelling') return 'bg-red-100 text-red-700'
+  if (k === 'grammar')     return 'bg-purple-100 text-purple-700'
   return 'bg-amber-100 text-amber-700'
 }
