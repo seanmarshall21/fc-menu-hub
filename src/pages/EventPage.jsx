@@ -11,7 +11,7 @@ import PhaseBadge from '@/components/PhaseBadge'
 import SyncChip from '@/components/SyncChip'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
-import { SIZE_CONFIGS } from '@/components/TemplateCanvas'
+import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
@@ -786,7 +786,9 @@ export default function EventPage() {
     if (eventData) setFigmaPageName(eventData.figma_page_name || '')
     if (eventData) {
       const [{ data: menusData }, { data: sponsorsData }, { data: templateRows }] = await Promise.all([
-        supabase.from('menus').select('*, menu_items(id, edit_status)').eq('event_id', eventData.id).order('category').order('name'),
+        // Full item fields so the Preview-all tab can render the live in-app
+        // canvas for menus that haven't been synced to Figma yet.
+        supabase.from('menus').select('*, menu_items(*)').eq('event_id', eventData.id).order('category').order('name'),
         supabase.from('event_sponsors').select('*').eq('event_id', eventData.id).order('sort_order').order('name'),
         supabase.from('event_templates').select('*').eq('event_id', eventData.id),
       ])
@@ -1297,6 +1299,7 @@ export default function EventPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {menus.map(menu => {
                 const items = menu.menu_items || []
+                const activeCount = items.filter(i => i.status === 'active').length
                 const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
                 const everSynced  = !!menu.last_synced_at
                 const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
@@ -1333,18 +1336,34 @@ export default function EventPage() {
                   <CardTag key={menu.id} {...cardProps}>
                     <div className="relative w-full aspect-[2/3] bg-surface-50 border-b border-surface-100 overflow-hidden">
                       {menu.preview_image_url ? (
+                        // Synced: the Figma PNG is the most accurate render.
                         <img
                           src={menu.preview_image_url}
                           alt={menu.name}
                           className="w-full h-full object-contain"
                           loading="lazy"
                         />
+                      ) : activeCount > 0 ? (
+                        // Not synced yet, but has active items — render the live
+                        // in-app preview so drafts/proofs are visible immediately
+                        // without waiting on a Figma sync. Once synced, the PNG
+                        // above takes over.
+                        <div className="absolute inset-0 overflow-hidden pointer-events-none bg-white">
+                          <TemplateCanvas
+                            template={templates[menu.size] || templates.lg || templates.md}
+                            series={series}
+                            event={event}
+                            size={menu.size || 'lg'}
+                            menu={menu}
+                            items={items}
+                          />
+                        </div>
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-300 text-xs gap-1 p-4 text-center">
                           <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4 4 4 4-4 4 4M4 16V8a2 2 0 012-2h12a2 2 0 012 2v8M4 16h16" />
                           </svg>
-                          <span>Sync this menu to see a preview</span>
+                          <span>Add active items to preview</span>
                         </div>
                       )}
                       {selectMode && menu.preview_image_url && (
