@@ -64,13 +64,16 @@ export function AuthProvider({ children }) {
   const isAdmin       = profile?.role === 'admin'
   const isInternal    = profile?.role === 'internal' || isAdmin
   const isExternal    = profile?.role === 'external'
+  // Viewer = read-only reviewer scoped to specific events/menus they're
+  // granted. Sees only their assigned content; can leave comments, not edit.
+  const isViewer      = profile?.role === 'viewer'
   const isPending     = profile?.role === 'pending' || (session && !profile && !loading)
   // Elevated style/template access. Admins always get it; trusted internals
   // get it when an admin flips can_edit_styles on their profile.
   const canEditStyles = isAdmin || !!profile?.can_edit_styles
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isPending, canEditStyles }}>
+    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isViewer, isPending, canEditStyles }}>
       {children}
     </AuthContext.Provider>
   )

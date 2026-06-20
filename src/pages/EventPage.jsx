@@ -16,6 +16,7 @@ import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
+import ReviewersPanel from '@/components/ReviewersPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import TargetPicker from '@/components/TargetPicker'
 import { duplicateMenuTo } from '@/lib/duplicate'
@@ -1464,6 +1465,7 @@ export default function EventPage() {
       {tab === 'signoff' && (
         <div className="space-y-4 max-w-2xl">
           <ApproversPanel targetType="event" targetId={event.id} title="Event approvals" />
+          <ReviewersPanel resourceType="event" resourceId={event.id} canEdit={isAdmin || isInternal} />
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
             <p className="text-xs text-ink-500 mb-4">

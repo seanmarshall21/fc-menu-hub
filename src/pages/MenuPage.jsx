@@ -20,6 +20,8 @@ import ApproversPanel from '@/components/ApproversPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
+import MenuComments from '@/components/MenuComments'
+import ReviewersPanel from '@/components/ReviewersPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
@@ -136,7 +138,7 @@ function AddItemRow({ menuId, sections, defaultSection, onSaved, nextSortOrder }
 export default function MenuPage() {
   const { brandSlug, seriesSlug, eventSlug, menuSlug } = useParams()
   const navigate = useNavigate()
-  const { isAdmin, isInternal, canEditStyles, profile } = useAuth()
+  const { isAdmin, isInternal, isViewer, canEditStyles, profile } = useAuth()
 
   const [brand, setBrand]   = useState(null)
   const [series, setSeries] = useState(null)
@@ -638,13 +640,19 @@ export default function MenuPage() {
     })
   })()
 
-  const tabs = [
+  // Viewers (read-only reviewers) get a trimmed, view + feedback set.
+  const tabs = isViewer ? [
+    { key: 'preview', label: 'Preview' },
+    { key: 'items', label: 'Items' },
+    { key: 'feedback', label: 'Feedback' },
+  ] : [
     { key: 'items', label: 'Items' },
     { key: 'preview', label: 'Preview' },
     ...(isInternal ? [{ key: 'log', label: 'Edit Log', badge: pendingCount > 0 ? pendingCount : null }] : []),
     { key: 'sponsors', label: 'Sponsors' },
     ...(canEditStyles ? [{ key: 'styles', label: 'Styles' }] : []),
     { key: 'signoff', label: 'Approvals' },
+    { key: 'feedback', label: 'Feedback' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
 
@@ -1333,10 +1341,18 @@ export default function MenuPage() {
         />
       )}
 
+      {/* Feedback tab — menu-level comment thread (reviewers + team) */}
+      {tab === 'feedback' && (
+        <div className="max-w-2xl">
+          <MenuComments menuId={menu.id} canResolve={isInternal} />
+        </div>
+      )}
+
       {/* Approvals tab — existing sign-off list + per-menu notify editor */}
       {tab === 'signoff' && (
         <div className="space-y-4 max-w-2xl">
           <ApproversPanel targetType="menu" targetId={menu.id} title="Menu approvals" />
+          <ReviewersPanel resourceType="menu" resourceId={menu.id} canEdit={isAdmin || isInternal} />
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
             <p className="text-xs text-ink-500 mb-4">

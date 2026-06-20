@@ -80,7 +80,7 @@ function BottomTabButton({ onClick, label, icon }) {
 }
 
 export default function Layout() {
-  const { profile, signOut, isAdmin, isInternal } = useAuth()
+  const { profile, signOut, isAdmin, isInternal, isViewer } = useAuth()
   const { brands, refetch } = useBrands()
   const navigate = useNavigate()
   const location = useLocation()
@@ -214,6 +214,9 @@ export default function Layout() {
           </NavLink>
         )}
 
+        {/* Reviewers don't browse brands — they reach their shared menus
+            from the Dashboard (Shared with me). */}
+        {!isViewer && (
         <div className="pt-3">
           <div className="px-3 pb-1.5 flex items-center justify-between">
             <p className="text-xs font-semibold text-ink-300 uppercase tracking-wider">Brands</p>
@@ -242,6 +245,7 @@ export default function Layout() {
             <p className="px-3 py-2 text-xs text-ink-300 italic">No brands yet</p>
           )}
         </div>
+        )}
       </nav>
 
       {/* User footer */}

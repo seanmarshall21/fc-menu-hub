@@ -9,10 +9,11 @@ import FavoriteButton from '@/components/FavoriteButton'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import EntityIcon from '@/components/EntityIcon'
+import ViewerHome from '@/components/ViewerHome'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
-  const { profile } = useAuth()
+  const { profile, isViewer } = useAuth()
   const { brands } = useBrands()
   const { favorites } = useFavorites()
   const [recentEvents, setRecentEvents] = useState([])
@@ -73,6 +74,11 @@ export default function Dashboard() {
     { label: 'Menus',  value: stats.menus,        color: 'text-emerald-600', to: '/menus'  },
     { label: 'Edits',  value: stats.pendingEdits, color: 'text-red-600',     to: '/edits'  },
   ]
+
+  // Read-only reviewers get a scoped landing showing only what's shared with
+  // them — never the full brand/event dashboard. (After all hooks, so hook
+  // order stays stable.)
+  if (isViewer) return <ViewerHome />
 
   return (
     <PageScreen
