@@ -174,7 +174,12 @@ export default function MenuPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const showPageLoader = useDelayedLoader(loading)
-  const [tab, setTab] = useState('items')
+  // Honor ?tab= on load (e.g. inbox links to the Feedback tab) + default
+  // viewers to Preview.
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return t || (isViewer ? 'preview' : 'items')
+  })
   // Escape always closes the lightbox — safety net in case the close button
   // ever gets covered. Switching tabs also closes it so you can't get stuck.
   useEffect(() => {
