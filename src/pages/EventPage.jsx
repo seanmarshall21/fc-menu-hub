@@ -533,6 +533,33 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
 // ── Menu card action menu (⋯) ────────────────────────────────────────────────
 // Lives inside the menu card <Link>. Clicks stopPropagation so the dropdown
 // doesn't navigate.
+// Renders its children only once it scrolls near the viewport. Keeps the
+// Preview-all grid responsive on big events by capping how many live
+// TemplateCanvas instances mount at once — distant cards stay a cheap
+// skeleton until you scroll to them, and stay mounted afterward.
+function LazyMount({ children, className, rootMargin = '600px' }) {
+  const ref = useRef(null)
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (show || !ref.current) return
+    if (typeof IntersectionObserver === 'undefined') { setShow(true); return }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { setShow(true); io.disconnect() }
+    }, { rootMargin })
+    io.observe(ref.current)
+    return () => io.disconnect()
+  }, [show, rootMargin])
+  return (
+    <div ref={ref} className={className}>
+      {show ? children : (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface-50">
+          <div className="w-6 h-6 rounded-full border-2 border-surface-200 border-t-brand-400 animate-spin" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MenuCardActionMenu({ menu, canDelete, onDuplicate, onDelete }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -1348,7 +1375,7 @@ export default function EventPage() {
                         // in-app preview so drafts/proofs are visible immediately
                         // without waiting on a Figma sync. Once synced, the PNG
                         // above takes over.
-                        <div className="absolute inset-0 overflow-hidden pointer-events-none bg-white">
+                        <LazyMount className="absolute inset-0 overflow-hidden pointer-events-none bg-white">
                           <TemplateCanvas
                             template={templates[menu.size] || templates.lg || templates.md}
                             series={series}
@@ -1357,7 +1384,7 @@ export default function EventPage() {
                             menu={menu}
                             items={items}
                           />
-                        </div>
+                        </LazyMount>
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-300 text-xs gap-1 p-4 text-center">
                           <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
