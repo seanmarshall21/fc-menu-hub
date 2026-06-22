@@ -561,6 +561,23 @@ function LazyMount({ children, className, rootMargin = '600px' }) {
   )
 }
 
+// Pill-style filter for the Menus tab category filter.
+function CategoryChip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
+        active
+          ? 'bg-brand-500 text-white border-brand-500'
+          : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300 hover:text-brand-600'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
 function MenuCardActionMenu({ menu, canDelete, onDuplicate, onDelete }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -782,6 +799,9 @@ export default function EventPage() {
   const [menuSize, setMenuSize]           = useState('lg')
   const [saving, setSaving]               = useState(false)
   const [saveError, setSaveError]         = useState(null)
+
+  // Category filter for the Menus tab ('all' = grouped by category).
+  const [categoryFilter, setCategoryFilter] = useState('all')
 
   // Multi-CSV import
   const csvInputRef                             = useRef(null)
@@ -1012,6 +1032,59 @@ export default function EventPage() {
 
   const baseUrl = `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`
 
+  // One menu card for the Menus tab — extracted so we can render it inside
+  // category groups or a filtered grid without duplicating the markup.
+  function renderMenuCard(menu) {
+    const items = menu.menu_items || []
+    const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+    const everSynced  = !!menu.last_synced_at
+    const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+    return (
+      <Link
+        key={menu.id}
+        to={`${baseUrl}/menus/${menu.slug}`}
+        className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative"
+      >
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <PhaseBadge phase={menu.phase} />
+            {canEdit && (
+              <MenuCardActionMenu
+                menu={menu}
+                canDelete={isAdmin}
+                onDuplicate={() => setDuplicatingMenu(menu)}
+                onDelete={() => setDeletingMenu(menu)}
+              />
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-ink-400">
+          <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
+          <span>·</span>
+          <span>{items.length} items</span>
+          <span className="ml-auto flex items-center gap-1.5">
+            {pendingCount > 0 && (
+              <span
+                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold"
+                title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
+              >
+                {pendingCount}
+              </span>
+            )}
+            <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+          </span>
+        </div>
+      </Link>
+    )
+  }
+
+  // Category order present in this event (known categories first, then any custom).
+  const menuCategoriesPresent = [
+    ...CATEGORIES.filter(c => menus.some(m => m.category === c)),
+    ...[...new Set(menus.map(m => m.category))].filter(c => c && !CATEGORIES.includes(c)),
+  ]
+
   return (
     <PageScreen
       tourKey="event"
@@ -1152,54 +1225,48 @@ export default function EventPage() {
               )}
             </div>
           ) : (
-            // Compact, scannable list of menu titles + meta. Visual previews
-            // live on the "Preview all" tab to keep this view uncluttered.
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {menus.map(menu => {
-                const items = menu.menu_items || []
-                const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
-                const everSynced  = !!menu.last_synced_at
-                const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
-                return (
-                  <Link
-                    key={menu.id}
-                    to={`${baseUrl}/menus/${menu.slug}`}
-                    className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative"
-                  >
-                    <div className="flex items-start justify-between mb-3 gap-2">
-                      <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <PhaseBadge phase={menu.phase} />
-                        {canEdit && (
-                          <MenuCardActionMenu
-                            menu={menu}
-                            canDelete={isAdmin}
-                            onDuplicate={() => setDuplicatingMenu(menu)}
-                            onDelete={() => setDeletingMenu(menu)}
-                          />
-                        )}
+            <>
+              {/* Category filter — only when there's more than one category */}
+              {menuCategoriesPresent.length > 1 && (
+                <div className="flex items-center gap-1.5 mb-5 flex-wrap">
+                  <CategoryChip active={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')}>
+                    All <span className="opacity-60">{menus.length}</span>
+                  </CategoryChip>
+                  {menuCategoriesPresent.map(c => (
+                    <CategoryChip key={c} active={categoryFilter === c} onClick={() => setCategoryFilter(c)}>
+                      {CATEGORY_LABELS[c] || c} <span className="opacity-60">{menus.filter(m => m.category === c).length}</span>
+                    </CategoryChip>
+                  ))}
+                </div>
+              )}
+
+              {categoryFilter !== 'all' ? (
+                // Single category — flat grid
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {menus.filter(m => m.category === categoryFilter).map(renderMenuCard)}
+                </div>
+              ) : menuCategoriesPresent.length > 1 ? (
+                // All — grouped by category with headings
+                <div className="space-y-8">
+                  {menuCategoriesPresent.map(c => (
+                    <div key={c}>
+                      <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-3">
+                        {CATEGORY_LABELS[c] || c}
+                        <span className="ml-1.5 opacity-60">· {menus.filter(m => m.category === c).length}</span>
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {menus.filter(m => m.category === c).map(renderMenuCard)}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-ink-400">
-                      <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
-                      <span>·</span>
-                      <span>{items.length} items</span>
-                      <span className="ml-auto flex items-center gap-1.5">
-                        {pendingCount > 0 && (
-                          <span
-                            className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold"
-                            title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
-                          >
-                            {pendingCount}
-                          </span>
-                        )}
-                        <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
-                      </span>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
+                  ))}
+                </div>
+              ) : (
+                // Single category overall — no headings needed
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {menus.map(renderMenuCard)}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
