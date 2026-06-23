@@ -213,6 +213,24 @@ create policy "internal_read" on events for select using (
 create policy "internal_read" on menus for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
+-- Internal users run day-to-day: create + edit events and series too.
+-- DELETE stays admin-only (admins_all). Mirrors the menus policies below.
+create policy "internal_insert_events" on events for insert with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+create policy "internal_update_events" on events for update using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+create policy "internal_insert_series" on series for insert with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+create policy "internal_update_series" on series for update using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
 -- Internal users build + edit menus (including the event-level CSV importer
 -- which creates menu rows). INSERT + UPDATE only — DELETE stays admin-only
 -- via admins_all so external/internal can't drop menus.
