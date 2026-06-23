@@ -9,6 +9,7 @@ import PizzaLoader from '@/components/PizzaLoader'
 import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
 import SyncChip from '@/components/SyncChip'
+import FilterDropdown from '@/components/FilterDropdown'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
@@ -800,8 +801,10 @@ export default function EventPage() {
   const [saving, setSaving]               = useState(false)
   const [saveError, setSaveError]         = useState(null)
 
-  // Category filter for the Menus tab ('all' = grouped by category).
-  const [categoryFilter, setCategoryFilter] = useState('all')
+  // Menus tab filters — multi-select dropdowns. Empty array = no filter (all).
+  const [typeFilter, setTypeFilter]     = useState([]) // categories
+  const [statusFilter, setStatusFilter] = useState([]) // phases
+  const [syncFilter, setSyncFilter]     = useState([]) // synced | needs_update | not_synced
   // Preview-all tab filters: category ('all' = grouped) + approval status.
   const [previewCategoryFilter, setPreviewCategoryFilter] = useState('all')
   const [previewStatusFilter, setPreviewStatusFilter]     = useState('all') // 'all' | 'approved' | 'unapproved'
@@ -1187,6 +1190,41 @@ export default function EventPage() {
     ...[...new Set(menus.map(m => m.category))].filter(c => c && !CATEGORIES.includes(c)),
   ]
 
+  // ── Menus tab: filter options + filtering ────────────────────────────────
+  const syncStateOf = (m) =>
+    !m.last_synced_at ? 'not_synced'
+    : (m.updated_at && new Date(m.updated_at) > new Date(m.last_synced_at)) ? 'needs_update'
+    : 'synced'
+
+  const PHASE_FILTER_OPTS = [
+    { value: 'build', label: 'Build' },
+    { value: 'proof', label: 'Proof' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'print_prep', label: 'Print prep' },
+    { value: 'archived', label: 'Archived' },
+  ].filter(o => menus.some(m => m.phase === o.value))
+   .map(o => ({ ...o, count: menus.filter(m => m.phase === o.value).length }))
+
+  const SYNC_FILTER_OPTS = [
+    { value: 'synced', label: 'Synced' },
+    { value: 'needs_update', label: 'Needs update' },
+    { value: 'not_synced', label: 'Not synced' },
+  ].map(o => ({ ...o, count: menus.filter(m => syncStateOf(m) === o.value).length }))
+
+  const TYPE_FILTER_OPTS = menuCategoriesPresent.map(c => ({
+    value: c, label: CATEGORY_LABELS[c] || c, count: menus.filter(m => m.category === c).length,
+  }))
+
+  const menusFiltered = menus.filter(m => {
+    if (typeFilter.length   && !typeFilter.includes(m.category)) return false
+    if (statusFilter.length && !statusFilter.includes(m.phase))  return false
+    if (syncFilter.length   && !syncFilter.includes(syncStateOf(m))) return false
+    return true
+  })
+  const anyMenuFilter = typeFilter.length || statusFilter.length || syncFilter.length
+  // Group by category when the filtered result spans more than one category.
+  const filteredCatsPresent = menuCategoriesPresent.filter(c => menusFiltered.some(m => m.category === c))
+
   return (
     <PageScreen
       tourKey="event"
@@ -1328,44 +1366,46 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              {/* Category filter — only when there's more than one category */}
-              {menuCategoriesPresent.length > 1 && (
-                <div className="flex items-center gap-1.5 mb-5 flex-wrap">
-                  <CategoryChip active={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')}>
-                    All <span className="opacity-60">{menus.length}</span>
-                  </CategoryChip>
-                  {menuCategoriesPresent.map(c => (
-                    <CategoryChip key={c} active={categoryFilter === c} onClick={() => setCategoryFilter(c)}>
-                      {CATEGORY_LABELS[c] || c} <span className="opacity-60">{menus.filter(m => m.category === c).length}</span>
-                    </CategoryChip>
-                  ))}
-                </div>
-              )}
+              {/* Filter dropdowns: type (multi) · status · synced */}
+              <div className="flex items-center gap-2 mb-5 flex-wrap">
+                {TYPE_FILTER_OPTS.length > 1 && (
+                  <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={typeFilter} onChange={setTypeFilter} />
+                )}
+                {PHASE_FILTER_OPTS.length > 1 && (
+                  <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={statusFilter} onChange={setStatusFilter} />
+                )}
+                <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={syncFilter} onChange={setSyncFilter} />
+                {anyMenuFilter ? (
+                  <button
+                    onClick={() => { setTypeFilter([]); setStatusFilter([]); setSyncFilter([]) }}
+                    className="text-xs text-ink-400 hover:text-ink-600 underline underline-offset-2 ml-1"
+                  >
+                    Clear filters · {menusFiltered.length} of {menus.length}
+                  </button>
+                ) : null}
+              </div>
 
-              {categoryFilter !== 'all' ? (
-                // Single category — flat grid
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {menus.filter(m => m.category === categoryFilter).map(renderMenuCard)}
-                </div>
-              ) : menuCategoriesPresent.length > 1 ? (
-                // All — grouped by category with headings
+              {menusFiltered.length === 0 ? (
+                <div className="text-center text-sm text-ink-400 py-12">No menus match these filters.</div>
+              ) : filteredCatsPresent.length > 1 ? (
+                // Spans multiple categories — group by category with headings.
                 <div className="space-y-8">
-                  {menuCategoriesPresent.map(c => (
+                  {filteredCatsPresent.map(c => (
                     <div key={c}>
                       <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-3">
                         {CATEGORY_LABELS[c] || c}
-                        <span className="ml-1.5 opacity-60">· {menus.filter(m => m.category === c).length}</span>
+                        <span className="ml-1.5 opacity-60">· {menusFiltered.filter(m => m.category === c).length}</span>
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {menus.filter(m => m.category === c).map(renderMenuCard)}
+                        {menusFiltered.filter(m => m.category === c).map(renderMenuCard)}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                // Single category overall — no headings needed
+                // Single category in results — flat grid, no headings.
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {menus.map(renderMenuCard)}
+                  {menusFiltered.map(renderMenuCard)}
                 </div>
               )}
             </>
