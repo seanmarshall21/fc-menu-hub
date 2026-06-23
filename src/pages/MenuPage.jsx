@@ -624,8 +624,22 @@ export default function MenuPage() {
   const canApproveMenu  = canApprove(role, profile?.id, menuApprovers)
   const canApproveEdits = canApprove(role, profile?.id, editApprovers)
 
+  const everSynced = !!menu.last_synced_at
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+
+  // Clear the Figma link on the Menu Hub side: resets sync timestamp, frame
+  // id, and digest so the chip returns to "Not synced". Use this when the
+  // Figma frame was deleted, or to start a clean re-sync. Does not touch
+  // Figma — unlink the frame there separately if needed.
+  async function disconnectFigma() {
+    if (!confirm('Disconnect this menu from Figma? It resets to "Not synced" here. This does not change anything in the Figma file — if that frame still exists, unlink it in the plugin too.')) return
+    const { error } = await supabase.from('menus')
+      .update({ last_synced_at: null, last_synced_frame_id: null, last_sync_digest: null })
+      .eq('id', menu.id)
+    if (error) { alert('Could not disconnect: ' + error.message); return }
+    loadMenu()
+  }
   const isApproved = menu.phase === 'approved'
   const currency = resolveCurrencySpec(series, event, menu)
 
@@ -929,8 +943,29 @@ export default function MenuPage() {
       </div>
 
       {/* Compact CTA strip — sync + pending edits */}
-      {(syncNeeded || pendingCount > 0) && (
+      {(everSynced || syncNeeded || pendingCount > 0) && (
         <div className="mb-4 flex items-center gap-2 flex-wrap">
+          {/* Synced + up to date: green chip + Disconnect */}
+          {everSynced && !syncNeeded && (
+            <>
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium"
+                title={`Synced to Figma ${new Date(menu.last_synced_at).toLocaleString()}`}
+              >
+                <FigmaLogo variant="line" size={12} />
+                Synced
+              </span>
+              {canEdit && (
+                <button
+                  onClick={disconnectFigma}
+                  className="text-[11px] text-ink-400 hover:text-red-600 underline underline-offset-2 whitespace-nowrap"
+                  title="Reset this menu to Not synced (e.g. the Figma frame was deleted)"
+                >
+                  Disconnect
+                </button>
+              )}
+            </>
+          )}
           {syncNeeded && event?.figma_file_url && (
             <a
               href={(() => {
@@ -973,6 +1008,16 @@ export default function MenuPage() {
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
               ● Sync needed
             </span>
+          )}
+          {/* Was synced before but now flagged — allow disconnect (e.g. frame deleted) */}
+          {everSynced && syncNeeded && canEdit && (
+            <button
+              onClick={disconnectFigma}
+              className="text-[11px] text-ink-400 hover:text-red-600 underline underline-offset-2 whitespace-nowrap"
+              title="Reset this menu to Not synced (e.g. the Figma frame was deleted)"
+            >
+              Disconnect
+            </button>
           )}
           {pendingCount > 0 && (isAdmin || isInternal) && (
             <button
