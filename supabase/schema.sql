@@ -227,6 +227,13 @@ create policy "internal_update_menus" on menus for update using (
 create policy "internal_items_rw" on menu_items for all using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
+-- Internal users manage which sponsors appear on a menu (the menu Sponsors
+-- tab toggles). Without this, saves silently failed under RLS and reverted.
+create policy "internal_write_menu_sponsors" on menu_sponsors for all using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
 create policy "internal_read_log" on edit_log for select using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
