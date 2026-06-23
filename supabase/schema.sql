@@ -526,6 +526,20 @@ begin
 end;
 $$ language plpgsql security definer;
 
+-- Clear a menu's Figma sync state from the plugin (anon key) so unlinking a
+-- frame in Figma also disconnects it in Menu Hub. SECURITY DEFINER like
+-- mark_menu_synced. Menu content is untouched.
+create or replace function disconnect_menu_figma(p_menu_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  update menus
+     set last_synced_at = null,
+         last_synced_frame_id = null,
+         last_sync_digest = null
+   where id = p_menu_id;
+end;
+$$;
+
 -- ─── Helper function: mark a menu as freshly synced ─────────────────────────
 -- Plugin calls this after each successful Sync to:
 --   - bump last_synced_at
