@@ -72,8 +72,33 @@ export function AuthProvider({ children }) {
   // get it when an admin flips can_edit_styles on their profile.
   const canEditStyles = isAdmin || !!profile?.can_edit_styles
 
+  // ── Per-person capabilities ────────────────────────────────────────────
+  // Each capability is a nullable boolean on the profile. null = "use the
+  // role default", so existing internal users keep full access (no
+  // regression). Admin always has everything. An internal user with every
+  // flag turned off is effectively an "internal viewer".
+  //   cap(flag, internalDefault, externalDefault)
+  function cap(flag, internalDefault, externalDefault) {
+    if (isAdmin) return true
+    const v = profile?.[flag]
+    if (v === true) return true
+    if (v === false) return false
+    // null/undefined → role default
+    if (profile?.role === 'internal') return internalDefault
+    if (profile?.role === 'external') return externalDefault
+    return false // viewer / pending / unknown
+  }
+  const can = {
+    // Internal default = full access (preserves today's behavior).
+    // External default: may edit content (lands as pending), nothing else.
+    editContent:  cap('cap_edit_content',  true, true),
+    editSponsors: cap('cap_edit_sponsors', true, false),
+    approve:      cap('cap_approve',       true, false),
+    manageEvents: cap('cap_manage_events', true, false),
+  }
+
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isViewer, isPending, canEditStyles }}>
+    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isViewer, isPending, canEditStyles, can }}>
       {children}
     </AuthContext.Provider>
   )

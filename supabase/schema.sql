@@ -333,6 +333,16 @@ alter table menus add column if not exists last_synced_frame_id text;
 -- column keeps a server-side copy.
 alter table menus add column if not exists last_sync_digest text;
 
+-- ─── Per-person capability flags (internal users) ───────────────────────────
+-- NULL = use the role default (full access for internal, so no regression).
+-- Admin always bypasses. An internal user with all four off = "internal
+-- viewer"; all on (or default) = "internal editor". Resolved in AuthContext
+-- (UI) and — once enforcement ships — in capability-aware RLS policies.
+alter table user_profiles add column if not exists cap_edit_content  boolean;
+alter table user_profiles add column if not exists cap_edit_sponsors boolean;
+alter table user_profiles add column if not exists cap_approve        boolean;
+alter table user_profiles add column if not exists cap_manage_events  boolean;
+
 -- updated_at stamping: bump only on real content/config changes. Sync,
 -- preview, and sponsor-approval metadata writes must NOT advance updated_at,
 -- or the "Sync needed" heuristic (updated_at > last_synced_at) false-flags a

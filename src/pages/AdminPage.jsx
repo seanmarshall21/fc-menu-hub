@@ -62,6 +62,9 @@ export default function AdminPage() {
   const [editCompany, setEditCompany] = useState('')
   const [editBrandAccess, setEditBrandAccess] = useState([])
   const [editCanEditStyles, setEditCanEditStyles] = useState(false)
+  // Per-person capabilities. null = role default (full for internal); the
+  // UI shows three states via a tri-state select: Default / On / Off.
+  const [editCaps, setEditCaps] = useState({}) // { cap_edit_content: bool|null, ... }
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
@@ -149,6 +152,12 @@ export default function AdminPage() {
     setEditCompany(user.company || '')
     setEditBrandAccess(Array.isArray(user.brand_access) ? user.brand_access : [])
     setEditCanEditStyles(!!user.can_edit_styles)
+    setEditCaps({
+      cap_edit_content:  user.cap_edit_content  ?? null,
+      cap_edit_sponsors: user.cap_edit_sponsors ?? null,
+      cap_approve:       user.cap_approve        ?? null,
+      cap_manage_events: user.cap_manage_events  ?? null,
+    })
     setEditError(null)
   }
 
@@ -183,9 +192,19 @@ export default function AdminPage() {
       // can_edit_styles is admin-only and only meaningful for internal users.
       // Goes through a direct supabase update since the edge function doesn't
       // know about the column.
+      // Capabilities only apply to internal users; clear them otherwise so a
+      // role change doesn't leave stale overrides behind.
+      const capPatch = editRole === 'internal'
+        ? {
+            cap_edit_content:  editCaps.cap_edit_content,
+            cap_edit_sponsors: editCaps.cap_edit_sponsors,
+            cap_approve:       editCaps.cap_approve,
+            cap_manage_events: editCaps.cap_manage_events,
+          }
+        : { cap_edit_content: null, cap_edit_sponsors: null, cap_approve: null, cap_manage_events: null }
       await supabase
         .from('user_profiles')
-        .update({ can_edit_styles: editRole === 'internal' ? editCanEditStyles : false })
+        .update({ can_edit_styles: editRole === 'internal' ? editCanEditStyles : false, ...capPatch })
         .eq('id', userId)
       setEditingId(null)
       loadUsers()
@@ -533,6 +552,45 @@ export default function AdminPage() {
                     </span>
                   </span>
                 </label>
+              )}
+
+              {editRole === 'internal' && (
+                <div className="rounded-lg border border-surface-200 p-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-ink-700">Permissions</span>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button"
+                        onClick={() => setEditCaps({ cap_edit_content: true, cap_edit_sponsors: true, cap_approve: true, cap_manage_events: true })}
+                        className="text-[11px] px-2 py-1 rounded-md bg-surface-100 hover:bg-surface-200 text-ink-600 whitespace-nowrap">Editor (all on)</button>
+                      <button type="button"
+                        onClick={() => setEditCaps({ cap_edit_content: false, cap_edit_sponsors: false, cap_approve: false, cap_manage_events: false })}
+                        className="text-[11px] px-2 py-1 rounded-md bg-surface-100 hover:bg-surface-200 text-ink-600 whitespace-nowrap">Viewer (all off)</button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-ink-400 -mt-1">Default = full internal access. Set any to On/Off to override per person.</p>
+                  {[
+                    { key: 'cap_edit_content',  label: 'Edit item content' },
+                    { key: 'cap_edit_sponsors', label: 'Edit sponsors' },
+                    { key: 'cap_approve',       label: 'Approve menus & edits' },
+                    { key: 'cap_manage_events', label: 'Manage events & series' },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-ink-600">{label}</span>
+                      <select
+                        className="input py-1 text-xs w-28"
+                        value={editCaps[key] === true ? 'on' : editCaps[key] === false ? 'off' : 'default'}
+                        onChange={e => {
+                          const v = e.target.value === 'on' ? true : e.target.value === 'off' ? false : null
+                          setEditCaps(prev => ({ ...prev, [key]: v }))
+                        }}
+                      >
+                        <option value="default">Default (on)</option>
+                        <option value="on">On</option>
+                        <option value="off">Off</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {editRole === 'external' && (
