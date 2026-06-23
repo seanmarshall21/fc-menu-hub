@@ -35,7 +35,7 @@ export default function SyncChip({ everSynced, syncNeeded, lastSyncedAt, size = 
   if (!everSynced) {
     return (
       <span
-        className={`inline-flex items-center font-medium rounded-full bg-surface-100 text-ink-400 border border-surface-200 ${sizeCls}`}
+        className={`inline-flex items-center whitespace-nowrap flex-shrink-0 font-medium rounded-full bg-surface-100 text-ink-400 border border-surface-200 ${sizeCls}`}
         title="This menu has never been synced to Figma."
       >
         <FigmaGlyph />
@@ -46,7 +46,7 @@ export default function SyncChip({ everSynced, syncNeeded, lastSyncedAt, size = 
   if (syncNeeded) {
     return (
       <span
-        className={`inline-flex items-center font-medium rounded-full bg-amber-100 text-amber-800 border border-amber-200 ${sizeCls}`}
+        className={`inline-flex items-center whitespace-nowrap flex-shrink-0 font-medium rounded-full bg-amber-100 text-amber-800 border border-amber-200 ${sizeCls}`}
         title={`Menu has edits since last sync${when ? ` (last synced ${when})` : ''}. Re-run Menu Sync in Figma.`}
       >
         <FigmaGlyph />
@@ -56,7 +56,7 @@ export default function SyncChip({ everSynced, syncNeeded, lastSyncedAt, size = 
   }
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 ${sizeCls}`}
+      className={`inline-flex items-center whitespace-nowrap flex-shrink-0 font-medium rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 ${sizeCls}`}
       title={`Up to date with Figma${when ? ` (synced ${when})` : ''}.`}
     >
       <FigmaGlyph />

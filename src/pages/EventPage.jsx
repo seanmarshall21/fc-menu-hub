@@ -1059,14 +1059,17 @@ export default function EventPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-ink-400">
-          <span className="capitalize">{CATEGORY_LABELS[menu.category] || menu.category}</span>
+        {/* Meta + sync chip. flex-wrap lets the chip group drop to its own
+            line when the card is narrow (3-col view) instead of crushing or
+            wrapping the chip text. Each unit is nowrap so nothing breaks. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink-400">
+          <span className="capitalize whitespace-nowrap">{CATEGORY_LABELS[menu.category] || menu.category}</span>
           <span>·</span>
-          <span>{items.length} items</span>
-          <span className="ml-auto flex items-center gap-1.5">
+          <span className="whitespace-nowrap">{items.length} items</span>
+          <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
             {pendingCount > 0 && (
               <span
-                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold"
+                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex-shrink-0"
                 title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}
               >
                 {pendingCount}
