@@ -213,6 +213,16 @@ export default function HelpPage() {
         </div>
       </Section>
 
+      {/* ── Reviewing & organizing ── */}
+      <Section title="Reviewing & finding menus">
+        <Step n={1} title="Spell & consistency check">
+          <p>Each menu runs a quick spelling/casing/consistency check automatically. For a deeper pass, click <strong>AI review</strong> — it flags spelling, grammar, and cross-item inconsistencies (e.g. a brand spelled two ways). Accept a suggestion or ignore a flag; ignored flags stay hidden for that menu.</p>
+        </Step>
+        <Step n={2} title="Filter & group on the Event page">
+          <p>The <strong>Menus</strong> tab has dropdown filters — <strong>type</strong> (Bar/Food/VIP, multi-select), <strong>status</strong> (Build/Proof/Approved…), and <strong>sync</strong> (Synced/Needs update/Not synced). The <strong>Preview all</strong> tab filters by approval status and category. With "all" selected, menus group under category headings.</p>
+        </Step>
+      </Section>
+
       {/* ── Figma Plugin Workflow ── */}
       <Section title="Install the Menu Sync Figma plugin">
         <p className="text-sm text-ink-500 mb-3">
@@ -232,11 +242,12 @@ export default function HelpPage() {
       </Section>
 
       <Section title="Syncing to Figma">
-        <Step n={1} title="Open the menu template frame in Figma">
-          <p>Select the frame you want to populate. It should use the Menu Sync component structure (prefixed layer names).</p>
-        </Step>
-        <Step n={2} title="Open the Menu Sync plugin">
+        <Step n={1} title="Open the Menu Sync plugin">
           <p>Plugins → Menu Sync. Select the event, then the menu from the dropdowns. The plugin reads directly from the database.</p>
+        </Step>
+        <Step n={2} title="Pick a frame — or build one from the template">
+          <p>If the menu already has a frame, the plugin auto-targets it. If it <strong>doesn't have a frame yet</strong>, click <strong>Build new from template</strong> — the plugin duplicates the matching-size blank template on the page and fills the copy automatically. No more hand-duplicating templates.</p>
+          <p className="text-xs text-ink-400 mt-1">Keep one blank template per size on the page (e.g. <Code>menu-template_med_2x3</Code>) as the "stamp" it copies from.</p>
         </Step>
         <Step n={3} title="Configure layout options">
           <p>Set item gap, section gap, sponsor visibility, and diet key before syncing.</p>
@@ -244,13 +255,29 @@ export default function HelpPage() {
         <Step n={4} title="Click Sync to Figma">
           <p>The plugin populates all items, sets visibility on sponsor and diet layers, and renames the frame to include the menu slug. After sync, a preview PNG is automatically saved to the app — visible in the menu's Preview tab.</p>
         </Step>
-        <Step n={5} title="Re-syncing">
-          <p>If you edit items in Menu Hub after syncing, an <strong>amber "Sync needed" badge</strong> appears on the menu. Run the plugin again from Figma to push the updated data.</p>
+        <Step n={5} title="Re-syncing & status">
+          <p>Each menu shows a Figma status chip: <strong className="text-emerald-700">Synced</strong> (green, up to date), <strong className="text-amber-700">Sync</strong> (amber — you've edited items since the last sync; run the plugin again), or <strong className="text-ink-500">Not synced</strong> (grey — never built). Use <strong>Update text only</strong> in the plugin to refresh content without rebuilding a hand-tweaked layout.</p>
+        </Step>
+        <Step n={6} title="Disconnecting / unlinking a frame">
+          <p>To free a frame for reuse or reset a menu's status, use <strong>Unlink this frame</strong> in the plugin — it frees the frame <em>and</em> sets that menu back to "Not synced" in the app (both sides at once). Or use <strong>Disconnect</strong> next to the sync chip on the menu page to clear just the app side (e.g. when the Figma frame was deleted).</p>
         </Step>
 
         <div className="mt-4 bg-brand-50 border border-brand-100 rounded-lg px-4 py-3 text-sm text-brand-800">
-          <strong>Frame locking:</strong> Once a frame is synced, it's locked to that menu. Trying to sync a different menu to the same frame shows a warning — confirm to override, or select a different frame.
+          <strong>Frame locking:</strong> Once a frame is synced, it's locked to that menu. Trying to sync a different menu to the same frame shows a warning — confirm to override, unlink the frame first, or select a different one.
         </div>
+      </Section>
+
+      {/* ── Managing sponsors ── */}
+      <Section title="Managing sponsors">
+        <p className="text-sm text-ink-500 mb-4">
+          The <strong>Sponsors</strong> page (left nav) is the app-wide library. Search by name and filter by brand or series to find one quickly when the list gets long.
+        </p>
+        <Step n={1} title="Connect a sponsor to series">
+          <p>On each sponsor, click <strong>Manage series</strong> to toggle which series it appears on — grouped by brand. Changes apply immediately and show up in that series' Sponsors tab. (You can still add sponsors from inside a series; this is just a faster spot to wire several at once.)</p>
+        </Step>
+        <Step n={2} title="Export logos as SVGs">
+          <p>Click <strong>Export logos</strong> at the top. Pick the sponsors you want, choose a color (or keep the original), and download. Logos built with <Code>currentColor</Code> recolor to your chosen color; one selection downloads a single SVG, multiple come as a zip. Files are named by sponsor slug.</p>
+        </Step>
       </Section>
 
       {/* ── Sponsor Slugs ── */}
