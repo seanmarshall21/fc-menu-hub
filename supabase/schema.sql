@@ -303,6 +303,10 @@ update brands set figma_component_prefix = slug where figma_component_prefix is 
 -- here. The Sync needed chip on MenuPage appends ?node-id={value} so clicking
 -- it opens Figma right at the frame, not just the file.
 alter table menus add column if not exists last_synced_frame_id text;
+-- Content fingerprint of the last sync, written by mark_menu_synced. The
+-- plugin also stores it on the frame's pluginData for drift detection; this
+-- column keeps a server-side copy.
+alter table menus add column if not exists last_sync_digest text;
 
 -- ─── Separate color for menu title vs item title ────────────────────────────
 -- event_templates.color_title styles the big menu title; color_item_title
