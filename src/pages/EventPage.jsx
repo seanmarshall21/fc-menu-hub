@@ -802,6 +802,9 @@ export default function EventPage() {
 
   // Category filter for the Menus tab ('all' = grouped by category).
   const [categoryFilter, setCategoryFilter] = useState('all')
+  // Preview-all tab filters: category ('all' = grouped) + approval status.
+  const [previewCategoryFilter, setPreviewCategoryFilter] = useState('all')
+  const [previewStatusFilter, setPreviewStatusFilter]     = useState('all') // 'all' | 'approved' | 'unapproved'
 
   // Multi-CSV import
   const csvInputRef                             = useRef(null)
@@ -1081,6 +1084,102 @@ export default function EventPage() {
       </Link>
     )
   }
+
+  // Preview-all card. Extracted so it can render inside category groups or a
+  // flat/filtered grid without duplicating the (large) markup.
+  function renderPreviewCard(menu) {
+    const items = menu.menu_items || []
+    const activeCount = items.filter(i => i.status === 'active').length
+    const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
+    const everSynced  = !!menu.last_synced_at
+    const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+    const isSelectable = selectMode && !!menu.preview_image_url
+    const isSelected = selectedPreviewIds.has(menu.id)
+    const CardTag = selectMode ? 'div' : Link
+    const cardProps = selectMode
+      ? {
+          onClick: () => {
+            if (!isSelectable) return
+            setSelectedPreviewIds(prev => {
+              const next = new Set(prev)
+              if (next.has(menu.id)) next.delete(menu.id); else next.add(menu.id)
+              return next
+            })
+          },
+          className: `card overflow-hidden transition-all flex flex-col cursor-pointer ${
+            isSelected ? 'ring-2 ring-brand-500 border-brand-500' :
+            isSelectable ? 'hover:shadow-md hover:border-brand-100' :
+            'opacity-50 cursor-not-allowed'
+          }`,
+        }
+      : {
+          to: `${baseUrl}/menus/${menu.slug}`,
+          className: 'card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col',
+        }
+    return (
+      <CardTag key={menu.id} {...cardProps}>
+        <div className="relative w-full aspect-[2/3] bg-surface-50 border-b border-surface-100 overflow-hidden">
+          {menu.preview_image_url ? (
+            <img src={menu.preview_image_url} alt={menu.name} className="w-full h-full object-contain" loading="lazy" />
+          ) : activeCount > 0 ? (
+            <LazyMount className="absolute inset-0 overflow-hidden pointer-events-none bg-white">
+              <TemplateCanvas
+                template={templates[menu.size] || templates.lg || templates.md}
+                series={series}
+                event={event}
+                size={menu.size || 'lg'}
+                menu={menu}
+                items={items}
+              />
+            </LazyMount>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-300 text-xs gap-1 p-4 text-center">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4 4 4 4-4 4 4M4 16V8a2 2 0 012-2h12a2 2 0 012 2v8M4 16h16" />
+              </svg>
+              <span>Add active items to preview</span>
+            </div>
+          )}
+          {selectMode && menu.preview_image_url && (
+            <div className="absolute top-2 left-2">
+              <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
+                isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white/80 border-white'
+              }`}>
+                {isSelected && '✓'}
+              </div>
+            </div>
+          )}
+          <div className="absolute top-2 right-2 flex items-center gap-1.5">
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
+                    title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}>
+                {pendingCount}
+              </span>
+            )}
+            <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+          </div>
+        </div>
+        <div className="px-4 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-ink-900 truncate">{menu.name}</h3>
+            <div className="text-[11px] text-ink-400 capitalize">{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</div>
+          </div>
+          <PhaseBadge phase={menu.phase} />
+        </div>
+      </CardTag>
+    )
+  }
+
+  // Preview-all filtering: category + approval status. Approved = phase
+  // 'approved'; "unapproved" = anything else (build/proof/print_prep/archived).
+  const previewStatusFiltered = menus.filter(m => {
+    if (previewStatusFilter === 'approved'   && m.phase !== 'approved') return false
+    if (previewStatusFilter === 'unapproved' && m.phase === 'approved') return false
+    return true
+  })
+  const previewFiltered = previewStatusFiltered.filter(m =>
+    previewCategoryFilter === 'all' || m.category === previewCategoryFilter
+  )
 
   // Category order present in this event (known categories first, then any custom).
   const menuCategoriesPresent = [
@@ -1394,106 +1493,54 @@ export default function EventPage() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {menus.map(menu => {
-                const items = menu.menu_items || []
-                const activeCount = items.filter(i => i.status === 'active').length
-                const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
-                const everSynced  = !!menu.last_synced_at
-                const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
-                const isSelectable = selectMode && !!menu.preview_image_url
-                const isSelected = selectedPreviewIds.has(menu.id)
-
-                // In selection mode, the card becomes a label-like target
-                // (no <Link>) so clicking toggles the checkbox instead of
-                // navigating. We keep keyboard accessibility via the
-                // checkbox itself.
-                const CardTag = selectMode ? 'div' : Link
-                const cardProps = selectMode
-                  ? {
-                      onClick: () => {
-                        if (!isSelectable) return
-                        setSelectedPreviewIds(prev => {
-                          const next = new Set(prev)
-                          if (next.has(menu.id)) next.delete(menu.id); else next.add(menu.id)
-                          return next
-                        })
-                      },
-                      className: `card overflow-hidden transition-all flex flex-col cursor-pointer ${
-                        isSelected ? 'ring-2 ring-brand-500 border-brand-500' :
-                        isSelectable ? 'hover:shadow-md hover:border-brand-100' :
-                        'opacity-50 cursor-not-allowed'
-                      }`,
-                    }
-                  : {
-                      to: `${baseUrl}/menus/${menu.slug}`,
-                      className: 'card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col',
-                    }
-
-                return (
-                  <CardTag key={menu.id} {...cardProps}>
-                    <div className="relative w-full aspect-[2/3] bg-surface-50 border-b border-surface-100 overflow-hidden">
-                      {menu.preview_image_url ? (
-                        // Synced: the Figma PNG is the most accurate render.
-                        <img
-                          src={menu.preview_image_url}
-                          alt={menu.name}
-                          className="w-full h-full object-contain"
-                          loading="lazy"
-                        />
-                      ) : activeCount > 0 ? (
-                        // Not synced yet, but has active items — render the live
-                        // in-app preview so drafts/proofs are visible immediately
-                        // without waiting on a Figma sync. Once synced, the PNG
-                        // above takes over.
-                        <LazyMount className="absolute inset-0 overflow-hidden pointer-events-none bg-white">
-                          <TemplateCanvas
-                            template={templates[menu.size] || templates.lg || templates.md}
-                            series={series}
-                            event={event}
-                            size={menu.size || 'lg'}
-                            menu={menu}
-                            items={items}
-                          />
-                        </LazyMount>
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-300 text-xs gap-1 p-4 text-center">
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4 4 4 4-4 4 4M4 16V8a2 2 0 012-2h12a2 2 0 012 2v8M4 16h16" />
-                          </svg>
-                          <span>Add active items to preview</span>
-                        </div>
-                      )}
-                      {selectMode && menu.preview_image_url && (
-                        <div className="absolute top-2 left-2">
-                          <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
-                            isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white/80 border-white'
-                          }`}>
-                            {isSelected && '✓'}
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                        {pendingCount > 0 && (
-                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
-                                title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}>
-                            {pendingCount}
-                          </span>
-                        )}
-                        <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
-                      </div>
-                    </div>
-                    <div className="px-4 py-3 flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-medium text-ink-900 truncate">{menu.name}</h3>
-                        <div className="text-[11px] text-ink-400 capitalize">{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</div>
-                      </div>
-                      <PhaseBadge phase={menu.phase} />
-                    </div>
-                  </CardTag>
-                )
-              })}
+              {/* Filters: approval status (row 1) + category (row 2) */}
+              <div className="flex flex-col gap-2 mb-4">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <CategoryChip active={previewStatusFilter === 'all'} onClick={() => setPreviewStatusFilter('all')}>
+                    All <span className="opacity-60">{menus.length}</span>
+                  </CategoryChip>
+                  <CategoryChip active={previewStatusFilter === 'approved'} onClick={() => setPreviewStatusFilter('approved')}>
+                    Approved <span className="opacity-60">{menus.filter(m => m.phase === 'approved').length}</span>
+                  </CategoryChip>
+                  <CategoryChip active={previewStatusFilter === 'unapproved'} onClick={() => setPreviewStatusFilter('unapproved')}>
+                    Not approved <span className="opacity-60">{menus.filter(m => m.phase !== 'approved').length}</span>
+                  </CategoryChip>
+                </div>
+                {menuCategoriesPresent.length > 1 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <CategoryChip active={previewCategoryFilter === 'all'} onClick={() => setPreviewCategoryFilter('all')}>All</CategoryChip>
+                    {menuCategoriesPresent.map(c => (
+                      <CategoryChip key={c} active={previewCategoryFilter === c} onClick={() => setPreviewCategoryFilter(c)}>
+                        {CATEGORY_LABELS[c] || c} <span className="opacity-60">{previewStatusFiltered.filter(m => m.category === c).length}</span>
+                      </CategoryChip>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {previewFiltered.length === 0 ? (
+                <div className="text-center text-sm text-ink-400 py-12">No menus match these filters.</div>
+              ) : previewCategoryFilter !== 'all' || menuCategoriesPresent.length <= 1 ? (
+                // Specific category, or only one category overall — flat grid.
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {previewFiltered.map(renderPreviewCard)}
+                </div>
+              ) : (
+                // "All" categories — group by category with headings.
+                <div className="space-y-8">
+                  {menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c)).map(c => (
+                    <div key={c}>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-3">
+                        {CATEGORY_LABELS[c] || c}
+                        <span className="ml-1.5 opacity-60">· {previewFiltered.filter(m => m.category === c).length}</span>
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {previewFiltered.filter(m => m.category === c).map(renderPreviewCard)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </>
