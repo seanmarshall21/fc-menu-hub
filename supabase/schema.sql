@@ -308,6 +308,34 @@ alter table menus add column if not exists last_synced_frame_id text;
 -- column keeps a server-side copy.
 alter table menus add column if not exists last_sync_digest text;
 
+-- updated_at stamping: bump only on real content/config changes. Sync,
+-- preview, and sponsor-approval metadata writes must NOT advance updated_at,
+-- or the "Sync needed" heuristic (updated_at > last_synced_at) false-flags a
+-- menu immediately after syncing it. An explicit updated_at change by the
+-- caller (the item-change touch trigger) is always respected.
+create or replace function menus_stamp_updated_at_skip_sync_meta()
+returns trigger language plpgsql as $$
+begin
+  if new.updated_at is distinct from old.updated_at then
+    return new;
+  end if;
+  if (to_jsonb(new) - 'updated_at' - 'last_synced_at' - 'last_sync_digest'
+        - 'last_synced_frame_id' - 'preview_image_url'
+        - 'sponsor_approved_at' - 'sponsor_approved_by')
+     is distinct from
+     (to_jsonb(old) - 'updated_at' - 'last_synced_at' - 'last_sync_digest'
+        - 'last_synced_frame_id' - 'preview_image_url'
+        - 'sponsor_approved_at' - 'sponsor_approved_by')
+  then
+    new.updated_at = now();
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists menus_stamp_updated_at on menus;
+create trigger menus_stamp_updated_at before update on menus
+  for each row execute function menus_stamp_updated_at_skip_sync_meta();
+
 -- ─── Separate color for menu title vs item title ────────────────────────────
 -- event_templates.color_title styles the big menu title; color_item_title
 -- styles individual item names. Falls back to color_title when unset so
