@@ -38,7 +38,11 @@ export default function SeriesPage() {
   const [loading, setLoading] = useState(true)
   const showPageLoader = useDelayedLoader(loading)
 
-  const [tab, setTab] = useState('events') // 'events' | 'styles'
+  // ?tab= deep-link support (e.g. from a menu's "Series sponsors" shortcut).
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return ['events', 'sponsors', 'styles'].includes(t) ? t : 'events'
+  })
   const [duplicatingEvent, setDuplicatingEvent] = useState(null)
   const [deletingEvent, setDeletingEvent] = useState(null)
   const navigate = useNavigate()

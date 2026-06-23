@@ -768,7 +768,12 @@ export default function EventPage() {
   const [sponsors, setSponsors] = useState([])
   const [loading, setLoading]   = useState(true)
   const showPageLoader = useDelayedLoader(loading)
-  const [tab, setTab]           = useState('menus') // 'menus' | 'sponsors' | 'templates'
+  // Initial tab can be deep-linked via ?tab= (e.g. from a menu's "Event
+  // sponsors" shortcut). Falls back to Menus for unknown values.
+  const [tab, setTab]           = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return ['menus', 'preview', 'sponsors', 'templates', 'styles', 'approvals'].includes(t) ? t : 'menus'
+  })
   const [templates, setTemplates] = useState({}) // keyed by size
 
   // Figma page name — inline edit
@@ -805,9 +810,10 @@ export default function EventPage() {
   const [typeFilter, setTypeFilter]     = useState([]) // categories
   const [statusFilter, setStatusFilter] = useState([]) // phases
   const [syncFilter, setSyncFilter]     = useState([]) // synced | needs_update | not_synced
-  // Preview-all tab filters: category ('all' = grouped) + approval status.
-  const [previewCategoryFilter, setPreviewCategoryFilter] = useState('all')
-  const [previewStatusFilter, setPreviewStatusFilter]     = useState('all') // 'all' | 'approved' | 'unapproved'
+  // Preview-all tab filters — same multi-select dropdowns as the Menus tab.
+  const [previewTypeFilter, setPreviewTypeFilter]     = useState([]) // categories
+  const [previewStatusFilter, setPreviewStatusFilter] = useState([]) // phases
+  const [previewSyncFilter, setPreviewSyncFilter]     = useState([]) // synced | needs_update | not_synced
 
   // Multi-CSV import
   const csvInputRef                             = useRef(null)
@@ -1173,16 +1179,6 @@ export default function EventPage() {
     )
   }
 
-  // Preview-all filtering: category + approval status. Approved = phase
-  // 'approved'; "unapproved" = anything else (build/proof/print_prep/archived).
-  const previewStatusFiltered = menus.filter(m => {
-    if (previewStatusFilter === 'approved'   && m.phase !== 'approved') return false
-    if (previewStatusFilter === 'unapproved' && m.phase === 'approved') return false
-    return true
-  })
-  const previewFiltered = previewStatusFiltered.filter(m =>
-    previewCategoryFilter === 'all' || m.category === previewCategoryFilter
-  )
 
   // Category order present in this event (known categories first, then any custom).
   const menuCategoriesPresent = [
@@ -1224,6 +1220,16 @@ export default function EventPage() {
   const anyMenuFilter = typeFilter.length || statusFilter.length || syncFilter.length
   // Group by category when the filtered result spans more than one category.
   const filteredCatsPresent = menuCategoriesPresent.filter(c => menusFiltered.some(m => m.category === c))
+
+  // Preview-all tab — same three dropdown filters, independent state.
+  const previewFiltered = menus.filter(m => {
+    if (previewTypeFilter.length   && !previewTypeFilter.includes(m.category)) return false
+    if (previewStatusFilter.length && !previewStatusFilter.includes(m.phase))  return false
+    if (previewSyncFilter.length   && !previewSyncFilter.includes(syncStateOf(m))) return false
+    return true
+  })
+  const anyPreviewFilter = previewTypeFilter.length || previewStatusFilter.length || previewSyncFilter.length
+  const previewCatsPresent = menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c))
 
   return (
     <PageScreen
@@ -1533,42 +1539,31 @@ export default function EventPage() {
                   )}
                 </div>
               </div>
-              {/* Filters: approval status (row 1) + category (row 2) */}
-              <div className="flex flex-col gap-2 mb-4">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <CategoryChip active={previewStatusFilter === 'all'} onClick={() => setPreviewStatusFilter('all')}>
-                    All <span className="opacity-60">{menus.length}</span>
-                  </CategoryChip>
-                  <CategoryChip active={previewStatusFilter === 'approved'} onClick={() => setPreviewStatusFilter('approved')}>
-                    Approved <span className="opacity-60">{menus.filter(m => m.phase === 'approved').length}</span>
-                  </CategoryChip>
-                  <CategoryChip active={previewStatusFilter === 'unapproved'} onClick={() => setPreviewStatusFilter('unapproved')}>
-                    Not approved <span className="opacity-60">{menus.filter(m => m.phase !== 'approved').length}</span>
-                  </CategoryChip>
-                </div>
-                {menuCategoriesPresent.length > 1 && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <CategoryChip active={previewCategoryFilter === 'all'} onClick={() => setPreviewCategoryFilter('all')}>All</CategoryChip>
-                    {menuCategoriesPresent.map(c => (
-                      <CategoryChip key={c} active={previewCategoryFilter === c} onClick={() => setPreviewCategoryFilter(c)}>
-                        {CATEGORY_LABELS[c] || c} <span className="opacity-60">{previewStatusFiltered.filter(m => m.category === c).length}</span>
-                      </CategoryChip>
-                    ))}
-                  </div>
+              {/* Filter dropdowns — same system as the Menus tab */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {TYPE_FILTER_OPTS.length > 1 && (
+                  <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={previewTypeFilter} onChange={setPreviewTypeFilter} />
                 )}
+                {PHASE_FILTER_OPTS.length > 1 && (
+                  <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={previewStatusFilter} onChange={setPreviewStatusFilter} />
+                )}
+                <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={previewSyncFilter} onChange={setPreviewSyncFilter} />
+                {anyPreviewFilter ? (
+                  <button
+                    onClick={() => { setPreviewTypeFilter([]); setPreviewStatusFilter([]); setPreviewSyncFilter([]) }}
+                    className="text-xs text-ink-400 hover:text-ink-600 underline underline-offset-2 ml-1"
+                  >
+                    Clear filters · {previewFiltered.length} of {menus.length}
+                  </button>
+                ) : null}
               </div>
 
               {previewFiltered.length === 0 ? (
                 <div className="text-center text-sm text-ink-400 py-12">No menus match these filters.</div>
-              ) : previewCategoryFilter !== 'all' || menuCategoriesPresent.length <= 1 ? (
-                // Specific category, or only one category overall — flat grid.
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {previewFiltered.map(renderPreviewCard)}
-                </div>
-              ) : (
-                // "All" categories — group by category with headings.
+              ) : previewCatsPresent.length > 1 ? (
+                // Spans multiple categories — group by category with headings.
                 <div className="space-y-8">
-                  {menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c)).map(c => (
+                  {previewCatsPresent.map(c => (
                     <div key={c}>
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-3">
                         {CATEGORY_LABELS[c] || c}
@@ -1579,6 +1574,11 @@ export default function EventPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              ) : (
+                // Single category in results — flat grid.
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {previewFiltered.map(renderPreviewCard)}
                 </div>
               )}
             </>

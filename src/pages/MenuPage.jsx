@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
@@ -1496,6 +1496,9 @@ export default function MenuPage() {
             onToggleOverride={toggleMenuOverrideOrder}
             onReorder={reorderMenuSponsors}
             onSetAll={setAllSponsors}
+            eventSponsorsUrl={`/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}?tab=sponsors`}
+            seriesSponsorsUrl={`/brands/${brandSlug}/series/${seriesSlug}?tab=sponsors`}
+            allSponsorsUrl="/sponsors"
           />
 
           {/* Sticky Save/Cancel bar — appears only when the draft differs
@@ -1784,15 +1787,34 @@ const SPONSOR_ORDER_OPTS = [
 function MenuSponsorsPanel({
   eventSponsors, menuSponsorIds, menuSponsorRows, menuOverrideOrder,
   canEdit, onToggle, onToggleOverride, onReorder, onSetAll,
+  eventSponsorsUrl, seriesSponsorsUrl, allSponsorsUrl,
 }) {
   // Map event_sponsor_id → menu_sponsors row so we can grab row IDs for the reorder
   const menuRowByEsId = new Map(menuSponsorRows.map(r => [r.event_sponsor_id, r]))
+
+  // Quick links to where sponsors are added upstream (library → series →
+  // event → menu). Shown both in the empty state and as a footer so a missing
+  // sponsor is never a dead end.
+  const NavLinks = () => (
+    <div className="flex items-center gap-2 flex-wrap">
+      {eventSponsorsUrl && (
+        <Link to={eventSponsorsUrl} className="btn-secondary btn-sm whitespace-nowrap">Event sponsors</Link>
+      )}
+      {seriesSponsorsUrl && (
+        <Link to={seriesSponsorsUrl} className="btn-secondary btn-sm whitespace-nowrap">Series sponsors</Link>
+      )}
+      {allSponsorsUrl && (
+        <Link to={allSponsorsUrl} className="btn-secondary btn-sm whitespace-nowrap">All sponsors</Link>
+      )}
+    </div>
+  )
 
   if (eventSponsors.length === 0) {
     return (
       <div className="card p-6">
         <h2 className="text-sm font-semibold text-ink-900 mb-1">Sponsors</h2>
-        <p className="text-sm text-ink-400">No sponsors configured for this event yet. Add them on the Event page.</p>
+        <p className="text-sm text-ink-400 mb-4">No sponsors are enabled for this event yet. Add them on the event's Sponsors tab (from the series list), or in the library.</p>
+        <NavLinks />
       </div>
     )
   }
@@ -1878,6 +1900,12 @@ function MenuSponsorsPanel({
           <MenuSponsorRow key={es.id} sp={es} active={false} canEdit={canEdit} onToggle={onToggle} />
         ))}
       </ul>
+
+      {/* Don't-see-it footer: jump upstream to add/enable a sponsor. */}
+      <div className="px-4 py-3 border-t border-surface-100 bg-surface-50 flex items-center justify-between gap-3 flex-wrap">
+        <span className="text-xs text-ink-400">Don't see a sponsor? Add or enable it upstream:</span>
+        <NavLinks />
+      </div>
     </div>
   )
 }
