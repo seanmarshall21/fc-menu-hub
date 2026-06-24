@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { reviewMenuItems } from '@/lib/menuReview'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
@@ -39,21 +39,42 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   const [detail, setDetail] = useState(null)   // a consistency finding
   const [busyId, setBusyId] = useState(null)
 
-  // Ignored flags persist per-menu in localStorage (per-device). Advisory
-  // checks recompute every render, so we suppress by stable signature.
-  const storageKey = `menuReviewIgnored:${menuId || 'unknown'}`
-  const [ignored, setIgnored] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')) }
-    catch { return new Set() }
-  })
-  function persistIgnored(next) {
-    setIgnored(next)
-    try { localStorage.setItem(storageKey, JSON.stringify([...next])) } catch { /* quota */ }
+  // Review decisions persist in the DB (per menu, shared across devices/users).
+  //   'ignored' = hide for now (resettable)
+  //   'correct' = permanently confirmed correct; never re-flag + fed back to
+  //               the AI so it stops generating it.
+  const [decisions, setDecisions] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!menuId) return
+      const { data } = await supabase.from('menu_review_decisions').select('*').eq('menu_id', menuId)
+      if (!cancelled) setDecisions(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [menuId])
+
+  const correctSet = useMemo(() => new Set(decisions.filter(d => d.decision === 'correct').map(d => d.signature)), [decisions])
+  const ignoredSet = useMemo(() => new Set(decisions.filter(d => d.decision === 'ignored').map(d => d.signature)), [decisions])
+  const hidden = (sig) => correctSet.has(sig) || ignoredSet.has(sig)
+
+  async function saveDecision(f, decision) {
+    if (!menuId) return
+    const row = {
+      menu_id: menuId, signature: findingKey(f), decision,
+      kind: f.kind || null, field: f.field || null,
+      label: f.itemTitle || f.word || null,
+      detail: f.message || f.suggestion || null,
+    }
+    setDecisions(prev => [...prev.filter(d => d.signature !== row.signature), { ...row, id: 'tmp-' + row.signature }])
+    await supabase.from('menu_review_decisions').upsert(row, { onConflict: 'menu_id,signature' })
   }
-  function ignore(f) {
-    const next = new Set(ignored); next.add(findingKey(f)); persistIgnored(next)
+  function ignore(f) { saveDecision(f, 'ignored') }
+  function markCorrect(f) { saveDecision(f, 'correct') }
+  async function clearIgnored() {
+    setDecisions(prev => prev.filter(d => d.decision !== 'ignored'))
+    if (menuId) await supabase.from('menu_review_decisions').delete().eq('menu_id', menuId).eq('decision', 'ignored')
   }
-  function clearIgnored() { persistIgnored(new Set()) }
 
   // AI review (LLM): spelling, grammar, semantic naming consistency. Runs on
   // demand via the review-menu edge function. Results merge with the
@@ -66,7 +87,10 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   async function runAiReview() {
     setAiBusy(true); setAiError(null)
     try {
-      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items } })
+      // Feed confirmed-correct items back so the model stops re-flagging them.
+      const correct = decisions.filter(d => d.decision === 'correct')
+        .map(d => ({ field: d.field, label: d.label, kind: d.kind, message: d.detail }))
+      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items, correct } })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       setAiFindings(Array.isArray(data?.findings) ? data.findings : [])
@@ -78,7 +102,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     }
   }
 
-  const findings = [...allFindings, ...aiFindings].filter(f => !ignored.has(findingKey(f)))
+  const findings = [...allFindings, ...aiFindings].filter(f => !hidden(findingKey(f)))
   const ignoredCount = (allFindings.length + aiFindings.length) - findings.length
 
   // Reusable AI-review button shown in both the clean banner + the flags header.
@@ -218,12 +242,21 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
                       Details
                     </button>
                   )}
-                  {/* Dismiss this flag (false positive / intentional) */}
+                  {/* Confirm correct — never flag again + teach the AI */}
+                  <button
+                    type="button"
+                    onClick={() => markCorrect(f)}
+                    className="text-[11px] text-emerald-600 hover:text-emerald-800 whitespace-nowrap px-1"
+                    title="This is correct — never flag it again, and the AI learns to skip it"
+                  >
+                    Correct
+                  </button>
+                  {/* Ignore for now (resettable) */}
                   <button
                     type="button"
                     onClick={() => ignore(f)}
                     className="text-[11px] text-ink-400 hover:text-ink-700 whitespace-nowrap px-1"
-                    title="Hide this flag — it won't show again on this menu"
+                    title="Hide for now — resettable; the AI may still surface it"
                   >
                     Ignore
                   </button>

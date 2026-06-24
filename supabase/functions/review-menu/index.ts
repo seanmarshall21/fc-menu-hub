@@ -66,7 +66,25 @@ Deno.serve(async (req: Request) => {
 
     if (reviewable.length === 0) return json({ findings: [] })
 
-    const userPrompt = `Review these ${reviewable.length} menu items. Here is the JSON:\n\n${JSON.stringify(reviewable, null, 2)}`
+    // Editor-confirmed-correct items — the model must NOT flag these again.
+    const correct = Array.isArray(body.correct) ? body.correct : []
+    let confirmedNote = ''
+    if (correct.length) {
+      const lines = correct
+        .map((c: any) => `- [${c.kind || 'item'}${c.field ? '/' + c.field : ''}] ${c.label || ''}${c.message ? ` — ${c.message}` : ''}`)
+        .join('\n')
+      confirmedNote = `\n\nIMPORTANT — the following were reviewed by an editor and CONFIRMED CORRECT / intentional. Do NOT flag these or anything equivalent to them again:\n${lines}\n`
+    }
+
+    // Optional custom review rules (e.g. "all vodka must say Tito's Handmade Vodka").
+    const rules = Array.isArray(body.rules) ? body.rules : []
+    let rulesNote = ''
+    if (rules.length) {
+      const lines = rules.map((r: any) => `- ${typeof r === 'string' ? r : (r.text || '')}`).filter(Boolean).join('\n')
+      if (lines) rulesNote = `\n\nADDITIONAL REVIEW RULES — also flag any item that violates these (kind "consistency"):\n${lines}\n`
+    }
+
+    const userPrompt = `Review these ${reviewable.length} menu items. Here is the JSON:\n\n${JSON.stringify(reviewable, null, 2)}${rulesNote}${confirmedNote}`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

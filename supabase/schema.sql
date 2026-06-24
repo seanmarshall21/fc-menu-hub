@@ -341,6 +341,29 @@ alter table menus add column if not exists last_sync_digest text;
 alter table menus add column if not exists sponsors_updated_at timestamptz;
 alter table menus add column if not exists sponsors_checked_at timestamptz;
 alter table menus add column if not exists sponsors_checked_by uuid;
+
+-- Optional printed title (Figma + in-app preview); name stays the app identifier.
+alter table menus add column if not exists print_title text;
+
+-- Persistent review decisions per menu. 'ignored' = hide for now (resettable);
+-- 'correct' = confirmed correct, never re-flag + fed into the review-menu prompt.
+create table if not exists menu_review_decisions (
+  id          uuid primary key default gen_random_uuid(),
+  menu_id     uuid not null references menus(id) on delete cascade,
+  signature   text not null,
+  decision    text not null check (decision in ('ignored','correct')),
+  kind text, field text, label text, detail text,
+  created_by  uuid,
+  created_at  timestamptz default now(),
+  unique (menu_id, signature)
+);
+alter table menu_review_decisions enable row level security;
+create policy mrd_read on menu_review_decisions for select using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+create policy mrd_write on menu_review_decisions for all using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
 create or replace function bump_menu_sponsors_updated()
 returns trigger language plpgsql security definer as $$
 declare mid uuid;
