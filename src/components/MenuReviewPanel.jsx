@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { reviewMenuItems } from '@/lib/menuReview'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
+
+// Small stable hash of the reviewable content — the AI only re-runs when this
+// changes, so cached findings survive navigation and don't re-bill on re-open.
+function hashStr(s) {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  return h.toString(36)
+}
 
 /**
  * Inline review banner for a menu's items. Runs the deterministic checks
@@ -44,12 +52,14 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   //   'correct' = permanently confirmed correct; never re-flag + fed back to
   //               the AI so it stops generating it.
   const [decisions, setDecisions] = useState([])
+  const [decisionsLoaded, setDecisionsLoaded] = useState(false)
   useEffect(() => {
     let cancelled = false
+    setDecisionsLoaded(false)
     ;(async () => {
-      if (!menuId) return
+      if (!menuId) { setDecisionsLoaded(true); return }
       const { data } = await supabase.from('menu_review_decisions').select('*').eq('menu_id', menuId)
-      if (!cancelled) setDecisions(data || [])
+      if (!cancelled) { setDecisions(data || []); setDecisionsLoaded(true) }
     })()
     return () => { cancelled = true }
   }, [menuId])
@@ -83,6 +93,15 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState(null)
   const [aiRan, setAiRan] = useState(false)
+  const [cacheStale, setCacheStale] = useState(false)
+
+  // Content hash of the reviewable items — drives caching.
+  const contentHash = useMemo(() => {
+    const r = (items || [])
+      .filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
+      .map(i => ({ id: i.id, s: i.section || '', t: i.title || '', d: i.description || '' }))
+    return hashStr(JSON.stringify(r))
+  }, [items])
 
   async function runAiReview() {
     setAiBusy(true); setAiError(null)
@@ -93,14 +112,47 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       const { data, error } = await supabase.functions.invoke('review-menu', { body: { items, correct } })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
-      setAiFindings(Array.isArray(data?.findings) ? data.findings : [])
-      setAiRan(true)
+      const fnd = Array.isArray(data?.findings) ? data.findings : []
+      setAiFindings(fnd); setAiRan(true); setCacheStale(false)
+      // Cache so it survives navigation + doesn't re-bill until items change.
+      if (menuId) {
+        supabase.from('menu_ai_reviews').upsert(
+          { menu_id: menuId, content_hash: contentHash, findings: fnd, reviewed_at: new Date().toISOString() }
+        )
+      }
     } catch (e) {
       setAiError(e.message || 'AI review failed')
     } finally {
       setAiBusy(false)
     }
   }
+
+  // Auto-run on open: load the cached review; if it matches current content,
+  // show it (no API call). Otherwise auto-run once. Waits for decisions so the
+  // confirmed-correct list is included. Later content changes mark it stale
+  // (shown as a hint) rather than auto-re-billing.
+  const autoRanFor = useRef(null)
+  useEffect(() => {
+    if (!decisionsLoaded || !menuId || !(items || []).length) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase.from('menu_ai_reviews')
+        .select('content_hash, findings').eq('menu_id', menuId).maybeSingle()
+      if (cancelled) return
+      if (data && data.content_hash === contentHash) {
+        setAiFindings(Array.isArray(data.findings) ? data.findings : [])
+        setAiRan(true); setCacheStale(false)
+      } else if (autoRanFor.current !== menuId) {
+        autoRanFor.current = menuId
+        runAiReview()
+      } else if (data) {
+        // Already auto-ran this menu; content changed again → show cache + stale.
+        setAiFindings(Array.isArray(data.findings) ? data.findings : [])
+        setAiRan(true); setCacheStale(true)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [decisionsLoaded, menuId, contentHash])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const findings = [...allFindings, ...aiFindings].filter(f => !hidden(findingKey(f)))
   const ignoredCount = (allFindings.length + aiFindings.length) - findings.length
@@ -183,6 +235,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {cacheStale && <span className="text-[10px] text-amber-600 whitespace-nowrap" title="Items changed since the last AI pass">items changed</span>}
           {aiButton}
           <span className="text-[11px] text-amber-700">{open ? 'Hide' : 'Show'}</span>
         </div>
@@ -220,14 +273,14 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
                     </div>
                   )}
                 </div>
-                <div className="flex-shrink-0 flex items-center gap-2">
+                <div className="flex-shrink-0 flex flex-col items-end gap-1">
                   {/* Single-item findings with a concrete suggestion → inline accept */}
                   {f.itemId && f.suggestion != null && (
                     <button
                       type="button"
                       onClick={() => acceptSuggestion(f, i)}
                       disabled={busyId === `s${i}`}
-                      className="btn-primary btn-sm whitespace-nowrap"
+                      className="btn-primary btn-sm whitespace-nowrap w-full"
                     >
                       {busyId === `s${i}` ? '…' : 'Accept edit'}
                     </button>
@@ -237,7 +290,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
                     <button
                       type="button"
                       onClick={() => setDetail(f)}
-                      className="btn-secondary btn-sm whitespace-nowrap"
+                      className="btn-secondary btn-sm whitespace-nowrap w-full"
                     >
                       Details
                     </button>
@@ -247,9 +300,9 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
                     type="button"
                     onClick={() => markCorrect(f)}
                     className="text-[11px] text-emerald-600 hover:text-emerald-800 whitespace-nowrap px-1"
-                    title="This is correct — never flag it again, and the AI learns to skip it"
+                    title="This is correct as written — never flag it again, and the AI learns to skip it"
                   >
-                    Correct
+                    Correct as is
                   </button>
                   {/* Ignore for now (resettable) */}
                   <button
