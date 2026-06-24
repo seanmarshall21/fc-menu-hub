@@ -744,6 +744,11 @@ export default function EventPage() {
   // and Export.
   const [selectMode, setSelectMode] = useState(false)
   const [selectedPreviewIds, setSelectedPreviewIds] = useState(() => new Set())
+
+  // Menus tab bulk-select (approve / not approved / unsync).
+  const [menuSelectMode, setMenuSelectMode] = useState(false)
+  const [selectedMenuIds, setSelectedMenuIds] = useState(() => new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
   const [duplicatingMenu, setDuplicatingMenu] = useState(null)
   const [deletingMenu, setDeletingMenu]       = useState(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -1044,6 +1049,30 @@ export default function EventPage() {
 
   const baseUrl = `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`
 
+  // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────
+  // "Not approved" sends the menu back to the working 'build' phase.
+  async function bulkSetPhase(idsSet, phase) {
+    const ids = [...idsSet]
+    if (!ids.length) return
+    setBulkBusy(true)
+    const { error } = await supabase.from('menus').update({ phase }).in('id', ids)
+    setBulkBusy(false)
+    if (error) { alert('Could not update status: ' + error.message); return }
+    await loadData()
+  }
+  async function bulkUnsync(idsSet) {
+    const ids = [...idsSet]
+    if (!ids.length) return
+    if (!confirm(`Unsync ${ids.length} menu${ids.length === 1 ? '' : 's'} from Figma? They'll show as "Not synced". This doesn't change the Figma file — if a frame still exists, unlink it in the plugin too.`)) return
+    setBulkBusy(true)
+    const { error } = await supabase.from('menus')
+      .update({ last_synced_at: null, last_synced_frame_id: null, last_sync_digest: null })
+      .in('id', ids)
+    setBulkBusy(false)
+    if (error) { alert('Could not unsync: ' + error.message); return }
+    await loadData()
+  }
+
   // One menu card for the Menus tab — extracted so we can render it inside
   // category groups or a filtered grid without duplicating the markup.
   function renderMenuCard(menu) {
@@ -1051,17 +1080,39 @@ export default function EventPage() {
     const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
     const everSynced  = !!menu.last_synced_at
     const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+    const isSelected  = selectedMenuIds.has(menu.id)
+    const CardTag = menuSelectMode ? 'div' : Link
+    const cardProps = menuSelectMode
+      ? {
+          onClick: () => setSelectedMenuIds(prev => {
+            const next = new Set(prev)
+            if (next.has(menu.id)) next.delete(menu.id); else next.add(menu.id)
+            return next
+          }),
+          className: `card p-5 transition-all flex flex-col relative cursor-pointer ${
+            isSelected ? 'ring-2 ring-brand-500 border-brand-500' : 'hover:shadow-md hover:border-brand-100'
+          }`,
+        }
+      : {
+          to: `${baseUrl}/menus/${menu.slug}`,
+          className: 'card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative',
+        }
     return (
-      <Link
-        key={menu.id}
-        to={`${baseUrl}/menus/${menu.slug}`}
-        className="card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative"
-      >
+      <CardTag key={menu.id} {...cardProps}>
+        {menuSelectMode && (
+          <div className="absolute top-2 left-2 z-10">
+            <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
+              isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white border-surface-300'
+            }`}>
+              {isSelected && '✓'}
+            </div>
+          </div>
+        )}
         <div className="flex items-start justify-between mb-3 gap-2">
-          <h3 className="font-medium text-ink-900 group-hover:text-brand-600 transition-colors flex-1 min-w-0">{menu.name}</h3>
+          <h3 className={`font-medium text-ink-900 transition-colors flex-1 min-w-0 ${menuSelectMode ? 'pl-7' : 'group-hover:text-brand-600'}`}>{menu.name}</h3>
           <div className="flex items-center gap-1 flex-shrink-0">
             <PhaseBadge phase={menu.phase} />
-            {canEdit && (
+            {canEdit && !menuSelectMode && (
               <MenuCardActionMenu
                 menu={menu}
                 canDelete={isAdmin}
@@ -1090,7 +1141,7 @@ export default function EventPage() {
             <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
           </span>
         </div>
-      </Link>
+      </CardTag>
     )
   }
 
@@ -1102,7 +1153,7 @@ export default function EventPage() {
     const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
     const everSynced  = !!menu.last_synced_at
     const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
-    const isSelectable = selectMode && !!menu.preview_image_url
+    const isSelectable = selectMode // any menu can be selected for bulk actions
     const isSelected = selectedPreviewIds.has(menu.id)
     const CardTag = selectMode ? 'div' : Link
     const cardProps = selectMode
@@ -1149,8 +1200,8 @@ export default function EventPage() {
               <span>Add active items to preview</span>
             </div>
           )}
-          {selectMode && menu.preview_image_url && (
-            <div className="absolute top-2 left-2">
+          {selectMode && (
+            <div className="absolute top-2 left-2 z-10">
               <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
                 isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white/80 border-white'
               }`}>
@@ -1372,7 +1423,7 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              {/* Filter dropdowns: type (multi) · status · synced */}
+              {/* Filter dropdowns: type (multi) · status · synced + Select */}
               <div className="flex items-center gap-2 mb-5 flex-wrap">
                 {TYPE_FILTER_OPTS.length > 1 && (
                   <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={typeFilter} onChange={setTypeFilter} />
@@ -1389,7 +1440,35 @@ export default function EventPage() {
                     Clear filters · {menusFiltered.length} of {menus.length}
                   </button>
                 ) : null}
+                {canEdit && !menuSelectMode && (
+                  <button onClick={() => setMenuSelectMode(true)}
+                    className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center ml-auto">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Select
+                  </button>
+                )}
               </div>
+
+              {/* Bulk action bar — approve / not approved / unsync */}
+              {menuSelectMode && (
+                <div className="sticky top-0 z-20 -mx-1 mb-4 px-3 py-2.5 rounded-lg bg-brand-50 border border-brand-200 flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-brand-800 whitespace-nowrap">{selectedMenuIds.size} selected</span>
+                  <button onClick={() => setSelectedMenuIds(new Set(menusFiltered.map(m => m.id)))}
+                    className="text-xs text-brand-600 hover:text-brand-700 underline underline-offset-2 whitespace-nowrap">Select all ({menusFiltered.length})</button>
+                  <div className="flex items-center gap-2 ml-auto flex-wrap">
+                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedMenuIds, 'approved')}
+                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark approved</button>
+                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedMenuIds, 'build')}
+                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark not approved</button>
+                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkUnsync(selectedMenuIds)}
+                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
+                    <button onClick={() => { setMenuSelectMode(false); setSelectedMenuIds(new Set()) }}
+                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">Done</button>
+                  </div>
+                </div>
+              )}
 
               {menusFiltered.length === 0 ? (
                 <div className="text-center text-sm text-ink-400 py-12">No menus match these filters.</div>
@@ -1494,27 +1573,31 @@ export default function EventPage() {
               <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div className="text-xs text-ink-500">
                   {selectMode
-                    ? `${selectedPreviewIds.size} of ${menus.filter(m => m.preview_image_url).length} selected`
+                    ? `${selectedPreviewIds.size} of ${previewFiltered.length} selected`
                     : `${menus.length} menu${menus.length === 1 ? '' : 's'} · ${menus.filter(m => m.preview_image_url).length} with preview images`}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   {selectMode ? (
                     <>
                       <button
                         onClick={() => {
-                          const allIds = menus.filter(m => m.preview_image_url).map(m => m.id)
+                          const allIds = previewFiltered.map(m => m.id)
                           setSelectedPreviewIds(prev => prev.size === allIds.length ? new Set() : new Set(allIds))
                         }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                       >
-                        {selectedPreviewIds.size === menus.filter(m => m.preview_image_url).length ? 'Clear' : 'Select all'}
+                        {selectedPreviewIds.size === previewFiltered.length ? 'Clear' : 'Select all'}
                       </button>
-                      <button
-                        onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
-                        className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
-                      >
-                        Cancel
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedPreviewIds, 'approved')}
+                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark approved</button>
+                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedPreviewIds, 'build')}
+                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark not approved</button>
+                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkUnsync(selectedPreviewIds)}
+                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
+                        </>
+                      )}
                       <button
                         onClick={() => openPreviewExportWindow(
                           menus.filter(m => selectedPreviewIds.has(m.id) && m.preview_image_url),
@@ -1522,8 +1605,15 @@ export default function EventPage() {
                         )}
                         disabled={selectedPreviewIds.size === 0}
                         className="btn-primary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+                        title="Exports the selected menus that have preview images"
                       >
                         Export {selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}
+                      </button>
+                      <button
+                        onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
+                        className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
+                      >
+                        Done
                       </button>
                     </>
                   ) : (
@@ -1534,7 +1624,7 @@ export default function EventPage() {
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
                       </svg>
-                      Export Previews
+                      Select / Export
                     </button>
                   )}
                 </div>
