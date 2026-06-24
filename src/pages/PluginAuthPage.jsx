@@ -17,6 +17,7 @@ export default function PluginAuthPage() {
       refresh_token: session.refresh_token,
       expires_at:    session.expires_at, // unix seconds
       email:         session.user?.email || null,
+      userId:        session.user?.id || null,
     }
     try { setCode(btoa(JSON.stringify(payload))) } catch { setCode('') }
   }, [session])
