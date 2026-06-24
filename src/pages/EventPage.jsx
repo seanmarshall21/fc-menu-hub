@@ -9,6 +9,7 @@ import PizzaLoader from '@/components/PizzaLoader'
 import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
 import ReviewChip from '@/components/ReviewChip'
+import SizeChip from '@/components/SizeChip'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
 import FilterDropdown from '@/components/FilterDropdown'
@@ -1068,6 +1069,13 @@ export default function EventPage() {
     if (error) { alert('Could not update: ' + error.message); return }
     loadData()
   }
+  // Quick size change from the card chips. Updates menu.size — the next Figma
+  // sync rebuilds it on the new-size template (see the plugin's resize logic).
+  async function quickSetSize(menu, size) {
+    const { error } = await supabase.from('menus').update({ size }).eq('id', menu.id)
+    if (error) { alert('Could not change size: ' + error.message); return }
+    loadData()
+  }
 
   // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────
   // "Not approved" sends the menu back to the working 'build' phase.
@@ -1151,6 +1159,7 @@ export default function EventPage() {
           <span className="capitalize whitespace-nowrap">{CATEGORY_LABELS[menu.category] || menu.category}</span>
           <span>·</span>
           <span className="whitespace-nowrap">{items.length} items</span>
+          {!menuSelectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
           <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
             {needsSponsorCheck && (
               <span
@@ -1252,7 +1261,10 @@ export default function EventPage() {
         <div className="px-4 py-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-sm font-medium text-ink-900 truncate">{menu.name}</h3>
-            <div className="text-[11px] text-ink-400 capitalize">{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</div>
+            <div className="text-[11px] text-ink-400 capitalize flex items-center gap-1.5">
+              <span>{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</span>
+              {!selectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
+            </div>
           </div>
           {/* Quick review: approvers get an inline approve/feedback chip;
               everyone else sees the static badge. Hidden in bulk-select mode. */}
