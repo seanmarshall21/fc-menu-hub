@@ -613,9 +613,9 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           )}
           {headerLogoUrl && <div style={{ height: gapBlock.logo_to_title }} />}
 
-          {/* Menu title */}
-          {menu?.name && (
-            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.name}</div>
+          {/* Menu title — print_title overrides the app-side name when set */}
+          {(menu?.print_title || menu?.name) && (
+            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.print_title || menu.name}</div>
           )}
           <div style={{ height: gapBlock.title_to_items }} />
 

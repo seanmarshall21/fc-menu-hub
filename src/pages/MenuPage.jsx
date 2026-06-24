@@ -203,6 +203,7 @@ export default function MenuPage() {
   // Edit menu modal
   const [showEditMenu, setShowEditMenu] = useState(false)
   const [editMenuName, setEditMenuName] = useState('')
+  const [editMenuTitle, setEditMenuTitle] = useState('')
   const [editMenuSize, setEditMenuSize] = useState('lg')
   const [editMenuCategory, setEditMenuCategory] = useState('bar')
   const [editMenuIconUrl, setEditMenuIconUrl] = useState(null)
@@ -782,6 +783,7 @@ export default function MenuPage() {
           <button
             onClick={() => {
               setEditMenuName(menu.name)
+              setEditMenuTitle(menu.print_title || '')
               setEditMenuSize(menu.size || 'lg')
               setEditMenuCategory(menu.category || 'bar')
               setEditMenuIconUrl(menu.icon_url || null)
@@ -833,6 +835,7 @@ export default function MenuPage() {
               const { error } = await supabase.from('menus')
                 .update({
                   name: editMenuName.trim(),
+                  print_title: editMenuTitle.trim() || null,
                   size: editMenuSize,
                   category: editMenuCategory,
                   icon_url: editMenuIconUrl,
@@ -853,6 +856,13 @@ export default function MenuPage() {
             <div>
               <label className="label">Menu Name</label>
               <input className="input" value={editMenuName} onChange={e => setEditMenuName(e.target.value)} required autoFocus />
+              <p className="mt-1 text-[11px] text-ink-400">The name you use to identify this menu in the app.</p>
+            </div>
+            <div>
+              <label className="label">Menu Title <span className="text-ink-300 font-normal">(optional)</span></label>
+              <input className="input" value={editMenuTitle} onChange={e => setEditMenuTitle(e.target.value)}
+                placeholder={editMenuName || 'Same as menu name'} />
+              <p className="mt-1 text-[11px] text-ink-400">If the title printed on the menu differs from the app name, set it here. Leave blank to print the menu name.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

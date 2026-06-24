@@ -157,7 +157,7 @@ export default function MenuPreview({ menu, items, eventSponsors, menuSponsorIds
         <div className="px-10 pt-8 pb-4 border-b border-gray-100">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">{menu.category?.replace('_', ' ')}</p>
           <h1 className="text-[28px] font-black uppercase tracking-tight text-gray-900 leading-none">
-            {menu.name}
+            {menu.print_title || menu.name}
           </h1>
         </div>
 
