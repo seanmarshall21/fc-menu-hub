@@ -11,6 +11,8 @@ import PhaseBadge from '@/components/PhaseBadge'
 import ReviewChip from '@/components/ReviewChip'
 import SizeChip from '@/components/SizeChip'
 import SponsorFlag from '@/components/SponsorFlag'
+import AiReviewFlag from '@/components/AiReviewFlag'
+import { reviewContentHash, reviewFindingKey } from '@/lib/menuReview'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
 import FilterDropdown from '@/components/FilterDropdown'
@@ -758,6 +760,10 @@ export default function EventPage() {
   const [feedbackMenu, setFeedbackMenu] = useState(null)
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackBusy, setFeedbackBusy] = useState(false)
+
+  // AI-review state for the purple "needs review" badge on cards.
+  const [aiReviewMap, setAiReviewMap] = useState(() => new Map())
+  const [reviewDecisionSigs, setReviewDecisionSigs] = useState(() => new Map())
   const [duplicatingMenu, setDuplicatingMenu] = useState(null)
   const [deletingMenu, setDeletingMenu]       = useState(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -877,6 +883,40 @@ export default function EventPage() {
 
   useEffect(() => { loadData() }, [brandSlug, seriesSlug, eventSlug])
   useFocusRefresh(loadData)
+
+  // Load cached AI reviews + review decisions for the event's menus (drives
+  // the purple "needs review" badge on cards).
+  useEffect(() => {
+    if (!menus.length) return
+    let cancelled = false
+    ;(async () => {
+      const ids = menus.map(m => m.id)
+      const [r1, r2] = await Promise.all([
+        supabase.from('menu_ai_reviews').select('menu_id, content_hash, findings').in('menu_id', ids),
+        supabase.from('menu_review_decisions').select('menu_id, signature').in('menu_id', ids),
+      ])
+      if (cancelled) return
+      setAiReviewMap(new Map((r1.data || []).map(x => [x.menu_id, x])))
+      const dm = new Map()
+      for (const d of (r2.data || [])) {
+        if (!dm.has(d.menu_id)) dm.set(d.menu_id, new Set())
+        dm.get(d.menu_id).add(d.signature)
+      }
+      setReviewDecisionSigs(dm)
+    })()
+    return () => { cancelled = true }
+  }, [menus])
+
+  // Does a menu need AI review? True if not reviewed at its current content,
+  // or its cached findings still have unresolved (non-decided) flags.
+  function needsAiReview(menu) {
+    const reviewable = (menu.menu_items || []).filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
+    if (!reviewable.length) return false
+    const review = aiReviewMap.get(menu.id)
+    if (!review || review.content_hash !== reviewContentHash(menu.menu_items || [])) return true
+    const sigs = reviewDecisionSigs.get(menu.id) || new Set()
+    return (review.findings || []).some(f => !sigs.has(reviewFindingKey(f)))
+  }
 
   // If we arrived here from a SeriesPage 'Edit' action, the URL carries
   // ?edit=1 — open the Edit Event modal as soon as the event loads, then
@@ -1217,6 +1257,7 @@ export default function EventPage() {
           <span className="whitespace-nowrap">{items.length} items</span>
           {!menuSelectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
           <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+            <AiReviewFlag needsReview={needsAiReview(menu)} />
             <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (
               <span
@@ -1300,6 +1341,7 @@ export default function EventPage() {
             </div>
           )}
           <div className="absolute top-2 right-2 flex items-center gap-1.5">
+            <AiReviewFlag needsReview={needsAiReview(menu)} />
             <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (
               <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"

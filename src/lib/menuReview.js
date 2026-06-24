@@ -192,3 +192,22 @@ export function reviewMenuItems(items) {
 
   return findings
 }
+
+// ── Shared review helpers (used by MenuReviewPanel + the event-page badge) ───
+// Stable hash of a menu's reviewable content. The AI only re-runs when this
+// changes; the badge uses it to tell whether a cached review is current.
+export function reviewContentHash(items) {
+  const r = (items || [])
+    .filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
+    .map(i => ({ id: i.id, s: i.section || '', t: i.title || '', d: i.description || '' }))
+  const s = JSON.stringify(r)
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  return h.toString(36)
+}
+
+// Stable signature for a finding, matching MenuReviewPanel.findingKey, so
+// decisions ('correct'/'ignored') line up with cached findings.
+export function reviewFindingKey(f) {
+  return [f.kind, f.field || '', f.itemId || '', f.word || f.message || ''].join('|')
+}
