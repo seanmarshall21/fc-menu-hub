@@ -21,6 +21,7 @@ import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
 import MenuComments from '@/components/MenuComments'
+import MenuFeedbackBanner from '@/components/MenuFeedbackBanner'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
@@ -1072,6 +1073,7 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
+          <MenuFeedbackBanner menuId={menu.id} canResolve={isInternal} onOpenThread={() => setTab('feedback')} />
           {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu} />}
 
           {/* Batch action bar — appears when items are selected via the
