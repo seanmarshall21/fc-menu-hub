@@ -8,6 +8,8 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 import PizzaLoader from '@/components/PizzaLoader'
 import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
+import ReviewChip from '@/components/ReviewChip'
+import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
 import FilterDropdown from '@/components/FilterDropdown'
 import Modal from '@/components/Modal'
@@ -732,7 +734,7 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, currentSeriesId, curre
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function EventPage() {
   const { brandSlug, seriesSlug, eventSlug } = useParams()
-  const { isAdmin, isInternal, canEditStyles } = useAuth()
+  const { isAdmin, isInternal, canEditStyles, profile } = useAuth()
   const navigate = useNavigate()
   const canEdit = isAdmin || isInternal
 
@@ -749,6 +751,11 @@ export default function EventPage() {
   const [menuSelectMode, setMenuSelectMode] = useState(false)
   const [selectedMenuIds, setSelectedMenuIds] = useState(() => new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
+
+  // Quick-review feedback modal (Preview tab).
+  const [feedbackMenu, setFeedbackMenu] = useState(null)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackBusy, setFeedbackBusy] = useState(false)
   const [duplicatingMenu, setDuplicatingMenu] = useState(null)
   const [deletingMenu, setDeletingMenu]       = useState(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -1049,6 +1056,19 @@ export default function EventPage() {
 
   const baseUrl = `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}`
 
+  // ── Quick review (Preview tab) ───────────────────────────────────────────
+  // Can the current user approve a given menu? Resolves the cascading approver
+  // union (brand → series → event → menu) for menu_approver_ids.
+  function canApproveMenu(menu) {
+    const resolved = resolveApprovers([brand, series, event, menu], 'menu_approver_ids')
+    return canApprove(profile?.role, profile?.id, resolved)
+  }
+  async function quickSetPhase(menu, phase) {
+    const { error } = await supabase.from('menus').update({ phase }).eq('id', menu.id)
+    if (error) { alert('Could not update: ' + error.message); return }
+    loadData()
+  }
+
   // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────
   // "Not approved" sends the menu back to the working 'build' phase.
   async function bulkSetPhase(idsSet, phase) {
@@ -1224,7 +1244,18 @@ export default function EventPage() {
             <h3 className="text-sm font-medium text-ink-900 truncate">{menu.name}</h3>
             <div className="text-[11px] text-ink-400 capitalize">{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</div>
           </div>
-          <PhaseBadge phase={menu.phase} />
+          {/* Quick review: approvers get an inline approve/feedback chip;
+              everyone else sees the static badge. Hidden in bulk-select mode. */}
+          {!selectMode && canApproveMenu(menu) ? (
+            <ReviewChip
+              phase={menu.phase}
+              onApprove={() => quickSetPhase(menu, 'approved')}
+              onUnapprove={() => quickSetPhase(menu, 'build')}
+              onFeedback={() => { setFeedbackMenu(menu); setFeedbackText('') }}
+            />
+          ) : (
+            <PhaseBadge phase={menu.phase} />
+          )}
         </div>
       </CardTag>
     )
@@ -2073,6 +2104,37 @@ export default function EventPage() {
               <button type="submit" className="btn-primary btn-sm" disabled={spSaving}>{spSaving ? 'Adding…' : 'Add Sponsor'}</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Quick-review feedback modal */}
+      {feedbackMenu && (
+        <Modal title={`Feedback — ${feedbackMenu.name}`} onClose={() => setFeedbackMenu(null)}>
+          <p className="text-sm text-ink-500 mb-3">Leave a note on this menu. It posts to the menu's comments thread for the team to see.</p>
+          <textarea
+            className="input w-full min-h-[120px]"
+            value={feedbackText}
+            onChange={e => setFeedbackText(e.target.value)}
+            placeholder="What needs changing? Be specific…"
+            autoFocus
+          />
+          <div className="flex items-center justify-end gap-2 pt-3">
+            <button className="btn-secondary btn-sm" onClick={() => setFeedbackMenu(null)} disabled={feedbackBusy}>Cancel</button>
+            <button
+              className="btn-primary btn-sm"
+              disabled={feedbackBusy || !feedbackText.trim()}
+              onClick={async () => {
+                setFeedbackBusy(true)
+                const { error } = await supabase.from('menu_comments')
+                  .insert({ menu_id: feedbackMenu.id, user_id: profile?.id, body: feedbackText.trim() })
+                setFeedbackBusy(false)
+                if (error) { alert('Could not post feedback: ' + error.message); return }
+                setFeedbackMenu(null)
+              }}
+            >
+              {feedbackBusy ? 'Posting…' : 'Post feedback'}
+            </button>
+          </div>
         </Modal>
       )}
       </PageBody>
