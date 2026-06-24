@@ -63,7 +63,6 @@ export default function ReviewChip({ phase, needsSponsorCheck, onSetPhase, onFla
         className={`phase-badge ${cls} hover:opacity-80 cursor-pointer inline-flex items-center gap-1 pr-1.5`}
         title="Set status"
       >
-        {needsSponsorCheck && <span title="Sponsors need checking">⚑</span>}
         {label}
         <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />

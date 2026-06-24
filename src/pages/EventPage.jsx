@@ -10,6 +10,7 @@ import { useDelayedLoader } from '@/hooks/useDelayedLoader'
 import PhaseBadge from '@/components/PhaseBadge'
 import ReviewChip from '@/components/ReviewChip'
 import SizeChip from '@/components/SizeChip'
+import SponsorFlag from '@/components/SponsorFlag'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
 import FilterDropdown from '@/components/FilterDropdown'
@@ -1163,7 +1164,18 @@ export default function EventPage() {
         <div className="flex items-start justify-between mb-3 gap-2">
           <h3 className={`font-medium text-ink-900 transition-colors flex-1 min-w-0 ${menuSelectMode ? 'pl-7' : 'group-hover:text-brand-600'}`}>{menu.name}</h3>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <PhaseBadge phase={menu.phase} />
+            {!menuSelectMode && canApproveMenu(menu) ? (
+              <ReviewChip
+                phase={menu.phase}
+                needsSponsorCheck={needsSponsorCheck}
+                onSetPhase={(p) => quickSetPhase(menu, p)}
+                onFlagSponsors={() => flagSponsorsCheck(menu)}
+                onMarkSponsorsChecked={() => markSponsorsChecked(menu)}
+                onFeedback={() => { setFeedbackMenu(menu); setFeedbackText('') }}
+              />
+            ) : (
+              <PhaseBadge phase={menu.phase} />
+            )}
             {canEdit && !menuSelectMode && (
               <MenuCardActionMenu
                 menu={menu}
@@ -1183,14 +1195,7 @@ export default function EventPage() {
           <span className="whitespace-nowrap">{items.length} items</span>
           {!menuSelectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
           <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-            {needsSponsorCheck && (
-              <span
-                className="inline-flex items-center px-1.5 h-[18px] rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold flex-shrink-0"
-                title="Sponsors changed since last checked"
-              >
-                ⚑
-              </span>
-            )}
+            <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (
               <span
                 className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex-shrink-0"
@@ -1214,6 +1219,8 @@ export default function EventPage() {
     const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
     const everSynced  = !!menu.last_synced_at
     const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+    const needsSponsorCheck = !!menu.sponsors_updated_at &&
+      (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))
     const isSelectable = selectMode // any menu can be selected for bulk actions
     const isSelected = selectedPreviewIds.has(menu.id)
     const CardTag = selectMode ? 'div' : Link
@@ -1271,6 +1278,7 @@ export default function EventPage() {
             </div>
           )}
           <div className="absolute top-2 right-2 flex items-center gap-1.5">
+            <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (
               <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
                     title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}>

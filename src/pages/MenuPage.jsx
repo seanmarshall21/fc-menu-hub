@@ -641,6 +641,11 @@ export default function MenuPage() {
     if (error) { alert('Could not mark checked: ' + error.message); return }
     loadMenu()
   }
+  async function flagSponsorsCheck() {
+    const { error } = await supabase.from('menus').update({ sponsors_updated_at: new Date().toISOString() }).eq('id', menu.id)
+    if (error) { alert('Could not flag: ' + error.message); return }
+    loadMenu()
+  }
 
   // Clear the Figma link on the Menu Hub side: resets sync timestamp, frame
   // id, and digest so the chip returns to "Not synced". Use this when the
@@ -966,19 +971,23 @@ export default function MenuPage() {
       </div>
 
       {/* Compact CTA strip — sync + pending edits + sponsor check */}
-      {(everSynced || syncNeeded || pendingCount > 0 || needsSponsorCheck) && (
+      {(everSynced || syncNeeded || pendingCount > 0 || canEdit) && (
         <div className="mb-4 flex items-center gap-2 flex-wrap">
-          {/* Check sponsors: sponsors changed since last verified */}
-          {needsSponsorCheck && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium"
-              title="The sponsor selection changed since it was last checked. Verify the sponsors look right, then mark checked.">
-              ⚑ Check sponsors
-              {canEdit && (
-                <button onClick={markSponsorsChecked} className="ml-1 text-amber-600 hover:text-amber-900 underline underline-offset-2">
-                  Mark checked
-                </button>
-              )}
-            </span>
+          {/* Sponsor-check toggle — red when a check is due, subtle when not */}
+          {canEdit && (
+            needsSponsorCheck ? (
+              <button onClick={markSponsorsChecked}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-300 text-red-700 text-xs font-medium hover:bg-red-100 whitespace-nowrap"
+                title="Sponsors changed since last checked. Click to mark them verified.">
+                ⚑ Check sponsors · <span className="underline underline-offset-2">Mark checked</span>
+              </button>
+            ) : (
+              <button onClick={flagSponsorsCheck}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
+                title="Flag this menu so someone verifies the sponsors.">
+                Flag sponsor check
+              </button>
+            )
           )}
           {/* Synced + up to date: green chip + Disconnect */}
           {everSynced && !syncNeeded && (
@@ -1107,6 +1116,17 @@ export default function MenuPage() {
       {/* Items tab */}
       {tab === 'items' && (
         <div className="space-y-8">
+          {needsSponsorCheck && (
+            <div className="card border-red-200 bg-red-50/60 p-4 flex items-center justify-between gap-3">
+              <div className="text-sm text-red-800">
+                <span className="font-semibold">⚑ Sponsors need checking</span>
+                <span className="text-red-700"> — the sponsor selection changed since it was last verified. Confirm the sponsors on this menu are correct.</span>
+              </div>
+              {canEdit && (
+                <button onClick={markSponsorsChecked} className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">Mark checked</button>
+              )}
+            </div>
+          )}
           <MenuFeedbackBanner menuId={menu.id} canResolve={isInternal} onOpenThread={() => setTab('feedback')} />
           {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu} />}
 
