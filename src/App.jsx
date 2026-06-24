@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import Layout from '@/components/Layout'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Login from '@/pages/Login'
+import PluginAuthPage from '@/pages/PluginAuthPage'
 import PendingPage from '@/pages/PendingPage'
 import Dashboard from '@/pages/Dashboard'
 import BrandsListPage from '@/pages/BrandsListPage'
@@ -51,6 +52,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/plugin-auth" element={<PluginAuthPage />} />
           <Route
             path="/"
             element={
