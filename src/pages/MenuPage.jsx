@@ -630,6 +630,15 @@ export default function MenuPage() {
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
 
+  // A menu can't be approved while it still has unreviewed edits or an open
+  // sponsor check. Returns a reason string, or null when approval is allowed.
+  // (AI-review flags will join this list once they're persisted.)
+  function approvalBlockedReason() {
+    if (pendingCount > 0) return `${pendingCount} edit${pendingCount === 1 ? '' : 's'} still pending review`
+    if (needsSponsorCheck) return 'sponsors still need checking'
+    return null
+  }
+
   // "Check sponsors": sponsors changed since they were last marked checked
   // (or were never checked). Cleared by marking them verified.
   const needsSponsorCheck = !!menu.sponsors_updated_at &&
@@ -717,6 +726,8 @@ export default function MenuPage() {
 
   async function approveMenu() {
     if (isApproved) return
+    const reason = approvalBlockedReason()
+    if (reason) { alert(`Can't approve yet — ${reason}. Resolve it first.`); return }
     const { error } = await supabase.from('menus').update({ phase: 'approved' }).eq('id', menu.id)
     if (error) { alert(error.message.includes('Not authorized') ? 'You are not a designated approver for this menu.' : error.message); return }
     loadMenu()
@@ -743,7 +754,10 @@ export default function MenuPage() {
           phase={menu.phase}
           hasPendingEdits={pendingCount > 0}
           options={['build', 'proof', 'print_prep', 'approved']}
-          onChange={canEdit ? async (next) => { await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu() } : null}
+          onChange={canEdit ? async (next) => {
+            if (next === 'approved') { const r = approvalBlockedReason(); if (r) { alert(`Can't approve yet — ${r}. Resolve it first.`); return } }
+            await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu()
+          } : null}
         />
         {syncNeeded && (
           <span
@@ -770,9 +784,10 @@ export default function MenuPage() {
         ) : canApproveMenu ? (
           <button
             onClick={approveMenu}
+            disabled={!!approvalBlockedReason()}
             data-tour="menu-approve-button"
-            className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap"
-            title="Mark this menu as Approved"
+            className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            title={approvalBlockedReason() ? `Can't approve yet — ${approvalBlockedReason()}` : 'Mark this menu as Approved'}
           >
             Approve Menu
           </button>
@@ -973,21 +988,14 @@ export default function MenuPage() {
       {/* Compact CTA strip — sync + pending edits + sponsor check */}
       {(everSynced || syncNeeded || pendingCount > 0 || canEdit) && (
         <div className="mb-4 flex items-center gap-2 flex-wrap">
-          {/* Sponsor-check toggle — red when a check is due, subtle when not */}
-          {canEdit && (
-            needsSponsorCheck ? (
-              <button onClick={markSponsorsChecked}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-300 text-red-700 text-xs font-medium hover:bg-red-100 whitespace-nowrap"
-                title="Sponsors changed since last checked. Click to mark them verified.">
-                ⚑ Check sponsors · <span className="underline underline-offset-2">Mark checked</span>
-              </button>
-            ) : (
-              <button onClick={flagSponsorsCheck}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
-                title="Flag this menu so someone verifies the sponsors.">
-                Flag sponsor check
-              </button>
-            )
+          {/* Flag-for-check button — only when NOT already flagged (the large
+              red alert below handles the flagged state). */}
+          {canEdit && !needsSponsorCheck && (
+            <button onClick={flagSponsorsCheck}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
+              title="Flag this menu so someone verifies the sponsors.">
+              ⚑ Flag sponsor check
+            </button>
           )}
           {/* Synced + up to date: green chip + Disconnect */}
           {everSynced && !syncNeeded && (

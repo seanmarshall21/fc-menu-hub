@@ -1065,7 +1065,19 @@ export default function EventPage() {
     const resolved = resolveApprovers([brand, series, event, menu], 'menu_approver_ids')
     return canApprove(profile?.role, profile?.id, resolved)
   }
+  // A menu can't be approved while it has unreviewed edits or an open sponsor
+  // check. Returns a reason string, or null when approval is allowed.
+  function menuApprovalBlocked(menu) {
+    const its = menu?.menu_items || []
+    const pending = its.filter(i => i.edit_status === 'pending_approval').length
+    const needsSp = !!menu?.sponsors_updated_at &&
+      (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))
+    if (pending > 0) return `${pending} edit${pending === 1 ? '' : 's'} pending review`
+    if (needsSp) return 'sponsors need checking'
+    return null
+  }
   async function quickSetPhase(menu, phase) {
+    if (phase === 'approved') { const r = menuApprovalBlocked(menu); if (r) { alert(`Can't approve — ${r}.`); return } }
     const { error } = await supabase.from('menus').update({ phase }).eq('id', menu.id)
     if (error) { alert('Could not update: ' + error.message); return }
     loadData()
@@ -1094,12 +1106,21 @@ export default function EventPage() {
   // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────
   // "Not approved" sends the menu back to the working 'build' phase.
   async function bulkSetPhase(idsSet, phase) {
-    const ids = [...idsSet]
+    let ids = [...idsSet]
     if (!ids.length) return
+    let skipped = 0
+    if (phase === 'approved') {
+      // Skip menus that can't be approved yet (pending edits / sponsor check).
+      const all = ids.length
+      ids = ids.filter(id => !menuApprovalBlocked(menus.find(m => m.id === id)))
+      skipped = all - ids.length
+      if (!ids.length) { alert("None of the selected menus can be approved yet — they have pending edits or open sponsor checks."); return }
+    }
     setBulkBusy(true)
     const { error } = await supabase.from('menus').update({ phase }).in('id', ids)
     setBulkBusy(false)
     if (error) { alert('Could not update status: ' + error.message); return }
+    if (skipped > 0) alert(`Approved ${ids.length}. Skipped ${skipped} that still have pending edits or sponsor checks.`)
     await loadData()
   }
   async function bulkUnsync(idsSet) {
@@ -1168,6 +1189,7 @@ export default function EventPage() {
               <ReviewChip
                 phase={menu.phase}
                 needsSponsorCheck={needsSponsorCheck}
+                approveBlockedReason={menuApprovalBlocked(menu)}
                 onSetPhase={(p) => quickSetPhase(menu, p)}
                 onFlagSponsors={() => flagSponsorsCheck(menu)}
                 onMarkSponsorsChecked={() => markSponsorsChecked(menu)}
@@ -1302,6 +1324,7 @@ export default function EventPage() {
             <ReviewChip
               phase={menu.phase}
               needsSponsorCheck={!!menu.sponsors_updated_at && (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))}
+              approveBlockedReason={menuApprovalBlocked(menu)}
               onSetPhase={(p) => quickSetPhase(menu, p)}
               onFlagSponsors={() => flagSponsorsCheck(menu)}
               onMarkSponsorsChecked={() => markSponsorsChecked(menu)}

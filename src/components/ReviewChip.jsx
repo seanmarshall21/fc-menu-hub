@@ -18,7 +18,7 @@ const PHASE_LABELS = {
 // The quick-set phases (Archived is set from the menu header, not here).
 const PHASES = ['build', 'proof', 'print_prep', 'approved']
 
-export default function ReviewChip({ phase, needsSponsorCheck, onSetPhase, onFlagSponsors, onMarkSponsorsChecked, onFeedback }) {
+export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedReason, onSetPhase, onFlagSponsors, onMarkSponsorsChecked, onFeedback }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const btnRef = useRef(null)
@@ -77,13 +77,19 @@ export default function ReviewChip({ phase, needsSponsorCheck, onSetPhase, onFla
           className="bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px] flex flex-col py-1"
         >
           <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">Status</div>
-          {PHASES.map(p => (
-            <button key={p} type="button" onClick={(e) => choose(e, () => p !== phase && onSetPhase(p))}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-surface-50 text-left ${p === phase ? 'font-semibold text-ink-900' : 'text-ink-700'}`}>
-              <span className={`phase-badge ${PHASE_CLASSES[p]} text-[10px]`}>{PHASE_LABELS[p]}</span>
-              {p === phase && <span className="ml-auto text-brand-500">✓</span>}
-            </button>
-          ))}
+          {PHASES.map(p => {
+            const blocked = p === 'approved' && approveBlockedReason
+            return (
+              <button key={p} type="button" disabled={!!blocked}
+                onClick={(e) => choose(e, () => { if (!blocked && p !== phase) onSetPhase(p) })}
+                title={blocked ? `Can't approve — ${approveBlockedReason}` : ''}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs text-left ${blocked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-50'} ${p === phase ? 'font-semibold text-ink-900' : 'text-ink-700'}`}>
+                <span className={`phase-badge ${PHASE_CLASSES[p]} text-[10px]`}>{PHASE_LABELS[p]}</span>
+                {blocked && <span className="ml-auto text-[9px] text-red-500 normal-case">{approveBlockedReason}</span>}
+                {p === phase && !blocked && <span className="ml-auto text-brand-500">✓</span>}
+              </button>
+            )
+          })}
           <div className="border-t border-surface-100 my-1" />
           {needsSponsorCheck ? (
             <button type="button" onClick={(e) => choose(e, onMarkSponsorsChecked)}
