@@ -1069,6 +1069,19 @@ export default function EventPage() {
     if (error) { alert('Could not update: ' + error.message); return }
     loadData()
   }
+  // Flag / clear the "check sponsors" status on a single menu.
+  async function flagSponsorsCheck(menu) {
+    const { error } = await supabase.from('menus').update({ sponsors_updated_at: new Date().toISOString() }).eq('id', menu.id)
+    if (error) { alert('Could not flag: ' + error.message); return }
+    loadData()
+  }
+  async function markSponsorsChecked(menu) {
+    const { error } = await supabase.from('menus')
+      .update({ sponsors_checked_at: new Date().toISOString(), sponsors_checked_by: profile?.id || null })
+      .eq('id', menu.id)
+    if (error) { alert('Could not mark checked: ' + error.message); return }
+    loadData()
+  }
   // Quick size change from the card chips. Updates menu.size — the next Figma
   // sync rebuilds it on the new-size template (see the plugin's resize logic).
   async function quickSetSize(menu, size) {
@@ -1098,6 +1111,15 @@ export default function EventPage() {
       .in('id', ids)
     setBulkBusy(false)
     if (error) { alert('Could not unsync: ' + error.message); return }
+    await loadData()
+  }
+  async function bulkFlagSponsors(idsSet) {
+    const ids = [...idsSet]
+    if (!ids.length) return
+    setBulkBusy(true)
+    const { error } = await supabase.from('menus').update({ sponsors_updated_at: new Date().toISOString() }).in('id', ids)
+    setBulkBusy(false)
+    if (error) { alert('Could not flag: ' + error.message); return }
     await loadData()
   }
 
@@ -1271,8 +1293,10 @@ export default function EventPage() {
           {!selectMode && canApproveMenu(menu) ? (
             <ReviewChip
               phase={menu.phase}
-              onApprove={() => quickSetPhase(menu, 'approved')}
-              onUnapprove={() => quickSetPhase(menu, 'build')}
+              needsSponsorCheck={!!menu.sponsors_updated_at && (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))}
+              onSetPhase={(p) => quickSetPhase(menu, p)}
+              onFlagSponsors={() => flagSponsorsCheck(menu)}
+              onMarkSponsorsChecked={() => markSponsorsChecked(menu)}
               onFeedback={() => { setFeedbackMenu(menu); setFeedbackText('') }}
             />
           ) : (
@@ -1511,10 +1535,20 @@ export default function EventPage() {
                   <button onClick={() => setSelectedMenuIds(new Set(menusFiltered.map(m => m.id)))}
                     className="text-xs text-brand-600 hover:text-brand-700 underline underline-offset-2 whitespace-nowrap">Select all ({menusFiltered.length})</button>
                   <div className="flex items-center gap-2 ml-auto flex-wrap">
-                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedMenuIds, 'approved')}
-                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark approved</button>
-                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedMenuIds, 'build')}
-                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark not approved</button>
+                    <select
+                      value=""
+                      disabled={!selectedMenuIds.size || bulkBusy}
+                      onChange={e => { if (e.target.value) bulkSetPhase(selectedMenuIds, e.target.value); e.target.value = '' }}
+                      className="input py-1.5 text-sm w-auto disabled:opacity-40"
+                    >
+                      <option value="">Set status…</option>
+                      <option value="build">Build</option>
+                      <option value="proof">Proof</option>
+                      <option value="print_prep">Print Prep</option>
+                      <option value="approved">Approved</option>
+                    </select>
+                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedMenuIds)}
+                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
                     <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkUnsync(selectedMenuIds)}
                       className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
                     <button onClick={() => { setMenuSelectMode(false); setSelectedMenuIds(new Set()) }}
@@ -1643,10 +1677,20 @@ export default function EventPage() {
                       </button>
                       {canEdit && (
                         <>
-                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedPreviewIds, 'approved')}
-                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark approved</button>
-                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkSetPhase(selectedPreviewIds, 'build')}
-                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Mark not approved</button>
+                          <select
+                            value=""
+                            disabled={!selectedPreviewIds.size || bulkBusy}
+                            onChange={e => { if (e.target.value) bulkSetPhase(selectedPreviewIds, e.target.value); e.target.value = '' }}
+                            className="input py-1.5 text-sm w-auto disabled:opacity-40"
+                          >
+                            <option value="">Set status…</option>
+                            <option value="build">Build</option>
+                            <option value="proof">Proof</option>
+                            <option value="print_prep">Print Prep</option>
+                            <option value="approved">Approved</option>
+                          </select>
+                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedPreviewIds)}
+                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
                           <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkUnsync(selectedPreviewIds)}
                             className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
                         </>
