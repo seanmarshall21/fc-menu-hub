@@ -333,6 +333,28 @@ alter table menus add column if not exists last_synced_frame_id text;
 -- column keeps a server-side copy.
 alter table menus add column if not exists last_sync_digest text;
 
+-- "Check sponsors" status. sponsors_updated_at bumps whenever a menu's sponsor
+-- selection changes (trigger on menu_sponsors); sponsors_checked_at is set when
+-- a person verifies them. needs-check = changed since last checked (or never).
+-- These columns are excluded from the updated_at stamp trigger above so they
+-- don't false-flag "sync needed".
+alter table menus add column if not exists sponsors_updated_at timestamptz;
+alter table menus add column if not exists sponsors_checked_at timestamptz;
+alter table menus add column if not exists sponsors_checked_by uuid;
+create or replace function bump_menu_sponsors_updated()
+returns trigger language plpgsql security definer as $$
+declare mid uuid;
+begin
+  mid := coalesce(new.menu_id, old.menu_id);
+  update menus set sponsors_updated_at = now() where id = mid;
+  return null;
+end;
+$$;
+drop trigger if exists trg_bump_menu_sponsors_updated on menu_sponsors;
+create trigger trg_bump_menu_sponsors_updated
+  after insert or update or delete on menu_sponsors
+  for each row execute function bump_menu_sponsors_updated();
+
 -- ─── Per-person capability flags (internal users) ───────────────────────────
 -- NULL = use the role default (full access for internal, so no regression).
 -- Admin always bypasses. An internal user with all four off = "internal

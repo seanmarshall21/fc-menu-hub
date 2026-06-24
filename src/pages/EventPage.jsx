@@ -1100,6 +1100,8 @@ export default function EventPage() {
     const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
     const everSynced  = !!menu.last_synced_at
     const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
+    const needsSponsorCheck = !!menu.sponsors_updated_at &&
+      (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))
     const isSelected  = selectedMenuIds.has(menu.id)
     const CardTag = menuSelectMode ? 'div' : Link
     const cardProps = menuSelectMode
@@ -1150,6 +1152,14 @@ export default function EventPage() {
           <span>·</span>
           <span className="whitespace-nowrap">{items.length} items</span>
           <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+            {needsSponsorCheck && (
+              <span
+                className="inline-flex items-center px-1.5 h-[18px] rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold flex-shrink-0"
+                title="Sponsors changed since last checked"
+              >
+                ⚑
+              </span>
+            )}
             {pendingCount > 0 && (
               <span
                 className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex-shrink-0"

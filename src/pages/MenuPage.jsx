@@ -629,6 +629,18 @@ export default function MenuPage() {
   const syncNeeded = (!menu.last_synced_at || (menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)))
   const pendingCount = items.filter(i => i.edit_status === 'pending_approval').length
 
+  // "Check sponsors": sponsors changed since they were last marked checked
+  // (or were never checked). Cleared by marking them verified.
+  const needsSponsorCheck = !!menu.sponsors_updated_at &&
+    (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))
+  async function markSponsorsChecked() {
+    const { error } = await supabase.from('menus')
+      .update({ sponsors_checked_at: new Date().toISOString(), sponsors_checked_by: profile?.id || null })
+      .eq('id', menu.id)
+    if (error) { alert('Could not mark checked: ' + error.message); return }
+    loadMenu()
+  }
+
   // Clear the Figma link on the Menu Hub side: resets sync timestamp, frame
   // id, and digest so the chip returns to "Not synced". Use this when the
   // Figma frame was deleted, or to start a clean re-sync. Does not touch
@@ -943,9 +955,21 @@ export default function MenuPage() {
         )}
       </div>
 
-      {/* Compact CTA strip — sync + pending edits */}
-      {(everSynced || syncNeeded || pendingCount > 0) && (
+      {/* Compact CTA strip — sync + pending edits + sponsor check */}
+      {(everSynced || syncNeeded || pendingCount > 0 || needsSponsorCheck) && (
         <div className="mb-4 flex items-center gap-2 flex-wrap">
+          {/* Check sponsors: sponsors changed since last verified */}
+          {needsSponsorCheck && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium"
+              title="The sponsor selection changed since it was last checked. Verify the sponsors look right, then mark checked.">
+              ⚑ Check sponsors
+              {canEdit && (
+                <button onClick={markSponsorsChecked} className="ml-1 text-amber-600 hover:text-amber-900 underline underline-offset-2">
+                  Mark checked
+                </button>
+              )}
+            </span>
+          )}
           {/* Synced + up to date: green chip + Disconnect */}
           {everSynced && !syncNeeded && (
             <>
