@@ -408,11 +408,12 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   const threadParent = threadId ? messages.find(m => m.id === threadId) : null
   const threadReplies = threadId ? repliesOf(threadId) : []
 
-  if (!open) return null
-
   return (
-    <div style={{ width }} className="fixed top-0 right-0 h-full max-w-[100vw] bg-white border-l border-surface-200 shadow-2xl z-40 flex flex-col">
-      <div onMouseDown={startResize} title="Drag to resize" className="absolute left-0 top-0 h-full w-1.5 -ml-0.5 cursor-ew-resize hover:bg-brand-300/60 z-10" />
+    <>
+      {/* Mobile backdrop — tap to dismiss. Desktop keeps the page usable alongside. */}
+      <div onClick={onClose} className={`sm:hidden fixed inset-0 bg-black/40 z-40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
+      <div style={{ width }} className={`fixed top-0 right-0 h-full max-w-[100vw] max-sm:!w-full bg-white border-l border-surface-200 shadow-2xl z-50 flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div onMouseDown={startResize} title="Drag to resize" className="hidden sm:block absolute left-0 top-0 h-full w-1.5 -ml-0.5 cursor-ew-resize hover:bg-brand-300/60 z-10" />
 
       <div className="px-4 py-3 border-b border-surface-200 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
@@ -457,6 +458,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
           ? <Composer ctx={ctx} placeholder="Reply…" submitLabel="Reply" onSubmit={(h, m, a) => postMessage(threadId, h, m, a)} />
           : <Composer ctx={ctx} onSubmit={(h, m, a) => postMessage(null, h, m, a)} />}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

@@ -282,18 +282,20 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full px-4 py-2.5 flex items-center justify-between gap-2 text-left"
+        className="w-full px-4 py-2.5 flex items-start sm:items-center justify-between gap-2 text-left"
       >
-        <div className="flex items-center gap-2 text-sm text-amber-900">
-          <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+        <div className="flex items-start gap-2 text-sm text-amber-900 min-w-0">
+          <svg className={`w-3.5 h-3.5 mt-0.5 sm:mt-0 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          <span className="font-semibold">{unresolvedCount > 0 ? `${unresolvedCount} review ${unresolvedCount === 1 ? 'flag' : 'flags'}` : 'Flags handled'}</span>
-          <span className="text-amber-700">
-            {Object.entries(counts).map(([k, v]) => `${v} ${kindLabel(k)}`).join(' · ')}
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0">
+            <span className="font-semibold whitespace-nowrap">{unresolvedCount > 0 ? `${unresolvedCount} review ${unresolvedCount === 1 ? 'flag' : 'flags'}` : 'Flags handled'}</span>
+            <span className="text-amber-700 text-xs sm:text-sm">
+              {Object.entries(counts).map(([k, v]) => `${v} ${kindLabel(k)}`).join(' · ')}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2 flex-shrink-0">
           {cacheStale && <span className="text-[10px] text-amber-600 whitespace-nowrap" title="Items changed since the last AI pass">items changed</span>}
           {aiButton}
           <span className="text-[11px] text-amber-700">{open ? 'Hide' : 'Show'}</span>

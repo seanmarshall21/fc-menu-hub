@@ -21,6 +21,7 @@ import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
 import ActivityDrawer from '@/components/ActivityDrawer'
+import ActivityButton from '@/components/ActivityButton'
 import MenuFeedbackBanner from '@/components/MenuFeedbackBanner'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
@@ -749,10 +750,6 @@ export default function MenuPage() {
         { label: menu.name },
       ]}
       actions={<>
-        <button onClick={() => setShowActivity(true)} className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Activity & feedback">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.83L3 20l1.17-3.5A7.6 7.6 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-          Activity
-        </button>
         <FavoriteButton type="menu" id={menu.id} size="sm" />
         <PhaseBadge
           phase={menu.phase}
@@ -775,7 +772,9 @@ export default function MenuPage() {
           </span>
         )}
       </>}
-      secondaryActions={(isAdmin || isInternal) && (<>
+      secondaryActions={(<>
+        <ActivityButton scopeType="menu" scopeId={menu.id} open={showActivity} onOpen={() => setShowActivity(true)} />
+        {(isAdmin || isInternal) && (<>
         {isApproved ? (
           <button
             onClick={canApproveMenu ? unapproveMenu : undefined}
@@ -823,6 +822,7 @@ export default function MenuPage() {
             Edit
           </button>
         )}
+        </>)}
       </>)}
       below={(
         <div className="flex gap-1 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
