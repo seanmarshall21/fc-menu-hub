@@ -18,11 +18,13 @@ import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { format } from 'date-fns'
 
 const PHASES = [
-  { value: 'build',      label: 'Build' },
-  { value: 'proof',      label: 'Proof' },
-  { value: 'print_prep', label: 'Print Prep' },
-  { value: 'approved',   label: 'Approved' },
-  { value: 'archived',   label: 'Archived' },
+  { value: 'build',    label: 'Build' },
+  { value: 'proof',    label: 'Proof' },
+  { value: 'edits',    label: 'Edits' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'exported', label: 'Exported' },
+  { value: 'complete', label: 'Complete' },
+  { value: 'archived', label: 'Archived' },
 ]
 
 function slugify(str) {

@@ -872,3 +872,14 @@ create policy ar_read on activity_reactions for select using (auth.uid() is not 
 create policy ar_insert on activity_reactions for insert with check (user_id = auth.uid());
 create policy ar_delete on activity_reactions for delete using (user_id = auth.uid());
 alter table activity_messages add column if not exists edited_at timestamptz;
+
+-- ─── 7-stage phase lifecycle + print deliverable links ──────────────────────
+-- Menus and events both use: build → proof → edits → approved → exported →
+-- complete → archived. "Edits" is also auto-shown (red badge) when a menu has
+-- unresolved edits/feedback, layered over its stored phase.
+alter table menus  drop constraint if exists menus_phase_check;
+alter table menus  add  constraint menus_phase_check  check (phase in ('build','proof','edits','approved','exported','complete','archived'));
+alter table events drop constraint if exists events_phase_check;
+alter table events add  constraint events_phase_check check (phase in ('build','proof','edits','approved','exported','complete','archived'));
+alter table menus  add column if not exists print_file_url   text;  -- link to the final print file for this menu
+alter table events add column if not exists print_folder_url text;  -- link to the event's print-files folder

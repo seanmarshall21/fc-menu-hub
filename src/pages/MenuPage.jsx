@@ -208,6 +208,7 @@ export default function MenuPage() {
   const [showActivity, setShowActivity] = useState(false)
   const [editMenuName, setEditMenuName] = useState('')
   const [editMenuTitle, setEditMenuTitle] = useState('')
+  const [editMenuPrintUrl, setEditMenuPrintUrl] = useState('')
   const [editMenuSize, setEditMenuSize] = useState('lg')
   const [editMenuCategory, setEditMenuCategory] = useState('bar')
   const [editMenuIconUrl, setEditMenuIconUrl] = useState(null)
@@ -621,7 +622,9 @@ export default function MenuPage() {
   // Consecutive section groups — preserves duplicate section names at different positions
   const sectionGroups = buildSectionGroups(items)
   const sectionNames = [...new Set(items.map(i => i.section))] // unique names for datalist only
-  const canEdit = (isAdmin || isInternal) && menu.phase !== 'approved'
+  // Editing locks once a menu is approved or beyond (approved/exported/complete/archived).
+  const FINAL_PHASES = ['approved', 'exported', 'complete', 'archived']
+  const canEdit = (isAdmin || isInternal) && !FINAL_PHASES.includes(menu.phase)
 
   // Cascading approver permissions (brand → series → event → menu union).
   const role = profile?.role
@@ -673,6 +676,7 @@ export default function MenuPage() {
     loadMenu()
   }
   const isApproved = menu.phase === 'approved'
+  const preApproval = ['build', 'proof', 'edits'].includes(menu.phase)  // approve button only relevant here
   const currency = resolveCurrencySpec(series, event, menu)
 
   // Sponsor order shown in preview/export. When menu.override_sponsor_order is
@@ -752,12 +756,18 @@ export default function MenuPage() {
         { label: menu.name },
       ]}
       actions={<>
+        {menu.print_file_url && (
+          <a href={menu.print_file_url} target="_blank" rel="noreferrer"
+            className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the final print file">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V18a2 2 0 01-2 2z" /></svg>
+            Print file ↗
+          </a>
+        )}
         <FavoriteButton type="menu" id={menu.id} size="sm" />
         <PhaseBadge
           phase={menu.phase}
           hasPendingEdits={pendingCount > 0}
-          options={['build', 'proof', 'print_prep', 'approved']}
-          onChange={canEdit ? async (next) => {
+          onChange={(isAdmin || isInternal) ? async (next) => {
             if (next === 'approved') { const r = approvalBlockedReason(); if (r) { alert(`Can't approve yet — ${r}. Resolve it first.`); return } }
             await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu()
           } : null}
@@ -786,7 +796,7 @@ export default function MenuPage() {
           >
             ✓ Approved
           </button>
-        ) : canApproveMenu ? (
+        ) : (preApproval && canApproveMenu) ? (
           <button
             onClick={approveMenu}
             disabled={!!approvalBlockedReason()}
@@ -796,19 +806,20 @@ export default function MenuPage() {
           >
             Approve Menu
           </button>
-        ) : (
+        ) : preApproval ? (
           <span
             className="text-xs px-3 py-1.5 rounded-md bg-surface-50 text-ink-400 border border-surface-200 font-medium whitespace-nowrap"
             title="Only designated approvers can approve this menu"
           >
             Approval restricted
           </span>
-        )}
+        ) : null}
         {canEdit && (
           <button
             onClick={() => {
               setEditMenuName(menu.name)
               setEditMenuTitle(menu.print_title || '')
+              setEditMenuPrintUrl(menu.print_file_url || '')
               setEditMenuSize(menu.size || 'lg')
               setEditMenuCategory(menu.category || 'bar')
               setEditMenuIconUrl(menu.icon_url || null)
@@ -862,6 +873,7 @@ export default function MenuPage() {
                 .update({
                   name: editMenuName.trim(),
                   print_title: editMenuTitle.trim() || null,
+                  print_file_url: editMenuPrintUrl.trim() || null,
                   size: editMenuSize,
                   category: editMenuCategory,
                   icon_url: editMenuIconUrl,
@@ -889,6 +901,12 @@ export default function MenuPage() {
               <input className="input" value={editMenuTitle} onChange={e => setEditMenuTitle(e.target.value)}
                 placeholder={editMenuName || 'Same as menu name'} />
               <p className="mt-1 text-[11px] text-ink-400">If the title printed on the menu differs from the app name, set it here. Leave blank to print the menu name.</p>
+            </div>
+            <div>
+              <label className="label">Print file link <span className="text-ink-300 font-normal">(optional)</span></label>
+              <input className="input" type="url" value={editMenuPrintUrl} onChange={e => setEditMenuPrintUrl(e.target.value)}
+                placeholder="https://… link to the final print file" />
+              <p className="mt-1 text-[11px] text-ink-400">Once exported, paste the print file's link here — a “Print file” button appears on this menu.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

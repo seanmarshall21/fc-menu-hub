@@ -6,17 +6,20 @@ import { createPortal } from 'react-dom'
 // check, or add feedback. Portaled so the card's overflow-hidden doesn't clip it.
 
 const PHASE_CLASSES = {
-  build:      'bg-surface-200 text-ink-600',
-  proof:      'bg-blue-100 text-blue-800',
-  print_prep: 'bg-amber-100 text-amber-800',
-  approved:   'bg-emerald-100 text-emerald-800',
-  archived:   'bg-surface-200 text-ink-500',
+  build:    'bg-surface-200 text-ink-600',
+  proof:    'bg-blue-100 text-blue-800',
+  edits:    'bg-red-100 text-red-700',
+  approved: 'bg-emerald-100 text-emerald-800',
+  exported: 'bg-indigo-100 text-indigo-800',
+  complete: 'bg-teal-100 text-teal-800',
+  archived: 'bg-surface-200 text-ink-500',
 }
 const PHASE_LABELS = {
-  build: 'Build', proof: 'Proof', print_prep: 'Print Prep', approved: 'Approved', archived: 'Archived',
+  build: 'Build', proof: 'Proof', edits: 'Edits', approved: 'Approved',
+  exported: 'Exported', complete: 'Complete', archived: 'Archived',
 }
-// The quick-set phases (Archived is set from the menu header, not here).
-const PHASES = ['build', 'proof', 'print_prep', 'approved']
+// The quick-set phases offered on the chip.
+const PHASES = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
 
 export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedReason, onSetPhase, onFlagSponsors, onMarkSponsorsChecked, onFeedback }) {
   const [open, setOpen] = useState(false)

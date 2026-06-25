@@ -1,24 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
 
 const PHASE_LABELS = {
-  build:      'Build',
-  proof:      'Proof',
-  print_prep: 'Print Prep',
-  approved:   'Approved',
-  archived:   'Archived',
+  build:    'Build',
+  proof:    'Proof',
+  edits:    'Edits',
+  approved: 'Approved',
+  exported: 'Exported',
+  complete: 'Complete',
+  archived: 'Archived',
 }
 
-// Color progression reads as a status journey: Build (neutral) → Proof
-// (blue, in review) → Approved (green, done). Print Prep amber, Archived gray.
+// Status journey: Build (neutral) → Proof (blue, in review) → Edits (red, needs
+// action) → Approved (green) → Exported (indigo, prepped/in print folder) →
+// Complete (teal, printed & shipped) → Archived (gray).
 const PHASE_CLASSES = {
-  build:      'phase-badge bg-surface-200 text-ink-600',
-  proof:      'phase-badge bg-blue-100 text-blue-800',
-  print_prep: 'phase-badge bg-amber-100 text-amber-800',
-  approved:   'phase-badge bg-emerald-100 text-emerald-800',
-  archived:   'phase-badge bg-surface-200 text-ink-500',
+  build:    'phase-badge bg-surface-200 text-ink-600',
+  proof:    'phase-badge bg-blue-100 text-blue-800',
+  edits:    'phase-badge bg-red-100 text-red-700',
+  approved: 'phase-badge bg-emerald-100 text-emerald-800',
+  exported: 'phase-badge bg-indigo-100 text-indigo-800',
+  complete: 'phase-badge bg-teal-100 text-teal-800',
+  archived: 'phase-badge bg-surface-200 text-ink-500',
 }
 
-const ALL_PHASES = ['build', 'proof', 'print_prep', 'approved', 'archived']
+const ALL_PHASES = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
 
 /**
  * Phase badge.

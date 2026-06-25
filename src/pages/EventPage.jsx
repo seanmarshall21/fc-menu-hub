@@ -42,11 +42,11 @@ const CATEGORY_LABELS = {
   bar: 'Bar', food: 'Food', vip: 'VIP', happy_hour: 'Happy Hour', custom: 'Custom',
 }
 const CATEGORIES = Object.keys(CATEGORY_LABELS)
-const EVENT_PHASES = ['build', 'proof', 'print_prep', 'approved', 'archived']
-const MENU_PHASES  = ['build', 'proof', 'print_prep', 'approved']
+const EVENT_PHASES = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
+const MENU_PHASES  = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
 const PHASE_LABELS = {
-  build: 'Build', proof: 'Proof', print_prep: 'Print Prep',
-  approved: 'Approved', archived: 'Archived',
+  build: 'Build', proof: 'Proof', edits: 'Edits', approved: 'Approved',
+  exported: 'Exported', complete: 'Complete', archived: 'Archived',
 }
 
 function slugify(str) {
@@ -817,6 +817,7 @@ export default function EventPage() {
   const [editVenue, setEditVenue]           = useState('')
   const [editPhase, setEditPhase]           = useState('')
   const [editFigmaUrl, setEditFigmaUrl]     = useState('')
+  const [editPrintFolderUrl, setEditPrintFolderUrl] = useState('')
   const [editFigmaPage, setEditFigmaPage]   = useState('')
   const [editIconUrl, setEditIconUrl]       = useState(null)
   const [editIconName, setEditIconName]     = useState(null)
@@ -1015,6 +1016,7 @@ export default function EventPage() {
     setEditVenue(event.venue || '')
     setEditPhase(event.phase || 'build')
     setEditFigmaUrl(event.figma_file_url || '')
+    setEditPrintFolderUrl(event.print_folder_url || '')
     setEditFigmaPage(event.figma_page_name || '')
     setEditIconUrl(event.icon_url || null)
     setEditIconName(event.icon_name || null)
@@ -1033,6 +1035,7 @@ export default function EventPage() {
       venue:                 editVenue.trim() || null,
       phase:                 editPhase,
       figma_file_url:        editFigmaUrl.trim() || null,
+      print_folder_url:      editPrintFolderUrl.trim() || null,
       figma_page_name:       editFigmaPage.trim() || null,
       icon_url:              editIconUrl,
       icon_name:             editIconName,
@@ -1404,13 +1407,9 @@ export default function EventPage() {
     : (m.updated_at && new Date(m.updated_at) > new Date(m.last_synced_at)) ? 'needs_update'
     : 'synced'
 
-  const PHASE_FILTER_OPTS = [
-    { value: 'build', label: 'Build' },
-    { value: 'proof', label: 'Proof' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'print_prep', label: 'Print prep' },
-    { value: 'archived', label: 'Archived' },
-  ].filter(o => menus.some(m => m.phase === o.value))
+  const PHASE_FILTER_OPTS = MENU_PHASES
+    .map(value => ({ value, label: PHASE_LABELS[value] }))
+    .filter(o => menus.some(m => m.phase === o.value))
    .map(o => ({ ...o, count: menus.filter(m => m.phase === o.value).length }))
 
   const SYNC_FILTER_OPTS = [
@@ -1464,6 +1463,12 @@ export default function EventPage() {
           <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5" title="Open in the Figma desktop app (falls back to browser)">
             <FigmaLogo size={12} />
             Open Figma
+          </a>
+        )}
+        {event.print_folder_url && (
+          <a href={event.print_folder_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the event's print-files folder">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+            Print files ↗
           </a>
         )}
         {canEdit && (
@@ -1643,10 +1648,7 @@ export default function EventPage() {
                       className="input py-1.5 text-sm w-auto disabled:opacity-40"
                     >
                       <option value="">Set status…</option>
-                      <option value="build">Build</option>
-                      <option value="proof">Proof</option>
-                      <option value="print_prep">Print Prep</option>
-                      <option value="approved">Approved</option>
+                      {MENU_PHASES.map(p => <option key={p} value={p}>{PHASE_LABELS[p]}</option>)}
                     </select>
                     <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedMenuIds)}
                       className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
@@ -1785,10 +1787,7 @@ export default function EventPage() {
                             className="input py-1.5 text-sm w-auto disabled:opacity-40"
                           >
                             <option value="">Set status…</option>
-                            <option value="build">Build</option>
-                            <option value="proof">Proof</option>
-                            <option value="print_prep">Print Prep</option>
-                            <option value="approved">Approved</option>
+                            {MENU_PHASES.map(p => <option key={p} value={p}>{PHASE_LABELS[p]}</option>)}
                           </select>
                           <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedPreviewIds)}
                             className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
@@ -2026,6 +2025,13 @@ export default function EventPage() {
               <input className="input" value={editFigmaUrl}
                 onChange={e => setEditFigmaUrl(e.target.value)}
                 placeholder="https://figma.com/design/…" />
+            </div>
+            <div>
+              <label className="label">Print files folder <span className="text-ink-400 font-normal">(optional)</span></label>
+              <input className="input" type="url" value={editPrintFolderUrl}
+                onChange={e => setEditPrintFolderUrl(e.target.value)}
+                placeholder="https://… link to the print-files folder" />
+              <p className="mt-1 text-[11px] text-ink-400">When the event reaches the export stage, paste the print-files folder link — a “Print files” button appears on the event.</p>
             </div>
             <div>
               <label className="label">Figma Page Name <span className="text-ink-400 font-normal">(must match exactly)</span></label>
