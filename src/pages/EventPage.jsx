@@ -1343,7 +1343,7 @@ export default function EventPage() {
               </div>
             </div>
           )}
-          <div className="absolute top-2 right-2 flex items-center gap-1.5">
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-white/70 backdrop-blur-sm rounded-full px-1.5 py-1">
             <AiReviewFlag state={aiReviewState(menu)} />
             <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (

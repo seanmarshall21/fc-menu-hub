@@ -200,6 +200,9 @@ export function reviewContentHash(items) {
   const r = (items || [])
     .filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
     .map(i => ({ id: i.id, s: i.section || '', t: i.title || '', d: i.description || '' }))
+    // Sort by id so the hash is order-independent — the menu page and the
+    // event page can return a menu's items in different orders.
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const s = JSON.stringify(r)
   let h = 5381
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0

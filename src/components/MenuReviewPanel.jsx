@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { reviewMenuItems } from '@/lib/menuReview'
+import { reviewMenuItems, reviewContentHash } from '@/lib/menuReview'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
-
-// Small stable hash of the reviewable content — the AI only re-runs when this
-// changes, so cached findings survive navigation and don't re-bill on re-open.
-function hashStr(s) {
-  let h = 5381
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
-  return h.toString(36)
-}
 
 /**
  * Inline review banner for a menu's items. Runs the deterministic checks
@@ -110,13 +102,9 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   const [aiRan, setAiRan] = useState(false)
   const [cacheStale, setCacheStale] = useState(false)
 
-  // Content hash of the reviewable items — drives caching.
-  const contentHash = useMemo(() => {
-    const r = (items || [])
-      .filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
-      .map(i => ({ id: i.id, s: i.section || '', t: i.title || '', d: i.description || '' }))
-    return hashStr(JSON.stringify(r))
-  }, [items])
+  // Content hash of the reviewable items — drives caching. Shared with the
+  // event-page badge so both sides agree on whether a review is current.
+  const contentHash = useMemo(() => reviewContentHash(items), [items])
 
   async function runAiReview() {
     setAiBusy(true); setAiError(null)
