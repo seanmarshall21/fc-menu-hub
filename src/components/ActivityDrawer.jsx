@@ -78,6 +78,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   const [mentions, setMentions] = useState(() => new Set())
   const [showTag, setShowTag] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [width, setWidth] = useState(() => Number(localStorage.getItem('activityWidth')) || 380)
   const [replyTo, setReplyTo] = useState(null)
   const [posting, setPosting] = useState(false)
   const [attachments, setAttachments] = useState([])
@@ -155,7 +156,30 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
     const items = e.clipboardData?.items || []
     const files = []
     for (const it of items) { if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(f) } }
-    if (files.length) { e.preventDefault(); uploadFiles(files) }
+    if (files.length) { e.preventDefault(); uploadFiles(files); return }
+    // Paste as plain text — reliably keeps emojis and strips messy external HTML.
+    const text = e.clipboardData?.getData('text/plain')
+    if (text != null) {
+      e.preventDefault()
+      document.execCommand('insertText', false, text)
+      setEditorEmpty(htmlIsEmpty(editorRef.current?.innerHTML || ''))
+    }
+  }
+
+  // Drag the left edge to resize the panel; persisted in localStorage.
+  function startResize(e) {
+    e.preventDefault()
+    let latest = width
+    const move = (ev) => { latest = Math.min(760, Math.max(320, window.innerWidth - ev.clientX)); setWidth(latest) }
+    const up = () => {
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+      document.body.style.userSelect = ''
+      localStorage.setItem('activityWidth', String(latest))
+    }
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
   }
 
   async function patch(id, fields) { await supabase.from('activity_messages').update(fields).eq('id', id); load() }
@@ -181,7 +205,10 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   if (!open) return null
 
   return (
-    <div className="fixed top-0 right-0 h-full w-full sm:w-[380px] bg-white border-l border-surface-200 shadow-2xl z-40 flex flex-col">
+    <div style={{ width }} className="fixed top-0 right-0 h-full max-w-[100vw] bg-white border-l border-surface-200 shadow-2xl z-40 flex flex-col">
+      {/* Drag handle to resize the panel width */}
+      <div onMouseDown={startResize} title="Drag to resize"
+        className="absolute left-0 top-0 h-full w-1.5 -ml-0.5 cursor-ew-resize hover:bg-brand-300/60 z-10" />
       <div className="px-4 py-3 border-b border-surface-200 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-ink-900">Activity</h2>
@@ -239,7 +266,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
             <div className="relative">
               <ToolBtn onClick={() => setShowEmoji(s => !s)} title="Emoji"><span className="text-base leading-none">🙂</span></ToolBtn>
               {showEmoji && (
-                <div className="absolute bottom-full mb-1 left-0 z-10 bg-white border border-surface-200 rounded-lg shadow-lg p-2 w-56 grid grid-cols-8 gap-0.5">
+                <div className="absolute bottom-full mb-1 right-0 z-20 bg-white border border-surface-200 rounded-lg shadow-lg p-2 w-[232px] grid grid-cols-8 gap-0.5">
                   {EMOJIS.map(em => (
                     <button key={em} type="button" onMouseDown={e => e.preventDefault()}
                       onClick={() => { exec('insertText', em); setShowEmoji(false) }}
@@ -258,7 +285,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
           <div ref={editorRef} contentEditable suppressContentEditableWarning
             onInput={() => setEditorEmpty(htmlIsEmpty(editorRef.current?.innerHTML || ''))}
             onPaste={onPaste} data-placeholder="Write a message…"
-            className="rich-editor input w-full text-sm min-h-[64px] max-h-48 overflow-y-auto" />
+            className="rich-editor input w-full text-sm min-h-[64px] overflow-y-auto resize-y" />
           {/* Staged attachments preview */}
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
