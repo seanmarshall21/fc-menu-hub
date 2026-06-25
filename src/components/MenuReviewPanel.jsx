@@ -79,12 +79,27 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     setDecisions(prev => [...prev.filter(d => d.signature !== row.signature), { ...row, id: 'tmp-' + row.signature }])
     await supabase.from('menu_review_decisions').upsert(row, { onConflict: 'menu_id,signature' })
   }
-  function ignore(f) { saveDecision(f, 'ignored') }
-  function markCorrect(f) { saveDecision(f, 'correct') }
+  function ignore(f) { saveDecision(f, 'ignored'); setActedOn(prev => new Map(prev).set(findingKey(f), { f, action: 'ignored' })) }
+  function markCorrect(f) { saveDecision(f, 'correct'); setActedOn(prev => new Map(prev).set(findingKey(f), { f, action: 'correct' })) }
   async function clearIgnored() {
     setDecisions(prev => prev.filter(d => d.decision !== 'ignored'))
     if (menuId) await supabase.from('menu_review_decisions').delete().eq('menu_id', menuId).eq('decision', 'ignored')
   }
+
+  // Undo a session action; Clear removes the (resolved) flag from view.
+  async function undoAction(key) {
+    const rec = actedOn.get(key)
+    if (!rec) return
+    if (rec.action === 'accepted' && rec.prev) {
+      await supabase.from('menu_items').update({ [rec.prev.field]: rec.prev.value }).eq('id', rec.prev.itemId)
+      onChanged?.()
+    } else if (menuId) {
+      await supabase.from('menu_review_decisions').delete().eq('menu_id', menuId).eq('signature', key)
+      setDecisions(prev => prev.filter(d => d.signature !== key))
+    }
+    setActedOn(prev => { const n = new Map(prev); n.delete(key); return n })
+  }
+  function clearFlag(key) { setCleared(prev => new Set(prev).add(key)) }
 
   // AI review (LLM): spelling, grammar, semantic naming consistency. Runs on
   // demand via the review-menu edge function. Results merge with the
@@ -154,8 +169,28 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     return () => { cancelled = true }
   }, [decisionsLoaded, menuId, contentHash])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const findings = [...allFindings, ...aiFindings].filter(f => !hidden(findingKey(f)))
-  const ignoredCount = (allFindings.length + aiFindings.length) - findings.length
+  // Flags acted on THIS session stay visible (resolved-in-place) with Undo +
+  // Clear, instead of vanishing. They go away on reload (the decision/edit
+  // persists). `cleared` removes them from view entirely.
+  const [actedOn, setActedOn] = useState(() => new Map())  // key → { f, action, prev }
+  const [cleared, setCleared] = useState(() => new Set())
+  useEffect(() => { setActedOn(new Map()); setCleared(new Set()) }, [menuId])
+
+  // Build the render list: acted-on (kept) first, then unresolved findings.
+  const baseFindings = [...allFindings, ...aiFindings]
+  const renderList = []
+  const seenKeys = new Set()
+  for (const [key, rec] of actedOn) {
+    if (cleared.has(key)) continue
+    renderList.push({ f: rec.f, rec }); seenKeys.add(key)
+  }
+  for (const f of baseFindings) {
+    const key = findingKey(f)
+    if (seenKeys.has(key) || cleared.has(key) || hidden(key)) continue
+    renderList.push({ f, rec: null }); seenKeys.add(key)
+  }
+  const unresolvedCount = renderList.filter(x => !x.rec).length
+  const ignoredCount = decisions.filter(d => d.decision === 'ignored').length
 
   // Reusable AI-review button shown in both the clean banner + the flags header.
   const aiButton = (
@@ -179,7 +214,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     return m
   }, [items])
 
-  if (!findings.length) {
+  if (!renderList.length) {
     return (
       <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 mb-4 flex items-center gap-2 text-sm text-emerald-800 flex-wrap">
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -202,17 +237,18 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     )
   }
 
-  const counts = findings.reduce((acc, f) => {
-    acc[f.kind] = (acc[f.kind] || 0) + 1
+  const counts = renderList.filter(x => !x.rec).reduce((acc, x) => {
+    acc[x.f.kind] = (acc[x.f.kind] || 0) + 1
     return acc
   }, {})
-  const total = findings.length
 
   // Apply a single-item suggestion (spacing/typo/repeat).
   async function acceptSuggestion(f, idx) {
     if (!f.itemId || f.suggestion == null) return
     setBusyId(`s${idx}`)
     try {
+      const prevVal = itemsById.get(f.itemId)?.[f.field] ?? ''
+      setActedOn(prev => new Map(prev).set(findingKey(f), { f, action: 'accepted', prev: { itemId: f.itemId, field: f.field, value: prevVal } }))
       await supabase.from('menu_items').update({ [f.field]: f.suggestion }).eq('id', f.itemId)
       onChanged?.()
     } finally { setBusyId(null) }
@@ -229,7 +265,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
           <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          <span className="font-semibold">{total} review {total === 1 ? 'flag' : 'flags'}</span>
+          <span className="font-semibold">{unresolvedCount > 0 ? `${unresolvedCount} review ${unresolvedCount === 1 ? 'flag' : 'flags'}` : 'Flags handled'}</span>
           <span className="text-amber-700">
             {Object.entries(counts).map(([k, v]) => `${v} ${kindLabel(k)}`).join(' · ')}
           </span>
@@ -243,10 +279,10 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       {aiError && <p className="px-4 pb-2 text-[11px] text-red-600">{aiError}</p>}
       {open && (
         <ul className="divide-y divide-amber-100 bg-white">
-          {findings.map((f, i) => (
-            <li key={i} className="px-4 py-2.5 text-sm">
+          {renderList.map(({ f, rec }, i) => (
+            <li key={i} className={`px-4 py-2.5 text-sm ${rec ? 'bg-surface-50/60' : ''}`}>
               <div className="flex items-start gap-3">
-                <span className={`flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold uppercase ${kindBadgeClass(f.kind)}`}>
+                <span className={`flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold uppercase ${rec ? 'bg-surface-200 text-ink-400' : kindBadgeClass(f.kind)}`}>
                   {kindShort(f.kind)}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -274,45 +310,46 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
                   )}
                 </div>
                 <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                  {/* Single-item findings with a concrete suggestion → inline accept */}
-                  {f.itemId && f.suggestion != null && (
-                    <button
-                      type="button"
-                      onClick={() => acceptSuggestion(f, i)}
-                      disabled={busyId === `s${i}`}
-                      className="btn-primary btn-sm whitespace-nowrap w-full"
-                    >
-                      {busyId === `s${i}` ? '…' : 'Accept edit'}
-                    </button>
+                  {rec ? (
+                    /* Resolved this session — show what was done + Undo / Clear */
+                    <>
+                      <span className="text-[11px] font-medium text-ink-500 whitespace-nowrap">
+                        {rec.action === 'accepted' ? '✓ Edit accepted' : rec.action === 'correct' ? '✓ Marked correct' : '✓ Ignored'}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => undoAction(findingKey(f))}
+                          className="text-[11px] text-brand-600 hover:text-brand-800 whitespace-nowrap px-1">Undo</button>
+                        <button type="button" onClick={() => clearFlag(findingKey(f))}
+                          className="text-[11px] text-ink-400 hover:text-ink-700 whitespace-nowrap px-1" title="Remove this flag from the list">Clear</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Single-item findings with a concrete suggestion → inline accept */}
+                      {f.itemId && f.suggestion != null && (
+                        <button type="button" onClick={() => acceptSuggestion(f, i)} disabled={busyId === `s${i}`}
+                          className="btn-primary btn-sm whitespace-nowrap w-full">
+                          {busyId === `s${i}` ? '…' : 'Accept edit'}
+                        </button>
+                      )}
+                      {/* Consistency findings → details modal */}
+                      {f.kind === 'consistency' && f.occurrences && (
+                        <button type="button" onClick={() => setDetail(f)} className="btn-secondary btn-sm whitespace-nowrap w-full">Details</button>
+                      )}
+                      {/* Confirm correct — never flag again + teach the AI */}
+                      <button type="button" onClick={() => markCorrect(f)}
+                        className="text-[11px] text-emerald-600 hover:text-emerald-800 whitespace-nowrap px-1"
+                        title="This is correct as written — never flag it again, and the AI learns to skip it">
+                        Correct as is
+                      </button>
+                      {/* Ignore for now (resettable) */}
+                      <button type="button" onClick={() => ignore(f)}
+                        className="text-[11px] text-ink-400 hover:text-ink-700 whitespace-nowrap px-1"
+                        title="Hide for now — resettable; the AI may still surface it">
+                        Ignore
+                      </button>
+                    </>
                   )}
-                  {/* Consistency findings → details modal */}
-                  {f.kind === 'consistency' && f.occurrences && (
-                    <button
-                      type="button"
-                      onClick={() => setDetail(f)}
-                      className="btn-secondary btn-sm whitespace-nowrap w-full"
-                    >
-                      Details
-                    </button>
-                  )}
-                  {/* Confirm correct — never flag again + teach the AI */}
-                  <button
-                    type="button"
-                    onClick={() => markCorrect(f)}
-                    className="text-[11px] text-emerald-600 hover:text-emerald-800 whitespace-nowrap px-1"
-                    title="This is correct as written — never flag it again, and the AI learns to skip it"
-                  >
-                    Correct as is
-                  </button>
-                  {/* Ignore for now (resettable) */}
-                  <button
-                    type="button"
-                    onClick={() => ignore(f)}
-                    className="text-[11px] text-ink-400 hover:text-ink-700 whitespace-nowrap px-1"
-                    title="Hide for now — resettable; the AI may still surface it"
-                  >
-                    Ignore
-                  </button>
                 </div>
               </div>
             </li>
