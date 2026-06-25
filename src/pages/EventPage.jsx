@@ -16,6 +16,7 @@ import ReviewRulesEditor from '@/components/ReviewRulesEditor'
 import EventAiReviewPanel from '@/components/EventAiReviewPanel'
 import ActivityDrawer from '@/components/ActivityDrawer'
 import ActivityButton from '@/components/ActivityButton'
+import ActivityTab from '@/components/ActivityTab'
 import { reviewContentHash, reviewFindingKey } from '@/lib/menuReview'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
@@ -1966,6 +1967,7 @@ export default function EventPage() {
       )}
 
       {/* Event activity drawer — discussion across the event */}
+      <ActivityTab scopeType="event" scopeId={event.id} open={showActivity} onOpen={() => setShowActivity(true)} />
       <ActivityDrawer scopeType="event" scopeId={event.id} title={event.name} open={showActivity} onClose={() => setShowActivity(false)} />
 
       {/* ── AI REVIEW TAB ── aggregate flags across all menus ── */}

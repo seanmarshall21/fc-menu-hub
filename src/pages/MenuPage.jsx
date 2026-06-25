@@ -22,6 +22,7 @@ import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
 import ActivityDrawer from '@/components/ActivityDrawer'
 import ActivityButton from '@/components/ActivityButton'
+import ActivityTab from '@/components/ActivityTab'
 import MenuFeedbackBanner from '@/components/MenuFeedbackBanner'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
@@ -1462,6 +1463,7 @@ export default function MenuPage() {
 
       {/* Activity drawer — menu thread (absorbed Feedback): messages, replies,
           mentions, pin/priority, resolve, delete. */}
+      <ActivityTab scopeType="menu" scopeId={menu.id} open={showActivity} onOpen={() => setShowActivity(true)} />
       <ActivityDrawer scopeType="menu" scopeId={menu.id} title={menu.name} open={showActivity} onClose={() => setShowActivity(false)} />
 
       {/* Approvals tab — existing sign-off list + per-menu notify editor */}
