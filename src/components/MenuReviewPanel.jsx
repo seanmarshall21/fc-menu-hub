@@ -129,12 +129,8 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       if (data?.error) throw new Error(data.error)
       const fnd = Array.isArray(data?.findings) ? data.findings : []
       setAiFindings(fnd); setAiRan(true); setCacheStale(false)
-      // Cache so it survives navigation + doesn't re-bill until items change.
-      if (menuId) {
-        supabase.from('menu_ai_reviews').upsert(
-          { menu_id: menuId, content_hash: contentHash, findings: fnd, reviewed_at: new Date().toISOString() }
-        )
-      }
+      // Caching is handled by the sync effect below (keeps the cache = the
+      // still-unresolved AI findings at the current content).
     } catch (e) {
       setAiError(e.message || 'AI review failed')
     } finally {
@@ -191,6 +187,22 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
   }
   const unresolvedCount = renderList.filter(x => !x.rec).length
   const ignoredCount = decisions.filter(d => d.decision === 'ignored').length
+
+  // Keep the cached review = the still-unresolved AI findings AT THE CURRENT
+  // content. So: handling a flag (incl. accepting an edit, which changes the
+  // content) settles the cache to the new content — the menu shows "done" and
+  // won't re-run until INDEPENDENT edits change it. Empty = fully handled.
+  const cacheSyncRef = useRef('')
+  useEffect(() => {
+    if (!menuId || !aiRan || aiBusy) return
+    const unresolvedAi = renderList.filter(x => !x.rec && x.f && x.f.source === 'ai').map(x => x.f)
+    const key = contentHash + '|' + unresolvedAi.map(f => findingKey(f)).sort().join(',')
+    if (cacheSyncRef.current === key) return
+    cacheSyncRef.current = key
+    supabase.from('menu_ai_reviews').upsert(
+      { menu_id: menuId, content_hash: contentHash, findings: unresolvedAi, reviewed_at: new Date().toISOString() }
+    )
+  }, [menuId, aiRan, aiBusy, contentHash, renderList])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reusable AI-review button shown in both the clean banner + the flags header.
   const aiButton = (

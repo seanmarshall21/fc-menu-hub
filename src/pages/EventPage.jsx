@@ -915,10 +915,10 @@ export default function EventPage() {
     const reviewable = (menu.menu_items || []).filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
     if (!reviewable.length) return null
     const review = aiReviewMap.get(menu.id)
+    // The cache stores the still-unresolved AI findings at the reviewed
+    // content; empty + matching hash = reviewed and fully handled.
     if (!review || review.content_hash !== reviewContentHash(menu.menu_items || [])) return 'pending'
-    const sigs = reviewDecisionSigs.get(menu.id) || new Set()
-    const unresolved = (review.findings || []).some(f => !sigs.has(reviewFindingKey(f)))
-    return unresolved ? 'pending' : 'done'
+    return (review.findings || []).length === 0 ? 'done' : 'pending'
   }
 
   // If we arrived here from a SeriesPage 'Edit' action, the URL carries
