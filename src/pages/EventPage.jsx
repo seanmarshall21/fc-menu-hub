@@ -1476,7 +1476,14 @@ export default function EventPage() {
               { id: 'styles',    label: 'Styles' },
             ] : []),
             { id: 'signoff', label: 'Approvals' },
-            { id: 'rules',   label: 'Review Rules' },
+            { id: 'rules', label: (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z" />
+                </svg>
+                Review Rules
+              </span>
+            ) },
           ].map(t => (
             <button
               key={t.id}
