@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import DOMPurify from 'dompurify'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -68,8 +69,10 @@ function RichBody({ html, className = '' }) {
       <div ref={ref} className={`activity-body ${className} ${expanded ? '' : 'max-h-[11rem] overflow-hidden'}`}
         dangerouslySetInnerHTML={{ __html: renderBody(html) }} />
       {overflow && (
-        <button onClick={() => setExpanded(e => !e)} className="text-[11px] text-brand-600 hover:text-brand-800 mt-0.5">
+        <button onClick={() => setExpanded(e => !e)}
+          className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-brand-700 bg-brand-50 border border-brand-200 rounded-full px-2 py-0.5 hover:bg-brand-100">
           {expanded ? 'Show less' : 'Expand post'}
+          <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
         </button>
       )}
     </div>
@@ -408,7 +411,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   const threadParent = threadId ? messages.find(m => m.id === threadId) : null
   const threadReplies = threadId ? repliesOf(threadId) : []
 
-  return (
+  return createPortal(
     <>
       {/* Mobile backdrop — tap to dismiss. Desktop keeps the page usable alongside. */}
       <div onClick={onClose} className={`sm:hidden fixed inset-0 bg-black/40 z-[110] transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
@@ -459,6 +462,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
           : <Composer ctx={ctx} onSubmit={(h, m, a) => postMessage(null, h, m, a)} />}
       </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
