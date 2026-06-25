@@ -33,7 +33,7 @@ function findingKey(f) {
   return [f.kind, f.field || '', f.itemId || '', f.word || f.message || ''].join('|')
 }
 
-export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged }) {
+export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged, ruleScope }) {
   const allFindings = useMemo(() => reviewMenuItems(items), [items])
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState(null)   // a consistency finding
@@ -55,6 +55,22 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     })()
     return () => { cancelled = true }
   }, [menuId])
+
+  // Applicable custom review rules: union of brand/series/event/menu rules
+  // (matching this menu's category). Passed into the AI prompt.
+  const [rules, setRules] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const ids = [ruleScope?.brandId, ruleScope?.seriesId, ruleScope?.eventId, ruleScope?.menuId].filter(Boolean)
+      if (!ids.length) { setRules([]); return }
+      const { data } = await supabase.from('review_rules').select('*').in('scope_id', ids)
+      if (cancelled) return
+      const cat = ruleScope?.category
+      setRules((data || []).filter(r => !r.category || r.category === cat))
+    })()
+    return () => { cancelled = true }
+  }, [ruleScope?.brandId, ruleScope?.seriesId, ruleScope?.eventId, ruleScope?.menuId, ruleScope?.category])
 
   const correctSet = useMemo(() => new Set(decisions.filter(d => d.decision === 'correct').map(d => d.signature)), [decisions])
   const ignoredSet = useMemo(() => new Set(decisions.filter(d => d.decision === 'ignored').map(d => d.signature)), [decisions])
@@ -112,7 +128,9 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       // Feed confirmed-correct items back so the model stops re-flagging them.
       const correct = decisions.filter(d => d.decision === 'correct')
         .map(d => ({ field: d.field, label: d.label, kind: d.kind, message: d.detail }))
-      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items, correct } })
+      // Custom rules — 'edit' rules ask the model to suggest a fix.
+      const ruleList = rules.map(r => ({ text: r.text + (r.mode === 'edit' ? ' (suggest the corrected text)' : '') }))
+      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items, correct, rules: ruleList } })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       const fnd = Array.isArray(data?.findings) ? data.findings : []

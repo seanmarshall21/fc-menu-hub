@@ -12,6 +12,7 @@ import ReviewChip from '@/components/ReviewChip'
 import SizeChip from '@/components/SizeChip'
 import SponsorFlag from '@/components/SponsorFlag'
 import AiReviewFlag from '@/components/AiReviewFlag'
+import ReviewRulesEditor from '@/components/ReviewRulesEditor'
 import { reviewContentHash, reviewFindingKey } from '@/lib/menuReview'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
@@ -1475,6 +1476,7 @@ export default function EventPage() {
               { id: 'styles',    label: 'Styles' },
             ] : []),
             { id: 'signoff', label: 'Approvals' },
+            { id: 'rules',   label: 'Review Rules' },
           ].map(t => (
             <button
               key={t.id}
@@ -1939,6 +1941,16 @@ export default function EventPage() {
               canEdit={isAdmin} onSaved={loadData}
             />
           </div>
+        </div>
+      )}
+
+      {/* ── REVIEW RULES TAB ── */}
+      {tab === 'rules' && (
+        <div className="space-y-4 max-w-2xl">
+          <ReviewRulesEditor scopeType="event" scopeId={event.id} scopeLabel="this event" canEdit={isAdmin || isInternal} />
+          <p className="text-xs text-ink-400 px-1">
+            Tip: rules added on the brand or series apply to every event under them too. Per-menu rules can be added from a menu's own page (coming alongside this). The AI review on each menu checks these on top of spelling, grammar, and consistency.
+          </p>
         </div>
       )}
 

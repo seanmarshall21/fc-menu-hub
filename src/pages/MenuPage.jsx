@@ -1136,7 +1136,8 @@ export default function MenuPage() {
             </div>
           )}
           <MenuFeedbackBanner menuId={menu.id} canResolve={isInternal} onOpenThread={() => setTab('feedback')} />
-          {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu} />}
+          {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu}
+            ruleScope={{ brandId: brand?.id, seriesId: series?.id, eventId: event?.id, menuId: menu.id, category: menu.category }} />}
 
           {/* Batch action bar — appears when items are selected via the
               checkboxes in the item column. */}
