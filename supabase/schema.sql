@@ -859,3 +859,16 @@ create policy am_read on activity_messages for select using (auth.uid() is not n
 create policy am_insert on activity_messages for insert with check (user_id = auth.uid());
 create policy am_update on activity_messages for update using (user_id = auth.uid() or exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
 create policy am_delete on activity_messages for delete using (user_id = auth.uid() or exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+
+-- Activity reactions (per-user emoji on a message) + edit tracking.
+create table if not exists activity_reactions (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid references activity_messages(id) on delete cascade,
+  user_id uuid, emoji text not null, created_at timestamptz default now(),
+  unique (message_id, user_id, emoji)
+);
+alter table activity_reactions enable row level security;
+create policy ar_read on activity_reactions for select using (auth.uid() is not null);
+create policy ar_insert on activity_reactions for insert with check (user_id = auth.uid());
+create policy ar_delete on activity_reactions for delete using (user_id = auth.uid());
+alter table activity_messages add column if not exists edited_at timestamptz;
