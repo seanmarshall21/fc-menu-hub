@@ -4,7 +4,9 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { format } from 'date-fns'
 
-const ALLOWED = { ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'a', 'ul', 'ol', 'li', 'br', 'p', 'div', 'code', 'span'], ALLOWED_ATTR: ['href', 'target', 'rel'] }
+const ALLOWED = { ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'a', 'ul', 'ol', 'li', 'br', 'p', 'div', 'code', 'span', 'hr'], ALLOWED_ATTR: ['href', 'target', 'rel'] }
+
+const EMOJIS = ['😀', '😂', '🙂', '😉', '😍', '😎', '🤔', '😅', '😭', '😱', '👍', '👎', '👏', '🙌', '🙏', '💪', '🔥', '✨', '🎉', '✅', '❌', '⚠️', '❤️', '💯', '👀', '🍻', '🍸', '🍹', '🍔', '🌮', '⭐', '🚩', '📌', '💬', '🤝', '🫶']
 
 // Lightweight, safe markdown → HTML for message bodies. Escapes first, then
 // applies a small set of formatting (bold/italic/code/links/line breaks).
@@ -75,6 +77,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   const [editorEmpty, setEditorEmpty] = useState(true)
   const [mentions, setMentions] = useState(() => new Set())
   const [showTag, setShowTag] = useState(false)
+  const [showEmoji, setShowEmoji] = useState(false)
   const [replyTo, setReplyTo] = useState(null)
   const [posting, setPosting] = useState(false)
   const [attachments, setAttachments] = useState([])
@@ -229,7 +232,22 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
             <ToolBtn onClick={() => exec('insertUnorderedList')} title="Bulleted list">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </ToolBtn>
+            <ToolBtn onClick={() => exec('insertHorizontalRule')} title="Divider">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 12h16" /><path strokeLinecap="round" d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 16h.01M10 16h.01M14 16h.01M18 16h.01" /></svg>
+            </ToolBtn>
             <span className="w-px h-4 bg-surface-200 mx-1" />
+            <div className="relative">
+              <ToolBtn onClick={() => setShowEmoji(s => !s)} title="Emoji"><span className="text-base leading-none">🙂</span></ToolBtn>
+              {showEmoji && (
+                <div className="absolute bottom-full mb-1 left-0 z-10 bg-white border border-surface-200 rounded-lg shadow-lg p-2 w-56 grid grid-cols-8 gap-0.5">
+                  {EMOJIS.map(em => (
+                    <button key={em} type="button" onMouseDown={e => e.preventDefault()}
+                      onClick={() => { exec('insertText', em); setShowEmoji(false) }}
+                      className="w-6 h-6 rounded hover:bg-surface-100 text-base leading-none">{em}</button>
+                  ))}
+                </div>
+              )}
+            </div>
             <ToolBtn onClick={() => fileRef.current?.click()} title="Attach image or file">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
             </ToolBtn>
