@@ -25,7 +25,7 @@ import ActivityButton from '@/components/ActivityButton'
 import ActivityTab from '@/components/ActivityTab'
 import MenuFeedbackBanner from '@/components/MenuFeedbackBanner'
 import ReviewersPanel from '@/components/ReviewersPanel'
-import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
+import { PLUGIN_INSTALL_URL, openFigmaDesktopFirst } from '@/lib/figmaPlugin'
 import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
@@ -1023,32 +1023,33 @@ export default function MenuPage() {
               )}
             </>
           )}
-          {syncNeeded && event?.figma_file_url && (
-            <a
-              href={(() => {
-                // Deep-link to the specific frame when we know its id (the
-                // plugin writes it to menus.last_synced_frame_id on every
-                // sync). Figma respects ?node-id=… and scrolls to + selects
-                // the matching node, in either browser or desktop app.
-                let url = event.figma_file_url
-                if (menu.last_synced_frame_id) {
-                  const sep = url.includes('?') ? '&' : '?'
-                  url = `${url}${sep}node-id=${encodeURIComponent(menu.last_synced_frame_id)}`
-                }
-                return url
-              })()}
-              target="_blank"
-              rel="noreferrer"
-              data-tour="menu-sync-chip"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100 whitespace-nowrap"
-              title={menu.last_synced_at
-                ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since. Opens the linked Figma frame.`
-                : 'Never synced to Figma. Open the Figma file and run the Menu Sync plugin.'}
-            >
-              <FigmaLogo variant="line" size={12} />
-              Sync needed
-            </a>
-          )}
+          {syncNeeded && event?.figma_file_url && (() => {
+            // Deep-link to the specific frame when we know its id (the plugin
+            // writes it to menus.last_synced_frame_id on every sync). Figma
+            // respects ?node-id=… and scrolls to + selects the node, in either
+            // the browser or the desktop app.
+            let figmaUrl = event.figma_file_url
+            if (menu.last_synced_frame_id) {
+              const sep = figmaUrl.includes('?') ? '&' : '?'
+              figmaUrl = `${figmaUrl}${sep}node-id=${encodeURIComponent(menu.last_synced_frame_id)}`
+            }
+            return (
+              <a
+                href={figmaUrl}
+                onClick={(e) => openFigmaDesktopFirst(e, figmaUrl)}
+                target="_blank"
+                rel="noreferrer"
+                data-tour="menu-sync-chip"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100 whitespace-nowrap"
+                title={menu.last_synced_at
+                  ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since. Opens the linked frame in the Figma desktop app (falls back to browser).`
+                  : 'Never synced to Figma. Opens the Figma file in the desktop app — run the Menu Sync plugin there.'}
+              >
+                <FigmaLogo variant="line" size={12} />
+                Sync needed
+              </a>
+            )
+          })()}
           {syncNeeded && (
             <a
               href={PLUGIN_INSTALL_URL}

@@ -34,6 +34,7 @@ import TargetPicker from '@/components/TargetPicker'
 import { duplicateMenuTo } from '@/lib/duplicate'
 import { formatPrice, resolveCurrencySpec } from '@/lib/formatPrice'
 import FigmaLogo from '@/components/FigmaLogo'
+import { openFigmaDesktopFirst } from '@/lib/figmaPlugin'
 import EventSponsorsTab from '@/components/EventSponsorsTab'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 
@@ -1460,7 +1461,7 @@ export default function EventPage() {
       </>}
       secondaryActions={(<>
         {event.figma_file_url && (
-          <a href={event.figma_file_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5">
+          <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5" title="Open in the Figma desktop app (falls back to browser)">
             <FigmaLogo size={12} />
             Open Figma
           </a>

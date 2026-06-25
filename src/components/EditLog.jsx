@@ -228,6 +228,25 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
   const rejected    = active.filter(l => l.menu_item?.edit_status === 'rejected')
   const historical  = active.filter(l => !['pending_approval', 'approved', 'rejected'].includes(l.menu_item?.edit_status))
 
+  // Approval is per ITEM (menu_items.edit_status), but the log shows one row
+  // per field change — so an item edited in N fields has N pending rows.
+  // Group them so each item's Approve/Reject shows ONCE (on its first row),
+  // making it obvious the action covers all of that item's edits.
+  const pendingGrouped = (() => {
+    const groups = new Map()
+    for (const r of pending) {
+      const k = r.menu_item_id || r.id
+      if (!groups.has(k)) groups.set(k, [])
+      groups.get(k).push(r)
+    }
+    const out = []
+    for (const rows of groups.values()) {
+      rows.forEach((r, idx) => { r._firstOfItem = idx === 0; r._groupCount = rows.length })
+      out.push(...rows)
+    }
+    return out
+  })()
+
   function renderTable(rows, headingLabel, colorClass, extra = null, headless = false, selectable = false) {
     if (rows.length === 0) return null
     // Distinct selectable items in this bucket (for the select-all checkbox).
@@ -373,23 +392,28 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
                       {!log.menu_item ? (
                         <span className="text-[10px] text-ink-300 italic">deleted</span>
                       ) : itemPending ? (
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            onClick={() => approveItem(log.menu_item.id)}
-                            disabled={isBusy}
-                            className="text-xs px-2 py-0.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-                          >
-                            ✓ Approve
-                          </button>
-                          <button
-                            onClick={() => rejectItem(log.menu_item.id)}
-                            disabled={isBusy}
-                            className="text-xs px-2 py-0.5 rounded-md bg-white border border-surface-200 text-ink-500 hover:text-red-600"
-                            title="Reject this edit"
-                          >
-                            ✕
-                          </button>
-                        </div>
+                        log._firstOfItem === false ? (
+                          <span className="text-[10px] text-ink-300 italic" title="Part of the same item — approve/reject from its first row above">↳ same item</span>
+                        ) : (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => approveItem(log.menu_item.id)}
+                              disabled={isBusy}
+                              className="text-xs px-2 py-0.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap"
+                              title={log._groupCount > 1 ? `Approve all ${log._groupCount} pending edits on this item` : 'Approve this edit'}
+                            >
+                              ✓ Approve{log._groupCount > 1 ? ` (${log._groupCount})` : ''}
+                            </button>
+                            <button
+                              onClick={() => rejectItem(log.menu_item.id)}
+                              disabled={isBusy}
+                              className="text-xs px-2 py-0.5 rounded-md bg-white border border-surface-200 text-ink-500 hover:text-red-600"
+                              title={log._groupCount > 1 ? `Reject all ${log._groupCount} edits on this item` : 'Reject this edit'}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )
                       ) : itemApproved ? (
                         <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">approved</span>
                       ) : log.menu_item?.edit_status === 'rejected' ? (
@@ -449,7 +473,7 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
             </div>
           </div>
         )}
-        {renderTable(pending, 'Pending approval', 'bg-amber-50 text-amber-800', null, /*headless*/ true, /*selectable*/ canApprove)}
+        {renderTable(pendingGrouped, 'Pending approval', 'bg-amber-50 text-amber-800', null, /*headless*/ true, /*selectable*/ canApprove)}
       </Accordion>
 
       <Accordion title="Approved" count={approved.length} defaultOpen={false} headColor="bg-emerald-50 text-emerald-800 border-emerald-200">
