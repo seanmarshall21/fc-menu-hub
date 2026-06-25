@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { format } from 'date-fns'
+
+const ALLOWED = { ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'a', 'ul', 'ol', 'li', 'br', 'p', 'div', 'code', 'span'], ALLOWED_ATTR: ['href', 'target', 'rel'] }
 
 // Lightweight, safe markdown → HTML for message bodies. Escapes first, then
 // applies a small set of formatting (bold/italic/code/links/line breaks).
@@ -10,12 +13,20 @@ function escapeHtml(s) {
 }
 function formatMessage(text) {
   let h = escapeHtml(text)
-  h = h.replace(/`([^`]+)`/g, '<code class="bg-surface-100 px-1 rounded text-[12px]">$1</code>')
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>')
   h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   h = h.replace(/(^|\s)\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
   h = h.replace(/(^|\s)_([^_\s][^_]*)_/g, '$1<em>$2</em>')
-  h = h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noreferrer" class="text-brand-600 underline">$1</a>')
+  h = h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noreferrer">$1</a>')
   return h.replace(/\n/g, '<br>')
+}
+
+// Messages are stored as HTML (from the rich editor). Older plain-text /
+// markdown messages render via the lightweight formatter. Always sanitized.
+function renderBody(body) {
+  if (!body) return ''
+  const html = /<[a-z][\s\S]*>/i.test(body) ? body : formatMessage(body)
+  return DOMPurify.sanitize(html, ALLOWED)
 }
 
 function Attachments({ list }) {
@@ -42,6 +53,16 @@ function Attachments({ list }) {
 //
 // Props: scopeType ('menu'|'event'), scopeId, open, onClose, title
 
+function ToolBtn({ onClick, title, children }) {
+  // onMouseDown + preventDefault keeps the editor selection while clicking.
+  return (
+    <button type="button" title={title} onMouseDown={e => e.preventDefault()} onClick={onClick}
+      className="w-7 h-7 rounded hover:bg-surface-100 text-ink-600 inline-flex items-center justify-center text-sm">
+      {children}
+    </button>
+  )
+}
+
 export default function ActivityDrawer({ scopeType, scopeId, open, onClose, title }) {
   const { session, profile } = useAuth()
   const uid = session?.user?.id
@@ -50,7 +71,8 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   const [messages, setMessages] = useState([])
   const [users, setUsers] = useState([])           // taggable users
   const [loading, setLoading] = useState(true)
-  const [body, setBody] = useState('')
+  const [body, setBody] = useState('')             // reply composer (plain)
+  const [editorEmpty, setEditorEmpty] = useState(true)
   const [mentions, setMentions] = useState(() => new Set())
   const [showTag, setShowTag] = useState(false)
   const [replyTo, setReplyTo] = useState(null)
@@ -58,7 +80,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
   const [attachments, setAttachments] = useState([])
   const [uploading, setUploading] = useState(false)
   const bottomRef = useRef(null)
-  const taRef = useRef(null)
+  const editorRef = useRef(null)
   const fileRef = useRef(null)
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users])
@@ -80,20 +102,33 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
     ;(async () => { const { data } = await supabase.rpc('list_taggable_users'); setUsers(data || []) })()
   }, [open, load])
 
+  function htmlIsEmpty(html) { return !String(html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() }
+
+  // parentId null = top-level (rich HTML from the editor); otherwise a reply
+  // (plain text from the textarea).
   async function post(parentId) {
-    const text = body.trim()
-    if (!text && attachments.length === 0) return
+    const content = parentId ? body.trim() : (editorRef.current?.innerHTML || '')
+    if (htmlIsEmpty(content) && attachments.length === 0) return
     setPosting(true)
     const { error } = await supabase.from('activity_messages').insert({
       scope_type: scopeType, scope_id: scopeId, parent_id: parentId || null,
-      user_id: uid, body: text, mentions: [...mentions], attachments,
+      user_id: uid, body: htmlIsEmpty(content) ? '' : content, mentions: [...mentions], attachments,
     })
     setPosting(false)
     if (error) { alert(error.message); return }
     setBody(''); setMentions(new Set()); setShowTag(false); setReplyTo(null); setAttachments([])
+    if (editorRef.current) { editorRef.current.innerHTML = ''; setEditorEmpty(true) }
     await load()
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
   }
+
+  // WYSIWYG formatting via the browser's rich-text engine.
+  function exec(cmd, val) {
+    editorRef.current?.focus()
+    document.execCommand(cmd, false, val)
+    setEditorEmpty(htmlIsEmpty(editorRef.current?.innerHTML || ''))
+  }
+  function addLink() { const url = prompt('Link URL:'); if (url) exec('createLink', /^https?:\/\//i.test(url) ? url : 'https://' + url) }
 
   // Upload images/files to storage and stage them on the next message.
   async function uploadFiles(fileList) {
@@ -119,20 +154,15 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
     for (const it of items) { if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(f) } }
     if (files.length) { e.preventDefault(); uploadFiles(files) }
   }
-  // Wrap the textarea selection with markdown markers (bold/italic).
-  function wrap(before, after) {
-    const ta = taRef.current; if (!ta) return
-    const s = ta.selectionStart, e = ta.selectionEnd
-    const next = body.slice(0, s) + before + body.slice(s, e) + after + body.slice(e)
-    setBody(next)
-    setTimeout(() => { ta.focus(); ta.selectionStart = s + before.length; ta.selectionEnd = e + before.length }, 0)
-  }
 
   async function patch(id, fields) { await supabase.from('activity_messages').update(fields).eq('id', id); load() }
   async function remove(id) { if (!confirm('Delete this message and its replies?')) return; await supabase.from('activity_messages').delete().eq('id', id); load() }
 
-  function toggleMention(id) {
-    setMentions(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  // Tagging: insert @Name into the editor and record the mention id.
+  function addMention(u) {
+    setMentions(prev => new Set(prev).add(u.id))
+    exec('insertText', '@' + (u.full_name || u.email) + ' ')
+    setShowTag(false)
   }
 
   const tops = messages.filter(m => !m.parent_id)
@@ -183,20 +213,34 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
               ))}
             </div>
           )}
-          {/* Format toolbar */}
-          <div className="flex items-center gap-1">
-            <button type="button" onClick={() => wrap('**', '**')} className="w-7 h-7 rounded hover:bg-surface-100 text-ink-600 font-bold text-sm" title="Bold">B</button>
-            <button type="button" onClick={() => wrap('*', '*')} className="w-7 h-7 rounded hover:bg-surface-100 text-ink-600 italic text-sm" title="Italic">i</button>
-            <button type="button" onClick={() => wrap('`', '`')} className="w-7 h-7 rounded hover:bg-surface-100 text-ink-500 font-mono text-xs" title="Code">{'</>'}</button>
-            <button type="button" onClick={() => fileRef.current?.click()} className="w-7 h-7 rounded hover:bg-surface-100 text-ink-600 flex items-center justify-center" title="Attach image or file">
+          {/* Slack-style WYSIWYG toolbar */}
+          <div className="flex items-center gap-0.5 flex-wrap">
+            <ToolBtn onClick={() => exec('bold')} title="Bold"><span className="font-bold">B</span></ToolBtn>
+            <ToolBtn onClick={() => exec('italic')} title="Italic"><span className="italic font-serif">I</span></ToolBtn>
+            <ToolBtn onClick={() => exec('underline')} title="Underline"><span className="underline">U</span></ToolBtn>
+            <ToolBtn onClick={() => exec('strikeThrough')} title="Strikethrough"><span className="line-through">S</span></ToolBtn>
+            <span className="w-px h-4 bg-surface-200 mx-1" />
+            <ToolBtn onClick={addLink} title="Link">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 10-5.656-5.656l-1.1 1.1" /></svg>
+            </ToolBtn>
+            <ToolBtn onClick={() => exec('insertOrderedList')} title="Numbered list">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 6h13M7 12h13M7 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+            </ToolBtn>
+            <ToolBtn onClick={() => exec('insertUnorderedList')} title="Bulleted list">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </ToolBtn>
+            <span className="w-px h-4 bg-surface-200 mx-1" />
+            <ToolBtn onClick={() => fileRef.current?.click()} title="Attach image or file">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-            </button>
+            </ToolBtn>
             <input ref={fileRef} type="file" multiple className="hidden"
               onChange={e => { if (e.target.files?.length) uploadFiles(e.target.files); e.target.value = '' }} />
-            {uploading && <span className="text-[11px] text-ink-400">Uploading…</span>}
+            {uploading && <span className="text-[11px] text-ink-400 ml-1">Uploading…</span>}
           </div>
-          <textarea ref={taRef} value={body} onChange={e => setBody(e.target.value)} onPaste={onPaste} rows={2}
-            placeholder="Write a message…  (paste a screenshot, **bold**, *italic*)" className="input w-full resize-y text-sm" />
+          <div ref={editorRef} contentEditable suppressContentEditableWarning
+            onInput={() => setEditorEmpty(htmlIsEmpty(editorRef.current?.innerHTML || ''))}
+            onPaste={onPaste} data-placeholder="Write a message…"
+            className="rich-editor input w-full text-sm min-h-[64px] max-h-48 overflow-y-auto" />
           {/* Staged attachments preview */}
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -214,7 +258,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
               {showTag && (
                 <div className="absolute bottom-full mb-1 left-0 z-10 bg-white border border-surface-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto min-w-[180px]">
                   {users.map(u => (
-                    <button key={u.id} onClick={() => toggleMention(u.id)}
+                    <button key={u.id} onClick={() => addMention(u)}
                       className={`w-full text-left px-3 py-1.5 text-xs hover:bg-surface-50 ${mentions.has(u.id) ? 'text-brand-700 font-medium' : 'text-ink-700'}`}>
                       {mentions.has(u.id) ? '✓ ' : ''}{u.full_name || u.email}
                     </button>
@@ -222,7 +266,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
                 </div>
               )}
             </div>
-            <button onClick={() => post(null)} disabled={posting || uploading || (!body.trim() && attachments.length === 0)} className="btn-primary btn-sm ml-auto disabled:opacity-50">
+            <button onClick={() => post(null)} disabled={posting || uploading || (editorEmpty && attachments.length === 0)} className="btn-primary btn-sm ml-auto disabled:opacity-50">
               {posting ? 'Posting…' : 'Post'}
             </button>
           </div>
@@ -244,7 +288,7 @@ function MessageRow({ m, replies, uid, canModerate, nameOf, onPatch, onRemove, o
         {m.pinned && !m.priority && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">PINNED</span>}
         {resolved && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">resolved</span>}
       </div>
-      {m.body && <div className="text-sm text-ink-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: formatMessage(m.body) }} />}
+      {m.body && <div className="activity-body text-sm text-ink-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderBody(m.body) }} />}
       <Attachments list={m.attachments} />
       {Array.isArray(m.mentions) && m.mentions.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1">
