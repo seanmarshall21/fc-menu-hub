@@ -418,9 +418,10 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
       <div style={{ width }} className={`fixed top-0 right-0 h-full max-w-[100vw] max-sm:!w-full bg-white border-l border-surface-200 shadow-2xl z-[120] flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
       <div onMouseDown={startResize} title="Drag to resize" className="hidden sm:block absolute left-0 top-0 h-full w-1.5 -ml-0.5 cursor-ew-resize hover:bg-brand-300/60 z-10" />
       {/* Collapse handle — sticks out on the drawer's left edge, mirrors the
-          floating open tab so the panel reads as a slide-out. */}
+          floating open tab so the panel reads as a slide-out. Only when open
+          (otherwise the off-screen panel's handle peeks at the right edge). */}
       <button onClick={onClose} title="Collapse" aria-label="Collapse activity"
-        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full items-center justify-center bg-brand-600 hover:bg-brand-700 text-white rounded-l-2xl shadow-lg py-3.5 pl-3 pr-2.5">
+        className={`absolute left-0 top-[88px] -translate-x-full items-center justify-center bg-brand-600 hover:bg-brand-700 text-white rounded-l-xl shadow-lg py-2.5 pl-3 pr-2.5 ${open ? 'hidden sm:flex' : 'hidden'}`}>
         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
       </button>
 
