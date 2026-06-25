@@ -220,9 +220,11 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
-        <span className="font-medium">Looks clean</span>
+        <span className="font-medium">{aiBusy ? 'Reviewing…' : aiRan ? 'AI review complete' : 'Looks clean'}</span>
         <span className="text-emerald-700">
-          — no {aiRan ? '' : 'basic '}spelling or consistency issues{ignoredCount > 0 ? ` (${ignoredCount} ignored)` : aiRan ? ' caught' : ' (run AI for a deeper pass)'}.
+          {aiBusy ? '' : aiRan
+            ? ` — all flags handled${ignoredCount > 0 ? ` (${ignoredCount} ignored)` : ''}.`
+            : ` — no basic spelling or consistency issues (run AI for a deeper pass).`}
         </span>
         <div className="ml-auto flex items-center gap-2">
           {ignoredCount > 0 && (

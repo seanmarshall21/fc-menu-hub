@@ -907,15 +907,18 @@ export default function EventPage() {
     return () => { cancelled = true }
   }, [menus])
 
-  // Does a menu need AI review? True if not reviewed at its current content,
-  // or its cached findings still have unresolved (non-decided) flags.
-  function needsAiReview(menu) {
+  // AI-review state for a menu's badge:
+  //   null    — no reviewable items
+  //   'pending' — not reviewed at current content, or has unresolved flags
+  //   'done'  — reviewed at current content AND every flag handled
+  function aiReviewState(menu) {
     const reviewable = (menu.menu_items || []).filter(i => i && (i.status === 'active' || i.status === 'pending_approval'))
-    if (!reviewable.length) return false
+    if (!reviewable.length) return null
     const review = aiReviewMap.get(menu.id)
-    if (!review || review.content_hash !== reviewContentHash(menu.menu_items || [])) return true
+    if (!review || review.content_hash !== reviewContentHash(menu.menu_items || [])) return 'pending'
     const sigs = reviewDecisionSigs.get(menu.id) || new Set()
-    return (review.findings || []).some(f => !sigs.has(reviewFindingKey(f)))
+    const unresolved = (review.findings || []).some(f => !sigs.has(reviewFindingKey(f)))
+    return unresolved ? 'pending' : 'done'
   }
 
   // If we arrived here from a SeriesPage 'Edit' action, the URL carries
@@ -1257,7 +1260,7 @@ export default function EventPage() {
           <span className="whitespace-nowrap">{items.length} items</span>
           {!menuSelectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
           <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-            <AiReviewFlag needsReview={needsAiReview(menu)} />
+            <AiReviewFlag state={aiReviewState(menu)} />
             <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (
               <span
@@ -1341,7 +1344,7 @@ export default function EventPage() {
             </div>
           )}
           <div className="absolute top-2 right-2 flex items-center gap-1.5">
-            <AiReviewFlag needsReview={needsAiReview(menu)} />
+            <AiReviewFlag state={aiReviewState(menu)} />
             <SponsorFlag needsCheck={needsSponsorCheck} />
             {pendingCount > 0 && (
               <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"

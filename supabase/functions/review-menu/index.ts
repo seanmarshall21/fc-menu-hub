@@ -38,6 +38,9 @@ Rules:
   that are clearly deliberate (oz, GF, VT, VE).
 - Do not invent issues. If the menu is clean, return an empty findings array.
 - Be precise: every finding must reference a real item id and field.
+- BE EXHAUSTIVE: report EVERY issue you find in this single pass across ALL
+  items. Do not stop after a few — this is the only pass, so the list must be
+  complete. Re-scan every item before finishing.
 
 Respond with ONLY a JSON object, no prose:
 {"findings":[{"itemId":"<id>","itemTitle":"<title>","field":"title|description","kind":"spelling|grammar|consistency","message":"<short human explanation>","suggestion":"<corrected full field text, or omit for consistency notes that span items>"}]}`
