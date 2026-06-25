@@ -20,7 +20,7 @@ import ApproversPanel from '@/components/ApproversPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
-import MenuComments from '@/components/MenuComments'
+import ActivityDrawer from '@/components/ActivityDrawer'
 import MenuFeedbackBanner from '@/components/MenuFeedbackBanner'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import { PLUGIN_INSTALL_URL } from '@/lib/figmaPlugin'
@@ -202,6 +202,7 @@ export default function MenuPage() {
 
   // Edit menu modal
   const [showEditMenu, setShowEditMenu] = useState(false)
+  const [showActivity, setShowActivity] = useState(false)
   const [editMenuName, setEditMenuName] = useState('')
   const [editMenuTitle, setEditMenuTitle] = useState('')
   const [editMenuSize, setEditMenuSize] = useState('lg')
@@ -687,11 +688,11 @@ export default function MenuPage() {
     })
   })()
 
-  // Viewers (read-only reviewers) get a trimmed, view + feedback set.
+  // Viewers (read-only reviewers) get a trimmed set. Feedback now lives in the
+  // Activity drawer (toggled from the header), which absorbed the old thread.
   const tabs = isViewer ? [
     { key: 'preview', label: 'Preview' },
     { key: 'items', label: 'Items' },
-    { key: 'feedback', label: 'Feedback' },
   ] : [
     { key: 'items', label: 'Items' },
     { key: 'preview', label: 'Preview' },
@@ -699,7 +700,6 @@ export default function MenuPage() {
     { key: 'sponsors', label: 'Sponsors' },
     ...(canEditStyles ? [{ key: 'styles', label: 'Styles' }] : []),
     { key: 'signoff', label: 'Approvals' },
-    { key: 'feedback', label: 'Feedback' },
     ...(menu.figma_prototype_url ? [{ key: 'figma', label: 'Figma Preview' }] : []),
   ]
 
@@ -749,6 +749,10 @@ export default function MenuPage() {
         { label: menu.name },
       ]}
       actions={<>
+        <button onClick={() => setShowActivity(true)} className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Activity & feedback">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.83L3 20l1.17-3.5A7.6 7.6 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+          Activity
+        </button>
         <FavoriteButton type="menu" id={menu.id} size="sm" />
         <PhaseBadge
           phase={menu.phase}
@@ -1135,7 +1139,7 @@ export default function MenuPage() {
               )}
             </div>
           )}
-          <MenuFeedbackBanner menuId={menu.id} canResolve={isInternal} onOpenThread={() => setTab('feedback')} />
+          <MenuFeedbackBanner menuId={menu.id} canResolve={isInternal} onOpenThread={() => setShowActivity(true)} />
           {canEdit && <MenuReviewPanel items={items} menuId={menu.id} onJumpToItem={() => {}} onChanged={loadMenu}
             ruleScope={{ brandId: brand?.id, seriesId: series?.id, eventId: event?.id, menuId: menu.id, category: menu.category }} />}
 
@@ -1456,12 +1460,9 @@ export default function MenuPage() {
         />
       )}
 
-      {/* Feedback tab — menu-level comment thread (reviewers + team) */}
-      {tab === 'feedback' && (
-        <div className="max-w-2xl">
-          <MenuComments menuId={menu.id} canResolve={isInternal} />
-        </div>
-      )}
+      {/* Activity drawer — menu thread (absorbed Feedback): messages, replies,
+          mentions, pin/priority, resolve, delete. */}
+      <ActivityDrawer scopeType="menu" scopeId={menu.id} title={menu.name} open={showActivity} onClose={() => setShowActivity(false)} />
 
       {/* Approvals tab — existing sign-off list + per-menu notify editor */}
       {tab === 'signoff' && (

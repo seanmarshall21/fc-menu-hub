@@ -18,9 +18,11 @@ export default function MenuFeedbackBanner({ menuId, canResolve = false, onOpenT
 
   const load = useCallback(async () => {
     const { data } = await supabase
-      .from('menu_comments')
+      .from('activity_messages')
       .select('*')
-      .eq('menu_id', menuId)
+      .eq('scope_type', 'menu')
+      .eq('scope_id', menuId)
+      .is('parent_id', null)
       .is('resolved_at', null)
       .order('created_at', { ascending: false })
     const rows = data || []
@@ -37,7 +39,7 @@ export default function MenuFeedbackBanner({ menuId, canResolve = false, onOpenT
   useEffect(() => { load() }, [load])
 
   async function resolve(c) {
-    await supabase.from('menu_comments')
+    await supabase.from('activity_messages')
       .update({ resolved_at: new Date().toISOString() })
       .eq('id', c.id)
     load()

@@ -820,3 +820,42 @@ begin
   );
 end;
 $$ language plpgsql security definer;
+
+-- ─── AI review cache + custom rules (event AI review group) ──────────────────
+-- menu_ai_reviews: cached AI review per menu = the still-unresolved AI findings
+-- at the reviewed content (content_hash). Empty + matching hash = done.
+create table if not exists menu_ai_reviews (
+  menu_id uuid primary key references menus(id) on delete cascade,
+  content_hash text, findings jsonb not null default '[]', reviewed_at timestamptz default now()
+);
+alter table menu_ai_reviews enable row level security;
+create policy mar_read on menu_ai_reviews for select using (exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+create policy mar_write on menu_ai_reviews for all using (exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))) with check (exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+
+-- review_rules: custom AI-review rules per tier (cascade), optional category.
+create table if not exists review_rules (
+  id uuid primary key default gen_random_uuid(),
+  scope_type text not null check (scope_type in ('brand','series','event','menu')),
+  scope_id uuid not null, text text not null, category text,
+  mode text not null default 'flag' check (mode in ('flag','edit')),
+  created_by uuid, created_at timestamptz default now()
+);
+alter table review_rules enable row level security;
+create policy rr_read on review_rules for select using (exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+create policy rr_write on review_rules for all using (exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))) with check (exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+
+-- activity_messages: unified activity / chat thread per menu or event. Threaded,
+-- @mentions, pin, priority, resolve. Absorbed the old menu_comments feedback.
+create table if not exists activity_messages (
+  id uuid primary key default gen_random_uuid(),
+  scope_type text not null check (scope_type in ('menu','event')),
+  scope_id uuid not null, parent_id uuid references activity_messages(id) on delete cascade,
+  user_id uuid, body text not null, mentions uuid[] default '{}',
+  pinned boolean default false, priority boolean default false,
+  resolved_at timestamptz, resolved_by uuid, created_at timestamptz default now()
+);
+alter table activity_messages enable row level security;
+create policy am_read on activity_messages for select using (auth.uid() is not null);
+create policy am_insert on activity_messages for insert with check (user_id = auth.uid());
+create policy am_update on activity_messages for update using (user_id = auth.uid() or exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));
+create policy am_delete on activity_messages for delete using (user_id = auth.uid() or exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal')));

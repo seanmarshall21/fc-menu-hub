@@ -14,6 +14,7 @@ import SponsorFlag from '@/components/SponsorFlag'
 import AiReviewFlag from '@/components/AiReviewFlag'
 import ReviewRulesEditor from '@/components/ReviewRulesEditor'
 import EventAiReviewPanel from '@/components/EventAiReviewPanel'
+import ActivityDrawer from '@/components/ActivityDrawer'
 import { reviewContentHash, reviewFindingKey } from '@/lib/menuReview'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
@@ -763,6 +764,8 @@ export default function EventPage() {
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackBusy, setFeedbackBusy] = useState(false)
 
+  const [showActivity, setShowActivity] = useState(false)
+
   // AI-review state for the purple "needs review" badge on cards.
   const [aiReviewMap, setAiReviewMap] = useState(() => new Map())
   const [reviewDecisionSigs, setReviewDecisionSigs] = useState(() => new Map())
@@ -1446,6 +1449,10 @@ export default function EventPage() {
         { label: event.name },
       ]}
       actions={<>
+        <button onClick={() => setShowActivity(true)} className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Event activity & discussion">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.83L3 20l1.17-3.5A7.6 7.6 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+          Activity
+        </button>
         <FavoriteButton type="event" id={event.id} size="sm" />
         <PhaseBadge
           phase={event.phase}
@@ -1960,6 +1967,9 @@ export default function EventPage() {
         </div>
       )}
 
+      {/* Event activity drawer — discussion across the event */}
+      <ActivityDrawer scopeType="event" scopeId={event.id} title={event.name} open={showActivity} onClose={() => setShowActivity(false)} />
+
       {/* ── AI REVIEW TAB ── aggregate flags across all menus ── */}
       {tab === 'aireview' && (
         <EventAiReviewPanel menus={menus} brand={brand} series={series} event={event} onChanged={loadData} />
@@ -2300,8 +2310,8 @@ export default function EventPage() {
               disabled={feedbackBusy || !feedbackText.trim()}
               onClick={async () => {
                 setFeedbackBusy(true)
-                const { error } = await supabase.from('menu_comments')
-                  .insert({ menu_id: feedbackMenu.id, user_id: profile?.id, body: feedbackText.trim() })
+                const { error } = await supabase.from('activity_messages')
+                  .insert({ scope_type: 'menu', scope_id: feedbackMenu.id, user_id: profile?.id, body: feedbackText.trim() })
                 setFeedbackBusy(false)
                 if (error) { alert('Could not post feedback: ' + error.message); return }
                 setFeedbackMenu(null)
