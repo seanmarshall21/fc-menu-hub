@@ -3,6 +3,28 @@ import { reviewMenuItems, reviewContentHash } from '@/lib/menuReview'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
 
+// A suggestion line that truncates to one line but expands on tap to show the
+// whole thing — so long edits aren't cut off on mobile.
+function ExpandableSuggestion({ text }) {
+  const ref = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [overflow, setOverflow] = useState(false)
+  useEffect(() => { const el = ref.current; if (el) setOverflow(el.scrollWidth > el.clientWidth + 2) }, [text])
+  return (
+    <div className="mt-1">
+      <div ref={ref} onClick={() => overflow && setOpen(o => !o)}
+        className={`text-[11px] text-ink-500 italic ${open ? 'whitespace-pre-wrap break-words' : 'truncate'} ${overflow ? 'cursor-pointer' : ''}`}>
+        Suggested: <span className="text-ink-700 not-italic">{text}</span>
+      </div>
+      {(overflow || open) && (
+        <button type="button" onClick={() => setOpen(o => !o)} className="text-[11px] text-brand-600 font-medium hover:text-brand-800 mt-0.5">
+          {open ? 'Show less' : 'Show full suggestion'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 /**
  * Inline review banner for a menu's items. Runs the deterministic checks
  * from menuReview.js and shows a collapsible list of findings.
@@ -328,11 +350,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
                     <span className="text-[11px] text-ink-400 ml-2">({f.field})</span>
                   )}
                   <div className="text-xs text-ink-600 mt-0.5">{f.message}</div>
-                  {f.suggestion && (
-                    <div className="mt-1 text-[11px] text-ink-500 italic truncate">
-                      Suggested: <span className="text-ink-700 not-italic">{f.suggestion}</span>
-                    </div>
-                  )}
+                  {f.suggestion && <ExpandableSuggestion text={f.suggestion} />}
                 </div>
                 <div className="flex-shrink-0 flex flex-col items-end gap-1">
                   {rec ? (
