@@ -13,6 +13,7 @@ import SizeChip from '@/components/SizeChip'
 import SponsorFlag from '@/components/SponsorFlag'
 import AiReviewFlag from '@/components/AiReviewFlag'
 import ReviewRulesEditor from '@/components/ReviewRulesEditor'
+import EventAiReviewPanel from '@/components/EventAiReviewPanel'
 import { reviewContentHash, reviewFindingKey } from '@/lib/menuReview'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import SyncChip from '@/components/SyncChip'
@@ -1475,6 +1476,14 @@ export default function EventPage() {
               { id: 'templates', label: 'Templates' },
               { id: 'styles',    label: 'Styles' },
             ] : []),
+            { id: 'aireview', label: (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z" />
+                </svg>
+                AI Review
+              </span>
+            ) },
             { id: 'signoff', label: 'Approvals' },
             { id: 'rules', label: (
               <span className="inline-flex items-center gap-1.5">
@@ -1949,6 +1958,11 @@ export default function EventPage() {
             />
           </div>
         </div>
+      )}
+
+      {/* ── AI REVIEW TAB ── aggregate flags across all menus ── */}
+      {tab === 'aireview' && (
+        <EventAiReviewPanel menus={menus} brand={brand} series={series} event={event} onChanged={loadData} />
       )}
 
       {/* ── REVIEW RULES TAB ── */}
