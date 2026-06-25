@@ -187,9 +187,12 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
     const key = contentHash + '|' + unresolvedAi.map(f => findingKey(f)).sort().join(',')
     if (cacheSyncRef.current === key) return
     cacheSyncRef.current = key
-    supabase.from('menu_ai_reviews').upsert(
-      { menu_id: menuId, content_hash: contentHash, findings: unresolvedAi, reviewed_at: new Date().toISOString() }
-    )
+    // Must await — a bare supabase builder is lazy and never sends the request.
+    ;(async () => {
+      await supabase.from('menu_ai_reviews').upsert(
+        { menu_id: menuId, content_hash: contentHash, findings: unresolvedAi, reviewed_at: new Date().toISOString() }
+      )
+    })()
   }, [menuId, aiRan, aiBusy, contentHash, renderList])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reusable AI-review button shown in both the clean banner + the flags header.
