@@ -790,7 +790,13 @@ export default function MenuPage() {
                 await supabase.from('menus').update({ phase: 'approved', approval_overridden_by: profile?.id || null, approval_overridden_at: new Date().toISOString() }).eq('id', menu.id); loadMenu(); return
               }
             }
-            await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu()
+            const patch = { phase: next }
+            // On export, capture the print file link if we don't have it yet.
+            if (next === 'exported' && !menu.print_file_url) {
+              const link = window.prompt('Exported! Paste the Dropbox/Drive link to this menu’s print file (leave blank to add later):', '')
+              if (link && link.trim()) patch.print_file_url = link.trim()
+            }
+            await supabase.from('menus').update(patch).eq('id', menu.id); loadMenu()
           } : null}
         />
         {syncNeeded && (

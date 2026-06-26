@@ -8,6 +8,7 @@ import Modal from '@/components/Modal'
 import VersionWatcher from '@/components/VersionWatcher'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import EntityIcon from '@/components/EntityIcon'
+import AssistantButton from '@/components/AssistantButton'
 import clsx from 'clsx'
 
 function IconHelp() {
@@ -404,6 +405,7 @@ export default function Layout() {
           </form>
         </Modal>
       )}
+      <AssistantButton />
     </div>
   )
 }

@@ -1462,7 +1462,14 @@ export default function EventPage() {
         <FavoriteButton type="event" id={event.id} size="sm" />
         <PhaseBadge
           phase={event.phase}
-          onChange={canEdit ? async (next) => { await supabase.from('events').update({ phase: next }).eq('id', event.id); loadData() } : null}
+          onChange={canEdit ? async (next) => {
+            const patch = { phase: next }
+            if (next === 'exported' && !event.print_folder_url) {
+              const link = window.prompt('Exported! Paste the Dropbox/Drive link to this event’s print-files folder (leave blank to add later):', '')
+              if (link && link.trim()) patch.print_folder_url = link.trim()
+            }
+            await supabase.from('events').update(patch).eq('id', event.id); loadData()
+          } : null}
         />
       </>}
       secondaryActions={(<>
