@@ -10,6 +10,7 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 import PhaseBadge from '@/components/PhaseBadge'
 import EntityIcon from '@/components/EntityIcon'
 import ViewerHome from '@/components/ViewerHome'
+import ReadyQueue from '@/components/ReadyQueue'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
@@ -105,6 +106,9 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Ready-for-print-prep queue (creative team) */}
+      <ReadyQueue />
 
       {/* Recent events — horizontal scroll on mobile */}
       <div className="card overflow-hidden">
