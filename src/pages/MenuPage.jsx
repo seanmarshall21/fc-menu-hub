@@ -14,6 +14,7 @@ import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import LayoutFitBadge from '@/components/LayoutFitBadge'
+import VisualCheckButton from '@/components/VisualCheckButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
@@ -1466,13 +1467,14 @@ export default function MenuPage() {
             {/* Inline canvas — always fits to container as a single solid piece */}
             {hasTemplate ? (
               <>
-              <div className="mb-3">
+              <div className="mb-3 space-y-2">
                 <LayoutFitBadge
                   canvasRef={canvasRef}
                   size={activeSize}
                   sponsors={(menuSponsorIds?.length || 0) > 0}
                   depsKey={`${activeSize}|${menuSponsorIds?.length || 0}|${items.length}`}
                 />
+                <VisualCheckButton imageUrl={menu.preview_image_url} items={items} menuName={menu.name} />
               </div>
               <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
                 <TemplateCanvas
