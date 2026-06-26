@@ -3,7 +3,33 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { effectiveRoster } from '@/lib/roster'
+import { effectiveRoster, gateStatus } from '@/lib/roster'
+
+// Full reference checklist — the entire process, shown under "View full
+// checklist" regardless of live state. Check-off persists per user.
+const FULL_CHECKLIST = [
+  { group: 'Proofing', items: [
+    'Run the AI review on each menu and read it over.',
+    'Sign off proofing on each menu (Approvals tab) — that moves it to Approved.',
+    'Re-review anything that dropped back to Edits.',
+  ] },
+  { group: 'Sponsorship', items: [
+    'Go through all menus and flag the ones that need sponsors.',
+    'Add sponsors to each flagged menu (multi-select, set 1–3 lines).',
+    'Upload an SVG for any sponsor showing ⚠ (no logo).',
+    'Mark each menu checked once its sponsors are right.',
+  ] },
+  { group: 'Creative / Print', items: [
+    'Sync ready menus to Figma (Menu Sync — auto-fits spacing + recommends size).',
+    'Adjust the layout in Figma if needed.',
+    'Pull edits from Figma back into the app if you changed text on the canvas.',
+    'Refresh the preview image so the app matches Figma.',
+    'Run the Visual check on the preview.',
+    'Set the menu to Exported and paste the Dropbox print-file link.',
+    'Add the event’s print-files folder link.',
+    'Lock the menu + mark it Done in the plugin.',
+  ] },
+]
 
 // Opt-in "AI sister" — a floating ✦ that, for a chosen event, shows YOUR
 // outstanding tasks computed from live data + your roster roles. Tasks resolve
@@ -19,6 +45,14 @@ export default function AssistantButton() {
   const [eventId, setEventId] = useState(() => localStorage.getItem('assistantEvent') || '')
   const [data, setData] = useState(null)   // { menus, links, signoffs, eventRoles, seriesRoles, ev }
   const [loading, setLoading] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const ckKey = `assistantChecked:${uid || 'anon'}`
+  const [checked, setChecked] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`assistantChecked:${uid || 'anon'}`) || '{}') } catch { return {} }
+  })
+  function toggleCheck(key) {
+    setChecked(prev => { const next = { ...prev, [key]: !prev[key] }; localStorage.setItem(ckKey, JSON.stringify(next)); return next })
+  }
 
   // Load the event list once the panel opens.
   useEffect(() => {
@@ -26,7 +60,7 @@ export default function AssistantButton() {
     ;(async () => {
       const { data: evs } = await supabase
         .from('events')
-        .select('id, name, slug, series(id, slug, name, brand:brands(slug, name))')
+        .select('id, name, slug, print_folder_url, series(id, slug, name, brand:brands(slug, name))')
         .order('event_date', { ascending: false })
       setEvents(evs || [])
       // Infer from the current URL if we're on an event/menu page.
@@ -47,7 +81,7 @@ export default function AssistantButton() {
       const ev = events.find(e => e.id === eventId)
       const seriesId = ev?.series?.id || null
       const [m, er, sr] = await Promise.all([
-        supabase.from('menus').select('id, name, slug, phase, requires_sponsor_approval, sponsors_updated_at, sponsors_checked_at, print_file_url').eq('event_id', eventId),
+        supabase.from('menus').select('id, name, slug, phase, requires_sponsor_approval, sponsors_updated_at, sponsors_checked_at, print_file_url, last_synced_at, updated_at').eq('event_id', eventId),
         supabase.from('event_approval_roles').select('*').eq('event_id', eventId),
         seriesId ? supabase.from('series_approval_roles').select('*').eq('series_id', seriesId) : Promise.resolve({ data: [] }),
       ])
@@ -93,8 +127,23 @@ export default function AssistantButton() {
     if (isInternal || isAdmin) {
       const edits = menus.filter(m => m.phase === 'edits')
       if (edits.length) out.push({ msg: `${edits.length} menu${edits.length === 1 ? '' : 's'} in Edits — need another review.`, to: path && `${path}?tab=menus` })
+
+      // Creative / print pipeline. "Ready" = approved + sponsors resolved.
+      const sponsorRoster = effectiveRoster(eventRoles, seriesRoles, 'sponsorship').rows
+      const sponsorsResolved = (m) => {
+        if (!m.requires_sponsor_approval) return true
+        const g = gateStatus(sponsorRoster, signoffs.filter(s => s.menu_id === m.id), 'sponsorship')
+        return !g.hasRoster || g.complete
+      }
+      const ready = menus.filter(m => m.phase === 'approved' && sponsorsResolved(m))
+      const readyUnsynced = ready.filter(m => !m.last_synced_at || (m.updated_at && new Date(m.updated_at) > new Date(m.last_synced_at)))
+      if (ready.length) out.push({ msg: `${ready.length} menu${ready.length === 1 ? '' : 's'} ready for print prep — build/sync in Figma${readyUnsynced.length ? ` (${readyUnsynced.length} need a sync)` : ''}.`, to: path && `${path}?tab=menus` })
+
       const exportedNoLink = menus.filter(m => m.phase === 'exported' && !m.print_file_url)
-      if (exportedNoLink.length) out.push({ msg: `${exportedNoLink.length} exported menu${exportedNoLink.length === 1 ? '' : 's'} missing a print-file link.`, to: path && `${path}?tab=menus` })
+      if (exportedNoLink.length) out.push({ msg: `${exportedNoLink.length} exported menu${exportedNoLink.length === 1 ? '' : 's'} missing a Dropbox print-file link.`, to: path && `${path}?tab=menus` })
+
+      const anyExported = menus.some(m => m.phase === 'exported' || m.phase === 'complete')
+      if (anyExported && !ev?.print_folder_url) out.push({ msg: `Add this event’s print-files folder link (Edit Event).`, to: path })
     }
     return out
   }, [data, uid, isInternal, isAdmin])
@@ -141,6 +190,32 @@ export default function AssistantButton() {
               </ul>
             )}
             <p className="text-[11px] text-ink-400">Shows your outstanding tasks for this event; updates as work gets done.</p>
+
+            <div className="pt-2 border-t border-surface-100">
+              <button onClick={() => setShowAll(s => !s)} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
+                {showAll ? '▾ Hide full checklist' : '▸ View full checklist'}
+              </button>
+              {showAll && (
+                <div className="mt-2 space-y-3 max-h-64 overflow-y-auto">
+                  {FULL_CHECKLIST.map(grp => (
+                    <div key={grp.group}>
+                      <div className="text-[11px] font-semibold text-ink-500 uppercase tracking-wide mb-1">{grp.group}</div>
+                      <ul className="space-y-1">
+                        {grp.items.map((it, i) => {
+                          const k = `${grp.group}:${i}`
+                          return (
+                            <li key={i} className="flex items-start gap-2 text-xs">
+                              <input type="checkbox" checked={!!checked[k]} onChange={() => toggleCheck(k)} className="mt-0.5" />
+                              <span className={checked[k] ? 'text-ink-400 line-through' : 'text-ink-700'}>{it}</span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
