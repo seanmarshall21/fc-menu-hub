@@ -12,14 +12,31 @@ import { format } from 'date-fns'
 //
 // Props: menu, gates (from useMenuGates), needsSponsors (bool), onChanged
 export default function MenuSignoffPanel({ menu, gates, needsSponsors, onChanged }) {
-  const { profile, isAdmin } = useAuth()
+  const { profile, isAdmin, isInternal } = useAuth()
   const uid = profile?.id
+  const canOverride = isAdmin || isInternal
   const [busy, setBusy] = useState(null)
   const [ackAi, setAckAi] = useState(false)
 
   if (!gates) return null
   const { byRole, signoffs, users } = gates
   const nameOf = (id) => { const u = users.find(x => x.id === id); return u ? (u.full_name || u.email) : 'Unknown' }
+
+  // Force a menu to Approved despite incomplete proofing (someone holding it
+  // up), recording who overrode it.
+  async function overrideApprove() {
+    const g = byRole.proofing.gate
+    if (!confirm(`Proofing sign-off is ${g.signedCount}/${g.requiredCount}. Approve anyway and record an override?`)) return
+    setBusy('override')
+    try {
+      await supabase.from('menus').update({
+        phase: 'approved',
+        approval_overridden_by: uid,
+        approval_overridden_at: new Date().toISOString(),
+      }).eq('id', menu.id)
+      await gates.reload(); onChanged?.()
+    } finally { setBusy(null) }
+  }
   const signoffFor = (role, userId) => signoffs.find(s => s.role === role && s.user_id === userId)
 
   async function sign(role) {
@@ -35,7 +52,8 @@ export default function MenuSignoffPanel({ menu, gates, needsSponsors, onChanged
         const g = byRole.proofing.gate
         const willComplete = g.requiredCount > 0 && g.signedCount + 1 >= g.requiredCount
         if (willComplete && ['build', 'proof', 'edits'].includes(menu.phase)) {
-          await supabase.from('menus').update({ phase: 'approved' }).eq('id', menu.id)
+          // Clean (fully-signed) approval — clear any prior override stamp.
+          await supabase.from('menus').update({ phase: 'approved', approval_overridden_by: null, approval_overridden_at: null }).eq('id', menu.id)
         }
       }
       setAckAi(false)
@@ -122,9 +140,27 @@ export default function MenuSignoffPanel({ menu, gates, needsSponsors, onChanged
     )
   }
 
+  const proofGate = byRole.proofing.gate
+  const overridden = !!menu.approval_overridden_at
+  const showOverride = canOverride && proofGate.hasRoster && !proofGate.complete && ['build', 'proof', 'edits'].includes(menu.phase)
+
   return (
     <div className="space-y-3">
+      {overridden && menu.phase === 'approved' && (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+          ⚠ Approved by override — proofing sign-off was incomplete. Overridden by {nameOf(menu.approval_overridden_by)}.
+        </div>
+      )}
       {ROLES.map(rd => <GateSection key={rd.key} roleDef={rd} />)}
+      {showOverride && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-ink-200 px-3 py-2">
+          <span className="text-xs text-ink-500">Held up waiting on a sign-off? Your team can push it through.</span>
+          <button onClick={overrideApprove} disabled={busy === 'override'}
+            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">
+            {busy === 'override' ? 'Approving…' : 'Override & approve'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

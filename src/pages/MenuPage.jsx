@@ -783,7 +783,13 @@ export default function MenuPage() {
           phase={menu.phase}
           hasPendingEdits={pendingCount > 0}
           onChange={(isAdmin || isInternal) ? async (next) => {
-            if (next === 'approved' && !isAdmin) { const r = approvalBlockedReason(); if (r) { alert(`Can't approve yet — ${r}. Resolve it first.`); return } }
+            if (next === 'approved') {
+              const r = approvalBlockedReason()
+              if (r) {
+                if (!confirm(`Can't normally approve — ${r}. Override and approve anyway?`)) return
+                await supabase.from('menus').update({ phase: 'approved', approval_overridden_by: profile?.id || null, approval_overridden_at: new Date().toISOString() }).eq('id', menu.id); loadMenu(); return
+              }
+            }
             await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu()
           } : null}
         />
