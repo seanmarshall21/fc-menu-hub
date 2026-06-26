@@ -883,3 +883,32 @@ alter table events drop constraint if exists events_phase_check;
 alter table events add  constraint events_phase_check check (phase in ('build','proof','edits','approved','exported','complete','archived'));
 alter table menus  add column if not exists print_file_url   text;  -- link to the final print file for this menu
 alter table events add column if not exists print_folder_url text;  -- link to the event's print-files folder
+
+-- ─── Role-based approval rosters + per-menu sign-offs ────────────────────────
+-- Replaces the brand→series→event cascade. Per event×role (proofing/sponsorship):
+-- a roster of REQUIRED approvers, one flagged is_owner. Events inherit the
+-- series default per role unless they have their own rows. A role's gate clears
+-- only when every required approver has a menu_signoffs row for that menu.
+create table if not exists series_approval_roles (
+  id uuid primary key default gen_random_uuid(),
+  series_id uuid not null references series(id) on delete cascade,
+  role text not null check (role in ('proofing','sponsorship')),
+  user_id uuid not null, is_owner boolean default false, created_at timestamptz default now(),
+  unique (series_id, role, user_id)
+);
+create table if not exists event_approval_roles (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  role text not null check (role in ('proofing','sponsorship')),
+  user_id uuid not null, is_owner boolean default false, created_at timestamptz default now(),
+  unique (event_id, role, user_id)
+);
+create table if not exists menu_signoffs (
+  id uuid primary key default gen_random_uuid(),
+  menu_id uuid not null references menus(id) on delete cascade,
+  role text not null check (role in ('proofing','sponsorship')),
+  user_id uuid not null, ai_reviewed boolean default false, note text, signed_at timestamptz default now(),
+  unique (menu_id, role, user_id)
+);
+alter table events add column if not exists menus_freeze_at timestamptz;
+-- RLS: rosters read-all / write admin+internal; signoffs read-all / own-row or admin.

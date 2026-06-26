@@ -11,6 +11,7 @@ import Modal from '@/components/Modal'
 import SeriesStylesTab from '@/components/SeriesStylesTab'
 import SeriesSponsorsTab from '@/components/SeriesSponsorsTab'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
+import RosterEditor from '@/components/RosterEditor'
 import TargetPicker from '@/components/TargetPicker'
 import { duplicateEventTo } from '@/lib/duplicate'
 import FavoriteButton from '@/components/FavoriteButton'
@@ -130,6 +131,14 @@ export default function SeriesPage() {
         <SeriesSponsorsTab series={series} canEdit={isAdmin || isInternal} />
       ) : tab === 'approvals' ? (
         <div className="space-y-4 max-w-2xl">
+          <div>
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Default approval roster</h2>
+            <p className="text-xs text-ink-500 mb-3">
+              The default sign-off roster for events in this series — one owner per role plus
+              any additional required approvers. Each event inherits this unless it overrides.
+            </p>
+            <RosterEditor scope="series" scopeId={series.id} canEdit={isAdmin || isInternal} />
+          </div>
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
             <p className="text-xs text-ink-500 mb-4">

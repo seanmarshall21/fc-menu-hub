@@ -28,6 +28,7 @@ import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
+import RosterEditor from '@/components/RosterEditor'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import TargetPicker from '@/components/TargetPicker'
@@ -1908,7 +1909,16 @@ export default function EventPage() {
       {/* ── APPROVALS TAB ── existing sign-off list + new notify editor */}
       {tab === 'signoff' && (
         <div className="space-y-4 max-w-2xl">
-          <ApproversPanel targetType="event" targetId={event.id} title="Event approvals" />
+          <div>
+            <h2 className="text-sm font-semibold text-ink-900 mb-1">Approval roster</h2>
+            <p className="text-xs text-ink-500 mb-3">
+              Who must sign off each menu, by role. One owner per role (the lead), plus any
+              additional required approvers — every listed person signs each menu before its gate clears.
+              Inherits the series default unless overridden.
+            </p>
+            <RosterEditor scope="event" scopeId={event.id} seriesId={series?.id} canEdit={isAdmin || isInternal} />
+          </div>
+          <ApproversPanel targetType="event" targetId={event.id} title="Event approvals (legacy)" />
           <ReviewersPanel resourceType="event" resourceId={event.id} canEdit={isAdmin || isInternal} />
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>
