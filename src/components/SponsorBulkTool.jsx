@@ -16,6 +16,7 @@ export default function SponsorBulkTool({ event, canEdit, onChange }) {
   const [filter, setFilter] = useState('all')    // 'all' | 'flagged'
   const [openId, setOpenId] = useState(null)
   const [busy, setBusy] = useState(null)
+  const [expanded, setExpanded] = useState(false) // section accordion (default closed)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -69,32 +70,38 @@ export default function SponsorBulkTool({ event, canEdit, onChange }) {
     load(); onChange?.()
   }
 
-  if (loading) return <div className="text-sm text-ink-400">Loading menus…</div>
-
   const shown = filter === 'flagged' ? menus.filter(m => m.requires_sponsor_approval) : menus
   const flaggedCount = menus.filter(m => m.requires_sponsor_approval).length
 
   return (
     <section className="card overflow-hidden">
       <div className="px-4 py-3 border-b border-surface-100 flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h3 className="text-sm font-semibold text-ink-900">Add sponsors to menus</h3>
-          <p className="text-xs text-ink-400 mt-0.5">Flag the menus that need sponsors, then add them inline. {flaggedCount} flagged.</p>
-        </div>
-        <div className="flex rounded-lg border border-surface-200 overflow-hidden text-xs">
-          {['all', 'flagged'].map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 ${filter === f ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-500 hover:bg-surface-50'}`}>
-              {f === 'all' ? 'All menus' : 'Needs sponsors'}
-            </button>
-          ))}
-        </div>
+        <button type="button" onClick={() => setExpanded(e => !e)} className="flex items-start gap-2 text-left min-w-0">
+          <svg className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+          <span>
+            <h3 className="text-sm font-semibold text-ink-900">Add sponsors to menus</h3>
+            <p className="text-xs text-ink-400 mt-0.5">Flag the menus that need sponsors, then add them inline. {flaggedCount} flagged.</p>
+          </span>
+        </button>
+        {expanded && (
+          <div className="flex rounded-lg border border-surface-200 overflow-hidden text-xs">
+            {['all', 'flagged'].map(f => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 ${filter === f ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-500 hover:bg-surface-50'}`}>
+                {f === 'all' ? 'All menus' : 'Needs sponsors'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {pool.length === 0 && (
-        <div className="px-4 py-3 text-xs text-amber-700 bg-amber-50">No sponsors in this event's pool yet — toggle some on in the section below first.</div>
+      {expanded && loading && <div className="px-4 py-6 text-sm text-ink-400">Loading menus…</div>}
+
+      {expanded && !loading && pool.length === 0 && (
+        <div className="px-4 py-3 text-xs text-amber-700 bg-amber-50">No sponsors in this event's pool yet — toggle some on in the section above first.</div>
       )}
 
+      {expanded && !loading && (
       <ul className="divide-y divide-surface-100">
         {shown.map(m => {
           const sel = linksByMenu.get(m.id) || new Map()
@@ -155,6 +162,7 @@ export default function SponsorBulkTool({ event, canEdit, onChange }) {
           )
         })}
       </ul>
+      )}
     </section>
   )
 }

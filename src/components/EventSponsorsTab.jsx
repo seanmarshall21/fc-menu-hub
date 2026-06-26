@@ -31,6 +31,7 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
   const [error, setError]     = useState(null)
   const [busy, setBusy]       = useState(null)
   const [savingDraft, setSavingDraft] = useState(false)
+  const [poolOpen, setPoolOpen] = useState(true)   // "Sponsors for this event" accordion
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -234,9 +235,6 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>
       )}
 
-      {/* Bulk per-menu sponsor assignment (flag → add → check off) */}
-      <SponsorBulkTool event={event} canEdit={canEdit} onChange={onChange} />
-
       {/* Event-level default sponsor color */}
       {canEdit && (
         <section className="card p-4">
@@ -282,16 +280,19 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
       {/* Library sponsors scoped to this series — pick which appear on this event */}
       <section className="card overflow-hidden">
         <div className="px-4 py-3 border-b border-surface-100 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="text-sm font-semibold text-ink-900">Sponsors for this event</h3>
-            <p className="text-xs text-ink-400 mt-0.5">
-              Pulls from {series?.name || 'the series'}'s sponsor list. Toggle which appear on this event's menus.
-              {seriesSponsors.length === 0 && (
-                <> Empty — add some on the <strong>Series → Sponsors</strong> tab first.</>
-              )}
-            </p>
-          </div>
-          {canEdit && seriesSponsors.length > 0 && (
+          <button type="button" onClick={() => setPoolOpen(o => !o)} className="flex items-start gap-2 text-left min-w-0">
+            <svg className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 transition-transform ${poolOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            <span>
+              <h3 className="text-sm font-semibold text-ink-900">Sponsors for this event</h3>
+              <p className="text-xs text-ink-400 mt-0.5">
+                Pulls from {series?.name || 'the series'}'s sponsor list. Toggle which appear on this event's menus.
+                {seriesSponsors.length === 0 && (
+                  <> Empty — add some on the <strong>Series → Sponsors</strong> tab first.</>
+                )}
+              </p>
+            </span>
+          </button>
+          {canEdit && seriesSponsors.length > 0 && poolOpen && (
             <SegmentedToggle
               value={overrideOrder ? 'override' : 'inherit'}
               options={ORDER_OPTIONS}
@@ -301,7 +302,7 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
           )}
         </div>
 
-        {(() => {
+        {poolOpen && (() => {
           if (seriesSponsors.length === 0) {
             return (
               <div className="px-4 py-8 text-center text-sm text-ink-400">
@@ -383,6 +384,9 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
           )
         })()}
       </section>
+
+      {/* Bulk per-menu sponsor assignment (flag → add → check off) — collapsible */}
+      <SponsorBulkTool event={event} canEdit={canEdit} onChange={onChange} />
 
       {/* Legacy custom sponsors (no library link) — show only if any exist */}
       {customSponsors.length > 0 && (
