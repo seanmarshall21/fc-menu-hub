@@ -924,3 +924,6 @@ alter table events add column if not exists menus_freeze_at timestamptz;
 -- remove → all_edits subs), notify_activity (activity_messages → comments subs +
 -- always @mentioned). menu_link() builds the deep link. @mentions + per-menu
 -- 'notify for edits' tags always notify regardless of prefs.
+
+-- Sponsor row wrap setting (1-3 lines, evenly spaced) for the bulk sponsor tool.
+alter table menus add column if not exists sponsor_max_lines int default 1 check (sponsor_max_lines between 1 and 3);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import SegmentedToggle from '@/components/SegmentedToggle'
 import SortableList, { DragHandle } from '@/components/SortableList'
+import SponsorBulkTool from '@/components/SponsorBulkTool'
 
 const ORDER_OPTIONS = [
   { value: 'inherit',  label: 'Inherit from series' },
@@ -232,6 +233,9 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>
       )}
+
+      {/* Bulk per-menu sponsor assignment (flag → add → check off) */}
+      <SponsorBulkTool event={event} canEdit={canEdit} onChange={onChange} />
 
       {/* Event-level default sponsor color */}
       {canEdit && (
