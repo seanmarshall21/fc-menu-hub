@@ -18,6 +18,8 @@ import EntityIconPicker from '@/components/EntityIconPicker'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
+import MenuSignoffPanel from '@/components/MenuSignoffPanel'
+import { useMenuGates } from '@/lib/useMenuGates'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
@@ -177,6 +179,9 @@ export default function MenuPage() {
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Approval gates (role rosters → per-menu sign-off status). Hook stays above
+  // any early return; it no-ops until the menu loads.
+  const menuGates = useMenuGates(menu?.id, event?.id, series?.id)
   const showPageLoader = useDelayedLoader(loading)
   // Honor ?tab= on load (e.g. inbox links to the Feedback tab) + default
   // viewers to Preview.
@@ -640,9 +645,13 @@ export default function MenuPage() {
   // A menu can't be approved while it still has unreviewed edits or an open
   // sponsor check. Returns a reason string, or null when approval is allowed.
   // (AI-review flags will join this list once they're persisted.)
+  // This menu needs sponsors if it's flagged for sponsor approval or already has some.
+  const needsSponsors = !!menu.requires_sponsor_approval || (menuSponsorIds?.length || 0) > 0
   function approvalBlockedReason() {
     if (pendingCount > 0) return `${pendingCount} edit${pendingCount === 1 ? '' : 's'} still pending review`
     if (needsSponsorCheck) return 'sponsors still need checking'
+    const pg = menuGates.byRole?.proofing?.gate
+    if (pg && pg.hasRoster && !pg.complete) return `proofing sign-off incomplete (${pg.signedCount}/${pg.requiredCount})`
     return null
   }
 
@@ -756,6 +765,12 @@ export default function MenuPage() {
         { label: menu.name },
       ]}
       actions={<>
+        {event?.menus_freeze_at && menu.updated_at && new Date(menu.updated_at) > new Date(event.menus_freeze_at) && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap"
+            title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>
+            ⏰ Late
+          </span>
+        )}
         {menu.print_file_url && (
           <a href={menu.print_file_url} target="_blank" rel="noreferrer"
             className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the final print file">
@@ -768,7 +783,7 @@ export default function MenuPage() {
           phase={menu.phase}
           hasPendingEdits={pendingCount > 0}
           onChange={(isAdmin || isInternal) ? async (next) => {
-            if (next === 'approved') { const r = approvalBlockedReason(); if (r) { alert(`Can't approve yet — ${r}. Resolve it first.`); return } }
+            if (next === 'approved' && !isAdmin) { const r = approvalBlockedReason(); if (r) { alert(`Can't approve yet — ${r}. Resolve it first.`); return } }
             await supabase.from('menus').update({ phase: next }).eq('id', menu.id); loadMenu()
           } : null}
         />
@@ -1499,7 +1514,15 @@ export default function MenuPage() {
       {/* Approvals tab — existing sign-off list + per-menu notify editor */}
       {tab === 'signoff' && (
         <div className="space-y-4 max-w-2xl">
-          <ApproversPanel targetType="menu" targetId={menu.id} title="Menu approvals" />
+          <div>
+            <h2 className="text-sm font-semibold text-ink-900 mb-2">Sign-off</h2>
+            <MenuSignoffPanel menu={menu} gates={menuGates} needsSponsors={needsSponsors} onChanged={loadMenu} />
+            <p className="text-[11px] text-ink-400 mt-2">
+              When every required Proofing approver signs, this menu moves to Approved automatically.
+              Sponsorship sign-off is required only when the menu is flagged for sponsors.
+            </p>
+          </div>
+          <ApproversPanel targetType="menu" targetId={menu.id} title="Menu approvals (legacy)" />
           <ReviewersPanel resourceType="menu" resourceId={menu.id} canEdit={isAdmin || isInternal} />
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-ink-900 mb-1">Notify for edits</h2>

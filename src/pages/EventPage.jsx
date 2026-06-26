@@ -819,6 +819,7 @@ export default function EventPage() {
   const [editPhase, setEditPhase]           = useState('')
   const [editFigmaUrl, setEditFigmaUrl]     = useState('')
   const [editPrintFolderUrl, setEditPrintFolderUrl] = useState('')
+  const [editFreezeAt, setEditFreezeAt] = useState('')  // datetime-local string
   const [editFigmaPage, setEditFigmaPage]   = useState('')
   const [editIconUrl, setEditIconUrl]       = useState(null)
   const [editIconName, setEditIconName]     = useState(null)
@@ -1018,6 +1019,9 @@ export default function EventPage() {
     setEditPhase(event.phase || 'build')
     setEditFigmaUrl(event.figma_file_url || '')
     setEditPrintFolderUrl(event.print_folder_url || '')
+    setEditFreezeAt(event.menus_freeze_at
+      ? (() => { const d = new Date(event.menus_freeze_at), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}` })()
+      : '')
     setEditFigmaPage(event.figma_page_name || '')
     setEditIconUrl(event.icon_url || null)
     setEditIconName(event.icon_name || null)
@@ -1037,6 +1041,7 @@ export default function EventPage() {
       phase:                 editPhase,
       figma_file_url:        editFigmaUrl.trim() || null,
       print_folder_url:      editPrintFolderUrl.trim() || null,
+      menus_freeze_at:       editFreezeAt ? new Date(editFreezeAt).toISOString() : null,
       figma_page_name:       editFigmaPage.trim() || null,
       icon_url:              editIconUrl,
       icon_name:             editIconName,
@@ -2042,6 +2047,12 @@ export default function EventPage() {
                 onChange={e => setEditPrintFolderUrl(e.target.value)}
                 placeholder="https://… link to the print-files folder" />
               <p className="mt-1 text-[11px] text-ink-400">When the event reaches the export stage, paste the print-files folder link — a “Print files” button appears on the event.</p>
+            </div>
+            <div>
+              <label className="label">Menus freeze date <span className="text-ink-400 font-normal">(optional)</span></label>
+              <input className="input" type="datetime-local" value={editFreezeAt}
+                onChange={e => setEditFreezeAt(e.target.value)} />
+              <p className="mt-1 text-[11px] text-ink-400">After this, any menu edited gets a “Late” flag so you can see who changed things past the deadline.</p>
             </div>
             <div>
               <label className="label">Figma Page Name <span className="text-ink-400 font-normal">(must match exactly)</span></label>

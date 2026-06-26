@@ -912,3 +912,7 @@ create table if not exists menu_signoffs (
 );
 alter table events add column if not exists menus_freeze_at timestamptz;
 -- RLS: rosters read-all / write admin+internal; signoffs read-all / own-row or admin.
+
+-- Re-verify loop: content change to an APPROVED menu's items reopens it to
+-- 'edits' and clears its proofing sign-offs (so plugin pull-backs / late edits
+-- can't ship unverified). See reverify_approved_menu() + trg_reverify_approved_menu.
