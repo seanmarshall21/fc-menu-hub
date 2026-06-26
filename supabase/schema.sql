@@ -916,3 +916,11 @@ alter table events add column if not exists menus_freeze_at timestamptz;
 -- Re-verify loop: content change to an APPROVED menu's items reopens it to
 -- 'edits' and clears its proofing sign-offs (so plugin pull-backs / late edits
 -- can't ship unverified). See reverify_approved_menu() + trg_reverify_approved_menu.
+
+-- ─── Notification preferences + server-side fan-out ─────────────────────────
+-- notification_prefs(user_id, all_edits, all_status, comments): per-user global
+-- subscriptions. Triggers fan out into notifications: notify_menu_status (phase
+-- change → all_status subs), notify_item_edit (menu_items content change/add/
+-- remove → all_edits subs), notify_activity (activity_messages → comments subs +
+-- always @mentioned). menu_link() builds the deep link. @mentions + per-menu
+-- 'notify for edits' tags always notify regardless of prefs.

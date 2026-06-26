@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
+import NotificationPrefs from '@/components/NotificationPrefs'
 import { ensurePushSubscription, clearPushSubscription, hasPushSubscription } from '@/lib/pwa'
 
 /**
@@ -141,6 +142,9 @@ export default function ProfilePage() {
         </Section>
 
         <PushNotificationsSection />
+
+        {/* Notification preferences */}
+        <NotificationPrefs />
 
         {/* Sign out */}
         <Section title="Sign out" subtitle="End your session on this device.">

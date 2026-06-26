@@ -5,6 +5,17 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 
+// Color + label per notification kind, for grouping and at-a-glance scanning.
+const KIND_META = {
+  mention:        { label: 'Mentions',       chip: 'bg-purple-100 text-purple-700', accent: 'bg-purple-500' },
+  tagged_in_edit: { label: 'Tagged',         chip: 'bg-blue-100 text-blue-700',     accent: 'bg-blue-500' },
+  status_change:  { label: 'Status changes', chip: 'bg-indigo-100 text-indigo-700', accent: 'bg-indigo-500' },
+  edit:           { label: 'Edits',          chip: 'bg-amber-100 text-amber-800',   accent: 'bg-amber-500' },
+  comment:        { label: 'Comments',       chip: 'bg-teal-100 text-teal-700',     accent: 'bg-teal-500' },
+}
+const KIND_ORDER = ['mention', 'tagged_in_edit', 'status_change', 'edit', 'comment']
+function kindMeta(k) { return KIND_META[k] || { label: 'Other', chip: 'bg-surface-100 text-ink-500', accent: 'bg-ink-300' } }
+
 /**
  * Personal notifications inbox.
  *
@@ -39,11 +50,18 @@ export default function InboxPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Buckets
+  // Buckets — grouped by kind, in KIND_ORDER (unknown kinds fall to the end).
   const active   = useMemo(() => rows.filter(r => !r.archived_at), [rows])
   const archived = useMemo(() => rows.filter(r =>  r.archived_at), [rows])
-  const tagged   = useMemo(() => active.filter(r => r.kind === 'tagged_in_edit'), [active])
-  const mine     = useMemo(() => active.filter(r => r.kind !== 'tagged_in_edit'), [active])
+  const grouped  = useMemo(() => {
+    const by = {}
+    for (const r of active) { (by[r.kind] = by[r.kind] || []).push(r) }
+    const keys = Object.keys(by).sort((a, b) => {
+      const ia = KIND_ORDER.indexOf(a), ib = KIND_ORDER.indexOf(b)
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    })
+    return keys.map(k => ({ kind: k, rows: by[k] }))
+  }, [active])
 
   async function markRead(id) {
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id)
@@ -80,12 +98,15 @@ export default function InboxPage() {
     <PageScreen
       tourKey="inbox"
       breadcrumbs={[{ label: 'Inbox' }]}
-      actions={active.length > 0 && (
+      actions={(
         <div className="flex items-center gap-2">
-          <button onClick={markAllRead} className="btn-secondary btn-sm" disabled={active.every(r => r.read_at)}>
-            Mark all read
-          </button>
-          <button onClick={archiveAllActive} className="btn-secondary btn-sm">Archive all</button>
+          <Link to="/profile" className="btn-secondary btn-sm whitespace-nowrap" title="Choose what notifies you">⚙ Settings</Link>
+          {active.length > 0 && (<>
+            <button onClick={markAllRead} className="btn-secondary btn-sm" disabled={active.every(r => r.read_at)}>
+              Mark all read
+            </button>
+            <button onClick={archiveAllActive} className="btn-secondary btn-sm">Archive all</button>
+          </>)}
         </div>
       )}
     >
@@ -96,8 +117,12 @@ export default function InboxPage() {
           <EmptyState />
         ) : (
           <>
-            <Bucket title="Tagged in edits" subtitle="Items where someone explicitly notified you." rows={tagged} onVisit={visit} onArchive={archiveOne} />
-            <Bucket title="My edits" subtitle="Notifications about items you edited." rows={mine} onVisit={visit} onArchive={archiveOne} />
+            {grouped.length === 0 && archived.length > 0 && (
+              <p className="text-sm text-ink-400">Nothing new — see archived below.</p>
+            )}
+            {grouped.map(g => (
+              <Bucket key={g.kind} kind={g.kind} title={kindMeta(g.kind).label} rows={g.rows} onVisit={visit} onArchive={archiveOne} />
+            ))}
 
             {archived.length > 0 && (
               <div className="pt-2 border-t border-surface-200">
@@ -128,13 +153,15 @@ export default function InboxPage() {
   )
 }
 
-function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false }) {
+function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false, kind }) {
   if (rows.length === 0) return null
+  const meta = kindMeta(kind)
   return (
     <section className="card overflow-hidden">
-      <div className="px-4 py-3 border-b border-surface-100">
+      <div className="px-4 py-3 border-b border-surface-100 flex items-center gap-2">
+        <span className={`w-2.5 h-2.5 rounded-full ${meta.accent}`} />
         <h2 className="text-sm font-semibold text-ink-900">{title} <span className="text-xs text-ink-400 font-normal">· {rows.length}</span></h2>
-        {subtitle && <p className="text-xs text-ink-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-ink-400 mt-0.5 ml-2">{subtitle}</p>}
       </div>
       <ul className="divide-y divide-surface-100">
         {rows.map(n => (
@@ -142,7 +169,7 @@ function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false })
             key={n.id}
             className={`px-4 py-3 flex items-start gap-3 ${n.read_at ? 'bg-white' : 'bg-brand-50/30'}`}
           >
-            {!n.read_at && <span className="mt-2 w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" aria-label="Unread" />}
+            {!n.read_at && <span className={`mt-2 w-2 h-2 rounded-full ${meta.accent} flex-shrink-0`} aria-label="Unread" />}
             <div className={`flex-1 min-w-0 ${n.read_at ? 'ml-5' : ''}`}>
               <button
                 onClick={() => onVisit(n)}
