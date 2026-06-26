@@ -29,6 +29,7 @@ import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
 import RosterEditor from '@/components/RosterEditor'
+import EventReadiness from '@/components/EventReadiness'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import TargetPicker from '@/components/TargetPicker'
@@ -1574,6 +1575,7 @@ export default function EventPage() {
       {/* ── MENUS TAB ── */}
       {tab === 'menus' && (
         <>
+          <EventReadiness menus={menus} eventId={event.id} seriesId={series?.id} />
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-ink-700">Menus</h2>
             {canEdit && (
