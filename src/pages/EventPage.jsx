@@ -802,7 +802,7 @@ export default function EventPage() {
   // sponsors" shortcut). Falls back to Menus for unknown values.
   const [tab, setTab]           = useState(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    return ['menus', 'preview', 'sponsors', 'templates', 'styles', 'approvals'].includes(t) ? t : 'menus'
+    return ['menus', 'preview', 'sponsors', 'aireview', 'signoff', 'rules', 'templates', 'styles'].includes(t) ? t : 'menus'
   })
   const [templates, setTemplates] = useState({}) // keyed by size
 
