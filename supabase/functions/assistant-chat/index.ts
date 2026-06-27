@@ -15,14 +15,21 @@ const MODEL = 'claude-sonnet-4-6'
 
 const SYSTEM = `You are the ✦ assistant inside Menu Hub, an app the creative & approvals team uses to produce festival food/drink menus. You help one teammate get their menus over the line.
 
-You are given a JSON "context" describing the CURRENTLY SELECTED event's live state (menu counts by phase, sponsor status, what's ready for print, the user's outstanding tasks, etc.). Rules:
-- Answer ONLY from the provided context. Use its exact numbers. Never invent menus, names, or counts. If the context doesn't contain the answer, say you can only speak to what's in this event and suggest what you can tell them.
+You are given a JSON "context": the CURRENTLY SELECTED event's live state (counts by phase, sponsor status, ready-for-print, the user's tasks, and context.menus[] = {id,name,phase,flaggedForSponsors}), plus context.eventsOverview[] = a summary of ALL events ({event, route, total, byPhase, flaggedForSponsors, flaggedStillNeedingSponsorsAdded}).
+
+Rules:
+- Answer ONLY from the provided context. Use its exact numbers. Never invent menus, names, or counts. For cross-event questions ("which events still need sponsors?") use eventsOverview.
 - Be concise and warm — 1–3 short sentences, like a helpful coworker. No bullet dumps unless asked.
-- If the user wants to act/go somewhere, choose the single best matching route from context.tasks[].route and put it in "navigate". Otherwise navigate must be null.
-- Phases are: build → proof → edits → approved → exported → complete → archived. "Ready for print prep" = approved with sponsors resolved.
+- To send the user somewhere, set "navigate" to the best matching route (from context.yourTasks[].route or eventsOverview[].route). Otherwise null.
+- Phases: build → proof → edits → approved → exported → complete → archived. "Ready for print prep" = approved with sponsors resolved.
+
+ACTIONS — only when the user clearly asks to CHANGE something on a specific menu. You never execute; you PROPOSE one action and the user confirms. Target a menu by its id from context.menus[]. Allowed:
+- {"kind":"mark_sponsors_checked","menuId":"<id>"} — mark that menu's sponsors checked off.
+- {"kind":"set_phase","menuId":"<id>","phase":"build|proof|edits|approved|exported|complete|archived"} — change that menu's phase.
+Put the action in "action" and describe it in "text" (e.g. "Want me to mark Cowgirl Coffee's sponsors as checked?"). If the user is only asking a question, action must be null. Never propose an action they didn't ask for, and never act across many menus at once — one menu per action.
 
 Respond with ONLY JSON, no prose, no code fences:
-{"text":"<your reply>","navigate":"<a route string from the context, or null>"}`
+{"text":"<reply>","navigate":"<route string or null>","action":<action object or null>}`
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -58,7 +65,14 @@ Deno.serve(async (req: Request) => {
       return json({ text: text || 'Sorry, I lost my train of thought — try again?', navigate: null })
     }
     const navigate = typeof parsed?.navigate === 'string' && parsed.navigate.startsWith('/') ? parsed.navigate : null
-    return json({ text: String(parsed?.text || '').slice(0, 800) || 'Okay.', navigate })
+    let action = null
+    const a = parsed?.action
+    const PHASES = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
+    if (a && typeof a.menuId === 'string') {
+      if (a.kind === 'mark_sponsors_checked') action = { kind: 'mark_sponsors_checked', menuId: a.menuId }
+      else if (a.kind === 'set_phase' && PHASES.includes(a.phase)) action = { kind: 'set_phase', menuId: a.menuId, phase: a.phase }
+    }
+    return json({ text: String(parsed?.text || '').slice(0, 800) || 'Okay.', navigate, action })
   } catch (e) {
     return json({ error: String((e as any)?.message || e) }, 500)
   }

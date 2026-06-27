@@ -47,6 +47,16 @@ function makeSilentWav() {
 }
 const SILENT_WAV = typeof window !== 'undefined' ? makeSilentWav() : ''
 
+// Lucide "sparkles" icon.
+function Sparkles({ className, color = '#FFB020' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+      <path d="M20 3v4" /><path d="M22 5h-4" /><path d="M4 17v2" /><path d="M5 18H3" />
+    </svg>
+  )
+}
+
 // Opt-in "AI sister" — a floating ✦ that, for a chosen event, shows YOUR
 // outstanding tasks computed from live data + your roster roles. Tasks resolve
 // themselves as work gets done, so it always reflects what still needs doing.
@@ -61,6 +71,8 @@ export default function AssistantButton() {
   const [eventId, setEventId] = useState(() => localStorage.getItem('assistantEvent') || '')
   const [data, setData] = useState(null)   // { menus, links, signoffs, eventRoles, seriesRoles, ev }
   const [loading, setLoading] = useState(false)
+  const [allEvents, setAllEvents] = useState(null)  // cross-event overview
+  const [reloadTick, setReloadTick] = useState(0)   // bump to refetch after an action
   const [showAll, setShowAll] = useState(false)
   const ckKey = `assistantChecked:${uid || 'anon'}`
   const [checked, setChecked] = useState(() => {
@@ -114,7 +126,40 @@ export default function AssistantButton() {
       setLoading(false)
     })()
     return () => { alive = false }
-  }, [open, eventId, events])
+  }, [open, eventId, events, reloadTick])
+
+  // Lightweight cross-event overview so the assistant can answer "which events
+  // still need X" and point you to them.
+  useEffect(() => {
+    if (!open) return
+    ;(async () => {
+      const { data: ms } = await supabase
+        .from('menus')
+        .select('id, phase, requires_sponsor_approval, event_id, events(name, slug, series(slug, brand:brands(slug, name)))')
+      const list = ms || []
+      const ids = list.map(m => m.id)
+      const { data: spons } = ids.length
+        ? await supabase.from('menu_sponsors').select('menu_id').in('menu_id', ids)
+        : { data: [] }
+      const cnt = new Map(); for (const r of (spons || [])) cnt.set(r.menu_id, (cnt.get(r.menu_id) || 0) + 1)
+      const map = new Map()
+      for (const m of list) {
+        const ev = m.events; if (!ev) continue
+        if (!map.has(m.event_id)) {
+          const b = ev.series?.brand
+          map.set(m.event_id, {
+            event: ev.name,
+            route: b ? `/brands/${b.slug}/series/${ev.series.slug}/events/${ev.slug}` : null,
+            total: 0, byPhase: {}, flaggedForSponsors: 0, flaggedStillNeedingSponsorsAdded: 0,
+          })
+        }
+        const a = map.get(m.event_id)
+        a.total++; a.byPhase[m.phase] = (a.byPhase[m.phase] || 0) + 1
+        if (m.requires_sponsor_approval) { a.flaggedForSponsors++; if (!(cnt.get(m.id) > 0)) a.flaggedStillNeedingSponsorsAdded++ }
+      }
+      setAllEvents([...map.values()])
+    })()
+  }, [open, reloadTick])
 
   const tasks = useMemo(() => {
     if (!data) return []
@@ -202,7 +247,25 @@ export default function AssistantButton() {
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }) }, [messages, thinking])
 
   async function speak(text) { await speakWith(text, settings.voice, getAudioEl()) }
-  function reply(text, to) { setMessages(m => [...m, { role: 'assistant', text, to: to || null }]); setPendingTo(to || null); speak(text) }
+  function reply(text, to, action) { setMessages(m => [...m, { role: 'assistant', text, to: to || null, action: action || null }]); setPendingTo(to || null); speak(text) }
+
+  // Execute an assistant-proposed action AFTER the user taps Confirm.
+  async function executeAction(action, idx) {
+    setMessages(m => m.map((x, i) => i === idx ? { ...x, acted: true } : x))
+    if (!action) return
+    const menu = data?.menus?.find(m => m.id === action.menuId)
+    if (!menu) { reply('I couldn’t find that menu in this event anymore — it may have changed.'); return }
+    setThinking(true)
+    try {
+      if (action.kind === 'mark_sponsors_checked') {
+        await supabase.from('menus').update({ sponsors_checked_at: new Date().toISOString() }).eq('id', menu.id)
+        setThinking(false); setReloadTick(t => t + 1); reply(`Done — marked “${menu.name}” sponsors as checked.`)
+      } else if (action.kind === 'set_phase') {
+        await supabase.from('menus').update({ phase: action.phase }).eq('id', menu.id)
+        setThinking(false); setReloadTick(t => t + 1); reply(`Done — “${menu.name}” is now ${action.phase}.`)
+      } else { setThinking(false); reply('That action isn’t supported yet.') }
+    } catch (_) { setThinking(false); reply('That didn’t go through — try it from the menu page.') }
+  }
 
   // Compact, factual snapshot of the selected event for the assistant brain.
   function buildContext() {
@@ -229,6 +292,8 @@ export default function AssistantButton() {
       inEdits: byPhase['edits'] || 0,
       exportedMissingPrintLink: menus.filter(m => m.phase === 'exported' && !m.print_file_url).length,
       yourTasks: tasks.map(t => ({ label: t.msg, route: t.to || null })),
+      menus: menus.map(m => ({ id: m.id, name: m.name, phase: m.phase, flaggedForSponsors: !!m.requires_sponsor_approval })),
+      eventsOverview: allEvents || [],
     }
   }
 
@@ -247,7 +312,7 @@ export default function AssistantButton() {
       const { data: res, error } = await supabase.functions.invoke('assistant-chat', { body: { question: t, context: buildContext(), history } })
       setThinking(false)
       if (error || !res?.text) { reply('Hmm — I couldn’t work that out. Ask me what’s left, about sponsors, edits, or what’s ready for print.'); return }
-      reply(res.text, res.navigate || null)
+      reply(res.text, res.navigate || null, res.action || null)
     } catch (_) { setThinking(false); reply('Something glitched — try that again in a sec.') }
   }
 
@@ -333,7 +398,7 @@ export default function AssistantButton() {
           <div className="fixed z-[97] inset-x-0 bottom-0 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[390px] h-[90vh] sm:h-[680px] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
             <div className="px-4 py-3 text-white flex items-center justify-between shrink-0" style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
-              <span className="text-sm font-semibold"><span style={{ color: '#FFB020' }}>✦</span> Quick check</span>
+              <span className="text-sm font-semibold inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Quick check</span>
               <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white text-lg leading-none">✕</button>
             </div>
 
@@ -409,6 +474,12 @@ export default function AssistantButton() {
                   <div className={`max-w-[85%] text-sm rounded-2xl px-3 py-2 ${msg.role === 'user' ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-surface-100 text-ink-800 rounded-tl-sm'}`}>
                     {msg.text}
                     {msg.to && <button onClick={() => go(msg.to)} className={`block mt-1 text-xs underline ${msg.role === 'user' ? 'text-white/90' : 'text-brand-600'}`}>→ Take me there</button>}
+                    {msg.action && !msg.acted && (
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => executeAction(msg.action, i)} className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-600 text-white whitespace-nowrap">✓ Confirm</button>
+                        <button onClick={() => setMessages(m => m.map((x, j) => j === i ? { ...x, acted: true } : x))} className="text-xs px-2.5 py-1 rounded-full bg-surface-200 text-ink-600 whitespace-nowrap">Cancel</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -437,9 +508,9 @@ export default function AssistantButton() {
       )}
       {!open && (
         <button onClick={() => setOpen(true)} title="Quick check"
-          className="fixed bottom-28 sm:bottom-4 right-4 z-[95] w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl ring-1 ring-white/10"
+          className="fixed bottom-28 sm:bottom-4 right-4 z-[95] w-14 h-14 rounded-full shadow-lg flex items-center justify-center ring-1 ring-white/10"
           style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
-          <span style={{ color: '#FFB020' }}>✦</span>
+          <Sparkles className="w-7 h-7" />
         </button>
       )}
     </>,
