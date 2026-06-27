@@ -204,22 +204,51 @@ export default function AssistantButton() {
   async function speak(text) { await speakWith(text, settings.voice, getAudioEl()) }
   function reply(text, to) { setMessages(m => [...m, { role: 'assistant', text, to: to || null }]); setPendingTo(to || null); speak(text) }
 
-  function respondTo(raw) {
-    const t = (raw || '').toLowerCase().trim()
+  // Compact, factual snapshot of the selected event for the assistant brain.
+  function buildContext() {
+    if (!data) return { event: null }
+    const { ev, menus, sponsorCount, signoffs, eventRoles, seriesRoles } = data
+    const sponsorRoster = effectiveRoster(eventRoles, seriesRoles, 'sponsorship').rows
+    const sponsorsResolved = (m) => {
+      if (!m.requires_sponsor_approval) return true
+      const g = gateStatus(sponsorRoster, signoffs.filter(s => s.menu_id === m.id), 'sponsorship')
+      return !g.hasRoster || g.complete
+    }
+    const byPhase = {}; for (const m of menus) byPhase[m.phase] = (byPhase[m.phase] || 0) + 1
+    const flagged = menus.filter(m => m.requires_sponsor_approval)
+    const ready = menus.filter(m => m.phase === 'approved' && sponsorsResolved(m))
+    return {
+      event: ev?.name || null,
+      totalMenus: menus.length,
+      byPhase,
+      flaggedForSponsors: flagged.length,
+      flaggedStillNeedingSponsorsAdded: flagged.filter(m => !(sponsorCount.get(m.id) > 0)).length,
+      sponsorChangesNotCheckedOff: flagged.filter(m => m.sponsors_updated_at && (!m.sponsors_checked_at || new Date(m.sponsors_updated_at) > new Date(m.sponsors_checked_at))).length,
+      readyForPrintPrep: ready.length,
+      readyButNeedFigmaSync: ready.filter(m => !m.last_synced_at || (m.updated_at && new Date(m.updated_at) > new Date(m.last_synced_at))).length,
+      inEdits: byPhase['edits'] || 0,
+      exportedMissingPrintLink: menus.filter(m => m.phase === 'exported' && !m.print_file_url).length,
+      yourTasks: tasks.map(t => ({ label: t.msg, route: t.to || null })),
+    }
+  }
+
+  const AFFIRM = /^(yes|yeah|yep|yup|sure|ok|okay|do it|take me( there)?|go( there)?|let'?s go|next|start|get started|continue|please( do)?)[.! ]*$/i
+  async function respondTo(raw) {
+    const t = (raw || '').trim()
     if (!t) return
-    if (/(^|\b)(yes|yeah|yep|sure|ok|okay|do it|take me|go there|let'?s go|next|start|get started|continue)\b/.test(t) && pendingTo) {
+    // Short affirmation → act on the last offered destination (no round-trip).
+    if (AFFIRM.test(t) && pendingTo) {
       const dest = pendingTo; setPendingTo(null); reply('Taking you there.'); setTimeout(() => go(dest), 700); return
     }
-    if (/(^|\b)(no|nope|not now|cancel|nevermind|never mind)\b/.test(t)) { reply('Okay — standing by.'); return }
-    if (/(what|anything|something|tell me).*(do|left|review|to-?do|remaining|next|pending|outstanding)|(need|have).*(do|left|review)/.test(t)) {
-      if (!eventId) { reply('Pick an event up top first, then ask me again.'); return }
-      if (!tasks.length) { reply('You’re all clear on this event — nothing waiting on you.'); return }
-      const list = tasks.map(x => x.msg).join(' ')
-      const first = tasks.find(x => x.to)
-      reply(`You have ${tasks.length} ${tasks.length === 1 ? 'thing' : 'things'} left. ${list}${first ? ' Want me to take you to the first one?' : ''}`, first?.to)
-      return
-    }
-    reply('I can tell you what’s left, or take you to it. Try “what do I still have to do?”')
+    if (!eventId) { reply('Pick an event up top first — I answer based on the event you’re working on.'); return }
+    setThinking(true)
+    try {
+      const history = messages.slice(-6).map(m => ({ role: m.role, text: m.text }))
+      const { data: res, error } = await supabase.functions.invoke('assistant-chat', { body: { question: t, context: buildContext(), history } })
+      setThinking(false)
+      if (error || !res?.text) { reply('Hmm — I couldn’t work that out. Ask me what’s left, about sponsors, edits, or what’s ready for print.'); return }
+      reply(res.text, res.navigate || null)
+    } catch (_) { setThinking(false); reply('Something glitched — try that again in a sec.') }
   }
 
   function submit(text) {
