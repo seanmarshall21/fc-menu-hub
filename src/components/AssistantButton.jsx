@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
@@ -150,6 +150,54 @@ export default function AssistantButton() {
 
   function go(to) { if (to) { setOpen(false); navigate(to) } }
 
+  // ── Voice: push-to-talk (Web Speech API) + spoken replies ────────────────
+  const recRef = useRef(null)
+  const [listening, setListening] = useState(false)
+  const [heard, setHeard] = useState('')
+  const [reply, setReply] = useState('')
+  const [pendingTo, setPendingTo] = useState(null)
+  const voiceSupported = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
+
+  function speak(text) {
+    try { window.speechSynthesis?.cancel(); window.speechSynthesis?.speak(new SpeechSynthesisUtterance(text)) } catch (_) {}
+  }
+  function say(text, to) { setReply(text); setPendingTo(to || null); speak(text) }
+
+  function handleVoice(raw) {
+    const t = (raw || '').toLowerCase().trim()
+    if (!t) return
+    // Affirmative → act on the last offered destination.
+    if (/(^|\b)(yes|yeah|yep|sure|ok|okay|do it|take me|go there|let'?s go|next|start|get started|continue)\b/.test(t) && pendingTo) {
+      say('Taking you there.'); const dest = pendingTo; setPendingTo(null); setTimeout(() => go(dest), 600); return
+    }
+    if (/(^|\b)(no|nope|not now|cancel|stop)\b/.test(t)) { say('Okay — standing by.'); return }
+    // "what do I need / have left / to review / to do"
+    if (/(what|anything|something).*(do|left|review|to-?do|remaining|next|pending|outstanding)|(need|have).*(do|left|review)/.test(t)) {
+      if (!eventId) { say('Pick an event first, then ask me again.'); return }
+      if (!tasks.length) { say('You’re all clear on this event — nothing waiting on you.'); return }
+      const list = tasks.map(x => x.msg).join(' ')
+      const first = tasks.find(x => x.to)
+      const tail = first ? ' Want me to take you to the first one?' : ''
+      say(`You have ${tasks.length} ${tasks.length === 1 ? 'thing' : 'things'} left. ${list}${tail}`, first?.to)
+      return
+    }
+    say('Try “what do I still have to do?”, then say “yes” and I’ll take you there.')
+  }
+
+  function startListening() {
+    if (!voiceSupported || listening) return
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    const rec = new SR()
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1
+    rec.onresult = (e) => { const txt = e?.results?.[0]?.[0]?.transcript || ''; setHeard(txt); handleVoice(txt) }
+    rec.onerror = () => setListening(false)
+    rec.onend = () => setListening(false)
+    recRef.current = rec
+    setHeard(''); setListening(true)
+    try { rec.start() } catch (_) { setListening(false) }
+  }
+  function stopListening() { try { recRef.current?.stop() } catch (_) {} }
+
   return createPortal(
     <>
       {open && (
@@ -190,6 +238,27 @@ export default function AssistantButton() {
               </ul>
             )}
             <p className="text-[11px] text-ink-400">Shows your outstanding tasks for this event; updates as work gets done.</p>
+
+            {/* Voice: hold to talk — "what do I still have to do?" → "yes" navigates */}
+            {voiceSupported && (
+              <div className="pt-2 border-t border-surface-100">
+                {(heard || reply) && (
+                  <div className="mb-2 text-xs space-y-1">
+                    {heard && <div className="text-ink-400">“{heard}”</div>}
+                    {reply && <div className="text-ink-800">{reply}{pendingTo && <button onClick={() => { const d = pendingTo; setPendingTo(null); go(d) }} className="text-brand-600 hover:underline ml-1">→ go</button>}</div>}
+                  </div>
+                )}
+                <button
+                  onMouseDown={startListening} onMouseUp={stopListening} onMouseLeave={stopListening}
+                  onTouchStart={(e) => { e.preventDefault(); startListening() }} onTouchEnd={(e) => { e.preventDefault(); stopListening() }}
+                  className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium select-none ${listening ? 'bg-red-500 text-white' : 'bg-surface-100 text-ink-700 hover:bg-surface-200'}`}
+                  title="Hold to talk">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 1v0a3 3 0 013 3v7a3 3 0 01-6 0V4a3 3 0 013-3zM19 10a7 7 0 01-14 0M12 17v4" /></svg>
+                  {listening ? 'Listening… release to ask' : 'Hold to talk'}
+                </button>
+                <p className="text-[10px] text-ink-400 mt-1 text-center">Try “what do I still have to do?” then “yes”.</p>
+              </div>
+            )}
 
             <div className="pt-2 border-t border-surface-100">
               <button onClick={() => setShowAll(s => !s)} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
