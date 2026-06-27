@@ -4,15 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Warm accent (was blue). 600 is the readable text/button orange;
+        // the footer + assistant use the brighter golden gradient as a fill.
         brand: {
-          50:  '#f0f4ff',
-          100: '#e0eaff',
-          200: '#c7d3fd',
-          300: '#9db0fb',
-          500: '#4f6ef7',
-          600: '#3b56e8',
-          700: '#2c42d0',
-          800: '#2236b8',
+          50:  '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
         },
         surface: {
           0:   '#ffffff',

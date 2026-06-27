@@ -27,3 +27,9 @@ dist-ssr
 .netlify
 
 .env
+
+# Local secret/key scratch files — never commit
+docs/File *.txt
+*.keys.md
+*-keys.md
+secrets*.txt

@@ -52,7 +52,7 @@ function BottomTab({ to, end = false, label, icon, badge = 0 }) {
       end={end}
       className={({ isActive }) => clsx(
         'flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative',
-        isActive ? 'text-brand-600' : 'text-ink-400'
+        isActive ? 'text-black' : 'text-black/60'
       )}
     >
       <div className="relative">
@@ -72,7 +72,7 @@ function BottomTabButton({ onClick, label, icon }) {
   return (
     <button
       onClick={onClick}
-      className="flex-1 flex flex-col items-center justify-center gap-0.5 text-ink-400 hover:text-ink-700 transition-colors"
+      className="flex-1 flex flex-col items-center justify-center gap-0.5 text-black/60 hover:text-black transition-colors"
     >
       {icon}
       <span className="text-[10px] font-medium">{label}</span>
@@ -326,8 +326,8 @@ export default function Layout() {
 
       {/* ── Mobile bottom tab bar (always visible, never hides) ── */}
       <nav
-        className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-surface-200"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/10"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
       >
         <div className="flex items-stretch justify-around h-16">
           <BottomTab to="/" end label="Home" icon={
