@@ -3,7 +3,8 @@ import { supabase } from '@/lib/supabase'
 // Voice + input preferences for the assistant. Shared by the drawer and the
 // Profile settings panel. Persisted per user in localStorage.
 export const VOICE_OPTIONS = [
-  { value: 'eleven', label: 'My voice (cloned)' },
+  { value: 'eleven:ZUKOY89Rp0DSoku5SCuQ', label: 'Zoo (cloned)' },
+  { value: 'eleven:dBM68Cc3sy1PJs9MzyHD', label: 'Darsh (cloned)' },
   { value: 'google:en-US-Neural2-J', label: 'Google · Jordan (M)' },
   { value: 'google:en-US-Neural2-D', label: 'Google · Dylan (M)' },
   { value: 'google:en-US-Neural2-F', label: 'Google · Fiona (F)' },
@@ -20,7 +21,7 @@ export const PAUSE_OPTIONS = [
   { value: 1.2, label: 'Normal (1.2s)' },
   { value: 2.0, label: 'Relaxed (2s)' },
 ]
-const DEFAULTS = { voice: 'eleven', inputMode: 'tap', pause: 1.2 }
+const DEFAULTS = { voice: 'eleven:ZUKOY89Rp0DSoku5SCuQ', inputMode: 'tap', pause: 1.2 }
 
 function key(uid) { return `assistantSettings:${uid || 'anon'}` }
 export function loadAssistantSettings(uid) {
@@ -40,7 +41,7 @@ export async function speakWith(text, voice, audioEl) {
   if (voice === 'browser') { speakBrowser(text); return }
   const body = { text }
   if (typeof voice === 'string' && voice.indexOf('google:') === 0) { body.provider = 'google'; body.voice = voice.slice(7) }
-  else body.provider = 'elevenlabs'
+  else { body.provider = 'elevenlabs'; if (typeof voice === 'string' && voice.indexOf('eleven:') === 0) body.voiceId = voice.slice(7) }
   try {
     const { data, error } = await supabase.functions.invoke('tts', { body })
     if (!error && data?.audio) {

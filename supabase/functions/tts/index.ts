@@ -24,7 +24,8 @@ Deno.serve(async (req: Request) => {
 
     const provider = String(body.provider || '')
     const elevenKey = Deno.env.get('ELEVENLABS_API_KEY')
-    const elevenVoice = Deno.env.get('ELEVENLABS_VOICE_ID')
+    // Caller may pick a specific cloned voice; else fall back to the secret default.
+    const elevenVoice = (typeof body.voiceId === 'string' && body.voiceId) ? body.voiceId : Deno.env.get('ELEVENLABS_VOICE_ID')
     // ElevenLabs (cloned voice) unless the caller explicitly asked for Google.
     if (provider !== 'google' && elevenKey && elevenVoice) {
       const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenVoice}?output_format=mp3_44100_128`, {
