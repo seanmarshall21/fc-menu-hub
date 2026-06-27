@@ -31,6 +31,21 @@ const FULL_CHECKLIST = [
   ] },
 ]
 
+// A tiny silent WAV used to "unlock" audio on iOS: Safari only allows .play()
+// that originates from a user gesture, so we play this on the first tap and
+// reuse the same element for the (async) TTS replies.
+function makeSilentWav() {
+  const sr = 8000, n = Math.floor(sr * 0.05), buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf)
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)) }
+  w(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ')
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true)
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true)
+  w(36, 'data'); dv.setUint32(40, n * 2, true)
+  let bin = ''; const u8 = new Uint8Array(buf); for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i])
+  return 'data:audio/wav;base64,' + btoa(bin)
+}
+const SILENT_WAV = typeof window !== 'undefined' ? makeSilentWav() : ''
+
 // Opt-in "AI sister" — a floating ✦ that, for a chosen event, shows YOUR
 // outstanding tasks computed from live data + your roster roles. Tasks resolve
 // themselves as work gets done, so it always reflects what still needs doing.
@@ -161,7 +176,20 @@ export default function AssistantButton() {
   const chunksRef = useRef([])
   const scrollRef = useRef(null)
   const audioRef = useRef(null)
+  const primedRef = useRef(false)
   const canRecord = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+
+  function getAudioEl() {
+    if (!audioRef.current) { const a = new Audio(); a.setAttribute('playsinline', ''); audioRef.current = a }
+    return audioRef.current
+  }
+  // Call inside a user gesture (tapping mic / send) so iOS lets us play TTS later.
+  function primeAudio() {
+    if (primedRef.current) return
+    const a = getAudioEl()
+    a.src = SILENT_WAV
+    a.play().then(() => { primedRef.current = true }).catch(() => {})
+  }
 
   // Seed a greeting + keep the chat scrolled to the newest message.
   useEffect(() => {
@@ -176,9 +204,11 @@ export default function AssistantButton() {
     try {
       const { data, error } = await supabase.functions.invoke('tts', { body: { text } })
       if (!error && data?.audio) {
-        try { audioRef.current?.pause() } catch (_) {}
-        const a = new Audio('data:audio/mp3;base64,' + data.audio)
-        audioRef.current = a; await a.play(); return
+        const a = getAudioEl()
+        try { a.pause() } catch (_) {}
+        a.src = 'data:audio/mp3;base64,' + data.audio
+        await a.play()
+        return
       }
     } catch (_) { /* fall through */ }
     speakBrowser(text)
@@ -206,6 +236,7 @@ export default function AssistantButton() {
   function submit(text) {
     const t = (text || '').trim()
     if (!t) return
+    primeAudio()
     setMessages(m => [...m, { role: 'user', text: t }])
     setInput('')
     setTimeout(() => respondTo(t), 60)
@@ -242,7 +273,7 @@ export default function AssistantButton() {
     } catch (_) { setMessages(m => [...m, { role: 'assistant', text: 'I need mic access for that — allow it, or type below.' }]) }
   }
   function stopRecording() { try { mrRef.current?.stop() } catch (_) {} }
-  function toggleRecording() { recording ? stopRecording() : startRecording() }
+  function toggleRecording() { primeAudio(); recording ? stopRecording() : startRecording() }
 
   return createPortal(
     <>
