@@ -19,6 +19,7 @@ import HelpPage from '@/pages/HelpPage'
 import FavoritesPage from '@/pages/FavoritesPage'
 import SponsorsPage from '@/pages/SponsorsPage'
 import SearchPage from '@/pages/SearchPage'
+import ReadyForPrintPage from '@/pages/ReadyForPrintPage'
 import ProfilePage from '@/pages/ProfilePage'
 import InboxPage from '@/pages/InboxPage'
 import PizzaLoader from '@/components/PizzaLoader'
@@ -67,6 +68,7 @@ function App() {
             <Route path="help" element={<HelpPage />} />
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="search" element={<SearchPage />} />
+            <Route path="ready" element={<ReadyForPrintPage />} />
             <Route path="sponsors" element={<SponsorsPage />} />
             <Route path="admin" element={<AdminPage />} />
             <Route path="brands" element={<BrandsListPage />} />

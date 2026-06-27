@@ -150,176 +150,217 @@ export default function AssistantButton() {
 
   function go(to) { if (to) { setOpen(false); navigate(to) } }
 
-  // ── Voice: push-to-talk (Web Speech API) + spoken replies ────────────────
-  const recRef = useRef(null)
-  const [listening, setListening] = useState(false)
-  const [heard, setHeard] = useState('')
-  const [reply, setReply] = useState('')
+  // ── Chat (text + record→server STT) + spoken replies ─────────────────────
+  const [messages, setMessages] = useState([])   // {role:'user'|'assistant', text, to?}
+  const [input, setInput] = useState('')
+  const [recording, setRecording] = useState(false)
+  const [thinking, setThinking] = useState(false)
   const [pendingTo, setPendingTo] = useState(null)
-  const voiceSupported = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
-
+  const [tasksOpen, setTasksOpen] = useState(true)
+  const mrRef = useRef(null)
+  const chunksRef = useRef([])
+  const scrollRef = useRef(null)
   const audioRef = useRef(null)
+  const canRecord = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+
+  // Seed a greeting + keep the chat scrolled to the newest message.
+  useEffect(() => {
+    if (open && messages.length === 0) setMessages([{ role: 'assistant', text: 'Hi! Ask me what’s left to do, or pick an event above and I’ll show you. Talk or type — whatever’s easier.' }])
+  }, [open]) // eslint-disable-line
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }) }, [messages, thinking])
+
   function speakBrowser(text) {
     try { window.speechSynthesis?.cancel(); window.speechSynthesis?.speak(new SpeechSynthesisUtterance(text)) } catch (_) {}
   }
   async function speak(text) {
-    // Prefer the server TTS (Google / cloned voice); fall back to the browser
-    // voice if it's not configured or errors.
     try {
       const { data, error } = await supabase.functions.invoke('tts', { body: { text } })
       if (!error && data?.audio) {
         try { audioRef.current?.pause() } catch (_) {}
         const a = new Audio('data:audio/mp3;base64,' + data.audio)
-        audioRef.current = a
-        await a.play()
-        return
+        audioRef.current = a; await a.play(); return
       }
     } catch (_) { /* fall through */ }
     speakBrowser(text)
   }
-  function say(text, to) { setReply(text); setPendingTo(to || null); speak(text) }
+  function reply(text, to) { setMessages(m => [...m, { role: 'assistant', text, to: to || null }]); setPendingTo(to || null); speak(text) }
 
-  function handleVoice(raw) {
+  function respondTo(raw) {
     const t = (raw || '').toLowerCase().trim()
     if (!t) return
-    // Affirmative → act on the last offered destination.
     if (/(^|\b)(yes|yeah|yep|sure|ok|okay|do it|take me|go there|let'?s go|next|start|get started|continue)\b/.test(t) && pendingTo) {
-      say('Taking you there.'); const dest = pendingTo; setPendingTo(null); setTimeout(() => go(dest), 600); return
+      const dest = pendingTo; setPendingTo(null); reply('Taking you there.'); setTimeout(() => go(dest), 700); return
     }
-    if (/(^|\b)(no|nope|not now|cancel|stop)\b/.test(t)) { say('Okay — standing by.'); return }
-    // "what do I need / have left / to review / to do"
-    if (/(what|anything|something).*(do|left|review|to-?do|remaining|next|pending|outstanding)|(need|have).*(do|left|review)/.test(t)) {
-      if (!eventId) { say('Pick an event first, then ask me again.'); return }
-      if (!tasks.length) { say('You’re all clear on this event — nothing waiting on you.'); return }
+    if (/(^|\b)(no|nope|not now|cancel|nevermind|never mind)\b/.test(t)) { reply('Okay — standing by.'); return }
+    if (/(what|anything|something|tell me).*(do|left|review|to-?do|remaining|next|pending|outstanding)|(need|have).*(do|left|review)/.test(t)) {
+      if (!eventId) { reply('Pick an event up top first, then ask me again.'); return }
+      if (!tasks.length) { reply('You’re all clear on this event — nothing waiting on you.'); return }
       const list = tasks.map(x => x.msg).join(' ')
       const first = tasks.find(x => x.to)
-      const tail = first ? ' Want me to take you to the first one?' : ''
-      say(`You have ${tasks.length} ${tasks.length === 1 ? 'thing' : 'things'} left. ${list}${tail}`, first?.to)
+      reply(`You have ${tasks.length} ${tasks.length === 1 ? 'thing' : 'things'} left. ${list}${first ? ' Want me to take you to the first one?' : ''}`, first?.to)
       return
     }
-    say('Try “what do I still have to do?”, then say “yes” and I’ll take you there.')
+    reply('I can tell you what’s left, or take you to it. Try “what do I still have to do?”')
   }
 
-  function startListening() {
-    if (!voiceSupported || listening) return
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    const rec = new SR()
-    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1
-    rec.onresult = (e) => { const txt = e?.results?.[0]?.[0]?.transcript || ''; setHeard(txt); handleVoice(txt) }
-    rec.onerror = () => setListening(false)
-    rec.onend = () => setListening(false)
-    recRef.current = rec
-    setHeard(''); setListening(true)
-    try { rec.start() } catch (_) { setListening(false) }
+  function submit(text) {
+    const t = (text || '').trim()
+    if (!t) return
+    setMessages(m => [...m, { role: 'user', text: t }])
+    setInput('')
+    setTimeout(() => respondTo(t), 60)
   }
-  function stopListening() { try { recRef.current?.stop() } catch (_) {} }
-  function toggleListening() { if (listening) stopListening(); else startListening() }
+
+  function blobToBase64(blob) {
+    return new Promise((res, rej) => {
+      const r = new FileReader()
+      r.onloadend = () => res(String(r.result).split(',')[1] || '')
+      r.onerror = rej
+      r.readAsDataURL(blob)
+    })
+  }
+  async function startRecording() {
+    if (!canRecord || recording) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      chunksRef.current = []
+      mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data) }
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        setRecording(false); setThinking(true)
+        try {
+          const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
+          const b64 = await blobToBase64(blob)
+          const { data, error } = await supabase.functions.invoke('stt', { body: { audio: b64, mime: mr.mimeType || 'audio/webm' } })
+          setThinking(false)
+          if (error || !data?.text) { setMessages(m => [...m, { role: 'assistant', text: 'I didn’t catch that — try again, or type it below.' }]); return }
+          submit(data.text)
+        } catch (_) { setThinking(false); setMessages(m => [...m, { role: 'assistant', text: 'Voice failed — you can type instead.' }]) }
+      }
+      mr.start(); mrRef.current = mr; setRecording(true)
+    } catch (_) { setMessages(m => [...m, { role: 'assistant', text: 'I need mic access for that — allow it, or type below.' }]) }
+  }
+  function stopRecording() { try { mrRef.current?.stop() } catch (_) {} }
+  function toggleRecording() { recording ? stopRecording() : startRecording() }
 
   return createPortal(
     <>
       {open && (
         <>
-          <div className="fixed inset-0 z-[94] bg-black/30" onClick={() => setOpen(false)} />
-          <div className="fixed z-[95] inset-x-0 bottom-0 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[390px] h-[88vh] sm:h-[660px] sm:max-h-[88vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="fixed inset-0 z-[96] bg-black/30" onClick={() => setOpen(false)} />
+          <div className="fixed z-[97] inset-x-0 bottom-0 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[390px] h-[90vh] sm:h-[680px] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
             <div className="px-4 py-3 text-white flex items-center justify-between shrink-0" style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
               <span className="text-sm font-semibold"><span style={{ color: '#FFB020' }}>✦</span> Quick check</span>
               <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white text-lg leading-none">✕</button>
             </div>
 
-            {/* Body (scrolls) */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              <div className="bg-surface-100 text-ink-700 text-sm rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-[90%]">
-                Hi! Pick an event and I’ll show what still needs doing — or just ask me out loud.
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Working on</label>
+            {/* Pinned, collapsible: event picker + live tasks + full checklist */}
+            <div className="shrink-0 border-b border-surface-200 bg-surface-50">
+              <div className="px-4 pt-3 pb-1">
                 <select value={eventId} onChange={e => { setEventId(e.target.value); localStorage.setItem('assistantEvent', e.target.value) }}
-                  className="input py-1.5 text-sm w-full mt-1">
+                  className="input py-1.5 text-sm w-full">
                   <option value="">Pick an event…</option>
                   {events.map(e => (
                     <option key={e.id} value={e.id}>{e.series?.brand?.name ? `${e.series.brand.name} · ` : ''}{e.name}</option>
                   ))}
                 </select>
               </div>
-
-              {!eventId ? (
-                <p className="text-xs text-ink-400">I’ll base this on your role and what’s assigned to you.</p>
-              ) : loading ? (
-                <p className="text-xs text-ink-400">Checking…</p>
-              ) : tasks.length === 0 ? (
-                <p className="text-sm text-emerald-700">✓ You’re all clear on this event — nothing waiting on you.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {tasks.map((t, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
-                      <span className="text-ink-700">
-                        {t.msg}{' '}
-                        {t.to && <button onClick={() => go(t.to)} className="text-brand-600 hover:underline whitespace-nowrap">→ go</button>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <div className="pt-1">
-                <button onClick={() => setShowAll(s => !s)} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
-                  {showAll ? '▾ Hide full checklist' : '▸ View full checklist'}
-                </button>
-                {showAll && (
-                  <div className="mt-2 space-y-3">
-                    {FULL_CHECKLIST.map(grp => (
-                      <div key={grp.group}>
-                        <div className="text-[11px] font-semibold text-ink-500 uppercase tracking-wide mb-1">{grp.group}</div>
-                        <ul className="space-y-1">
-                          {grp.items.map((it, i) => {
-                            const k = `${grp.group}:${i}`
-                            return (
-                              <li key={i} className="flex items-start gap-2 text-xs">
-                                <input type="checkbox" checked={!!checked[k]} onChange={() => toggleCheck(k)} className="mt-0.5" />
-                                <span className={checked[k] ? 'text-ink-400 line-through' : 'text-ink-700'}>{it}</span>
-                              </li>
-                            )
-                          })}
-                        </ul>
+              <button onClick={() => setTasksOpen(o => !o)} className="w-full px-4 py-2 flex items-center justify-between text-xs font-semibold text-ink-500">
+                <span>{tasksOpen ? '▾' : '▸'} What’s left{eventId && !loading ? ` · ${tasks.length}` : ''}</span>
+                {!tasksOpen && tasks.length > 0 && <span className="w-2 h-2 rounded-full bg-brand-500" />}
+              </button>
+              {tasksOpen && (
+                <div className="px-4 pb-3 max-h-[32vh] overflow-y-auto space-y-3">
+                  {!eventId ? (
+                    <p className="text-xs text-ink-400">I’ll base this on your role and what’s assigned to you.</p>
+                  ) : loading ? (
+                    <p className="text-xs text-ink-400">Checking…</p>
+                  ) : tasks.length === 0 ? (
+                    <p className="text-sm text-emerald-700">✓ All clear — nothing waiting on you.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {tasks.map((t, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
+                          <span className="text-ink-700">
+                            {t.msg}{' '}
+                            {t.to && <button onClick={() => go(t.to)} className="text-brand-600 hover:underline whitespace-nowrap">→ go</button>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div>
+                    <button onClick={() => setShowAll(s => !s)} className="text-xs text-brand-600 hover:text-brand-800 font-medium">
+                      {showAll ? '▾ Hide full checklist' : '▸ View full checklist'}
+                    </button>
+                    {showAll && (
+                      <div className="mt-2 space-y-3">
+                        {FULL_CHECKLIST.map(grp => (
+                          <div key={grp.group}>
+                            <div className="text-[11px] font-semibold text-ink-500 uppercase tracking-wide mb-1">{grp.group}</div>
+                            <ul className="space-y-1">
+                              {grp.items.map((it, i) => {
+                                const k = `${grp.group}:${i}`
+                                return (
+                                  <li key={i} className="flex items-start gap-2 text-xs">
+                                    <input type="checkbox" checked={!!checked[k]} onChange={() => toggleCheck(k)} className="mt-0.5" />
+                                    <span className={checked[k] ? 'text-ink-400 line-through' : 'text-ink-700'}>{it}</span>
+                                  </li>
+                                )
+                              })}
+                            </ul>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
-            {/* Footer — voice */}
-            <div className="shrink-0 border-t border-surface-100 px-4 py-4">
-              {(heard || reply) && (
-                <div className="mb-3 text-xs space-y-1">
-                  {heard && <div className="text-ink-400">“{heard}”</div>}
-                  {reply && <div className="text-ink-800">{reply}{pendingTo && <button onClick={() => { const d = pendingTo; setPendingTo(null); go(d) }} className="text-brand-600 hover:underline ml-1">→ go</button>}</div>}
+            {/* Chat transcript */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] text-sm rounded-2xl px-3 py-2 ${msg.role === 'user' ? 'bg-brand-600 text-white rounded-tr-sm' : 'bg-surface-100 text-ink-800 rounded-tl-sm'}`}>
+                    {msg.text}
+                    {msg.to && <button onClick={() => go(msg.to)} className={`block mt-1 text-xs underline ${msg.role === 'user' ? 'text-white/90' : 'text-brand-600'}`}>→ Take me there</button>}
+                  </div>
                 </div>
+              ))}
+              {thinking && <div className="flex justify-start"><div className="bg-surface-100 text-ink-400 text-sm rounded-2xl rounded-tl-sm px-3 py-2">…</div></div>}
+            </div>
+
+            {/* Input bar */}
+            <div className="shrink-0 border-t border-surface-100 p-3 flex items-center gap-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+              {canRecord && (
+                <button onClick={toggleRecording} title={recording ? 'Tap to stop' : 'Tap to talk'}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition ${recording ? 'bg-red-500 text-white animate-pulse' : 'bg-surface-100 text-ink-600 hover:bg-surface-200'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 013 3v7a3 3 0 01-6 0V4a3 3 0 013-3zM19 10a7 7 0 01-14 0M12 17v4" /></svg>
+                </button>
               )}
-              {voiceSupported ? (
-                <div className="flex flex-col items-center gap-2">
-                  <button onClick={toggleListening} title="Tap to talk"
-                    className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md text-white transition ${listening ? 'bg-red-500 animate-pulse' : ''}`}
-                    style={listening ? {} : { background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}>
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 013 3v7a3 3 0 01-6 0V4a3 3 0 013-3zM19 10a7 7 0 01-14 0M12 17v4" /></svg>
-                  </button>
-                  <span className="text-xs text-ink-400 text-center">{listening ? 'Listening… tap to stop' : 'Tap to talk — “what’s left to do?”'}</span>
-                </div>
-              ) : (
-                <p className="text-xs text-ink-400 text-center">Voice needs Chrome or Edge.</p>
-              )}
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit(input) }}
+                placeholder={recording ? 'Listening…' : 'Ask or type…'} disabled={recording}
+                className="input flex-1 py-2 text-sm" />
+              <button onClick={() => submit(input)} disabled={!input.trim()} title="Send"
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" /></svg>
+              </button>
             </div>
           </div>
         </>
       )}
-      <button onClick={() => setOpen(o => !o)} title="Quick check"
-        className="fixed bottom-28 sm:bottom-4 right-4 z-[95] w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl ring-1 ring-white/10"
-        style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
-        <span style={{ color: '#FFB020' }}>✦</span>
-      </button>
+      {!open && (
+        <button onClick={() => setOpen(true)} title="Quick check"
+          className="fixed bottom-28 sm:bottom-4 right-4 z-[95] w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl ring-1 ring-white/10"
+          style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
+          <span style={{ color: '#FFB020' }}>✦</span>
+        </button>
+      )}
     </>,
     document.body
   )
