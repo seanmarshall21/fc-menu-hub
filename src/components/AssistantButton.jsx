@@ -158,8 +158,24 @@ export default function AssistantButton() {
   const [pendingTo, setPendingTo] = useState(null)
   const voiceSupported = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
 
-  function speak(text) {
+  const audioRef = useRef(null)
+  function speakBrowser(text) {
     try { window.speechSynthesis?.cancel(); window.speechSynthesis?.speak(new SpeechSynthesisUtterance(text)) } catch (_) {}
+  }
+  async function speak(text) {
+    // Prefer the server TTS (Google / cloned voice); fall back to the browser
+    // voice if it's not configured or errors.
+    try {
+      const { data, error } = await supabase.functions.invoke('tts', { body: { text } })
+      if (!error && data?.audio) {
+        try { audioRef.current?.pause() } catch (_) {}
+        const a = new Audio('data:audio/mp3;base64,' + data.audio)
+        audioRef.current = a
+        await a.play()
+        return
+      }
+    } catch (_) { /* fall through */ }
+    speakBrowser(text)
   }
   function say(text, to) { setReply(text); setPendingTo(to || null); speak(text) }
 
