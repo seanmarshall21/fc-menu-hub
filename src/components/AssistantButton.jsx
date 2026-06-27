@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { effectiveRoster, gateStatus } from '@/lib/roster'
+import { loadAssistantSettings, speakWith } from '@/lib/assistantVoice'
 
 // Full reference checklist — the entire process, shown under "View full
 // checklist" regardless of live state. Check-off persists per user.
@@ -177,7 +178,10 @@ export default function AssistantButton() {
   const scrollRef = useRef(null)
   const audioRef = useRef(null)
   const primedRef = useRef(false)
-  const canRecord = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+  const vadRef = useRef(null)
+  const [settings, setSettings] = useState(() => loadAssistantSettings(uid))
+  useEffect(() => { if (open) setSettings(loadAssistantSettings(uid)) }, [open]) // eslint-disable-line
+  const canRecord = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && settings.inputMode !== 'text'
 
   function getAudioEl() {
     if (!audioRef.current) { const a = new Audio(); a.setAttribute('playsinline', ''); audioRef.current = a }
@@ -197,22 +201,7 @@ export default function AssistantButton() {
   }, [open]) // eslint-disable-line
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }) }, [messages, thinking])
 
-  function speakBrowser(text) {
-    try { window.speechSynthesis?.cancel(); window.speechSynthesis?.speak(new SpeechSynthesisUtterance(text)) } catch (_) {}
-  }
-  async function speak(text) {
-    try {
-      const { data, error } = await supabase.functions.invoke('tts', { body: { text } })
-      if (!error && data?.audio) {
-        const a = getAudioEl()
-        try { a.pause() } catch (_) {}
-        a.src = 'data:audio/mp3;base64,' + data.audio
-        await a.play()
-        return
-      }
-    } catch (_) { /* fall through */ }
-    speakBrowser(text)
-  }
+  async function speak(text) { await speakWith(text, settings.voice, getAudioEl()) }
   function reply(text, to) { setMessages(m => [...m, { role: 'assistant', text, to: to || null }]); setPendingTo(to || null); speak(text) }
 
   function respondTo(raw) {
@@ -258,6 +247,7 @@ export default function AssistantButton() {
       chunksRef.current = []
       mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data) }
       mr.onstop = async () => {
+        stopVad()
         stream.getTracks().forEach(t => t.stop())
         setRecording(false); setThinking(true)
         try {
@@ -270,10 +260,41 @@ export default function AssistantButton() {
         } catch (_) { setThinking(false); setMessages(m => [...m, { role: 'assistant', text: 'Voice failed — you can type instead.' }]) }
       }
       mr.start(); mrRef.current = mr; setRecording(true)
+      if (settings.inputMode === 'listening') startVad(stream)
     } catch (_) { setMessages(m => [...m, { role: 'assistant', text: 'I need mic access for that — allow it, or type below.' }]) }
   }
   function stopRecording() { try { mrRef.current?.stop() } catch (_) {} }
   function toggleRecording() { primeAudio(); recording ? stopRecording() : startRecording() }
+
+  // Listening mode: stop recording automatically after `pause` seconds of silence.
+  function stopVad() {
+    const v = vadRef.current
+    if (!v) return
+    try { cancelAnimationFrame(v.raf) } catch (_) {}
+    try { v.ac.close() } catch (_) {}
+    vadRef.current = null
+  }
+  function startVad(stream) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext
+      const ac = new AC()
+      const an = ac.createAnalyser(); an.fftSize = 512
+      ac.createMediaStreamSource(stream).connect(an)
+      const buf = new Uint8Array(an.fftSize)
+      let spoke = false, silentSince = 0
+      const startedAt = Date.now()
+      const tick = () => {
+        an.getByteTimeDomainData(buf)
+        let sum = 0; for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; sum += x * x }
+        const rms = Math.sqrt(sum / buf.length), now = Date.now()
+        if (rms > 0.045) { spoke = true; silentSince = 0 }
+        else if (spoke && !silentSince) silentSince = now
+        if ((spoke && silentSince && now - silentSince > settings.pause * 1000) || now - startedAt > 20000) { stopRecording(); return }
+        if (vadRef.current) vadRef.current.raf = requestAnimationFrame(tick)
+      }
+      vadRef.current = { ac, raf: requestAnimationFrame(tick) }
+    } catch (_) { /* VAD unsupported — manual tap still works */ }
+  }
 
   return createPortal(
     <>

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import NotificationPrefs from '@/components/NotificationPrefs'
+import AssistantSettings from '@/components/AssistantSettings'
 import { ensurePushSubscription, clearPushSubscription, hasPushSubscription } from '@/lib/pwa'
 
 /**
@@ -142,6 +143,9 @@ export default function ProfilePage() {
         </Section>
 
         <PushNotificationsSection />
+
+        {/* Assistant voice + input */}
+        <AssistantSettings />
 
         {/* Notification preferences */}
         <NotificationPrefs />

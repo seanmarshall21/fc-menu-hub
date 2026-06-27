@@ -22,10 +22,11 @@ Deno.serve(async (req: Request) => {
     const text = String(body.text || '').slice(0, 1200)
     if (!text) return json({ error: 'No text.' }, 400)
 
+    const provider = String(body.provider || '')
     const elevenKey = Deno.env.get('ELEVENLABS_API_KEY')
     const elevenVoice = Deno.env.get('ELEVENLABS_VOICE_ID')
-    // Preferred: ElevenLabs (supports a cloned voice) when configured.
-    if (elevenKey && elevenVoice) {
+    // ElevenLabs (cloned voice) unless the caller explicitly asked for Google.
+    if (provider !== 'google' && elevenKey && elevenVoice) {
       const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenVoice}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: { 'xi-api-key': elevenKey, 'content-type': 'application/json' },
