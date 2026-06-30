@@ -30,6 +30,7 @@ import EntityIconPicker from '@/components/EntityIconPicker'
 import ApproversPanel from '@/components/ApproversPanel'
 import RosterEditor from '@/components/RosterEditor'
 import EventReadiness from '@/components/EventReadiness'
+import BulkAddItemModal from '@/components/BulkAddItemModal'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import TargetPicker from '@/components/TargetPicker'
@@ -831,6 +832,7 @@ export default function EventPage() {
 
   // New menu modal
   const [showNewMenu, setShowNewMenu]     = useState(false)
+  const [showBulkAdd, setShowBulkAdd]     = useState(false)
   const [menuName, setMenuName]           = useState('')
   const [menuSlugField, setMenuSlugField] = useState('')
   const [menuCategory, setMenuCategory]   = useState('bar')
@@ -1615,6 +1617,11 @@ export default function EventPage() {
                   ↑ Import CSVs
                 </button>
                 <button
+                  onClick={() => setShowBulkAdd(true)}
+                  className="btn-secondary btn-sm whitespace-nowrap">
+                  + Add item to menus
+                </button>
+                <button
                   onClick={() => { setMenuName(''); setMenuSlugField(''); setMenuCategory('bar'); setMenuPhase('build'); setMenuSize('lg'); setSaveError(null); setShowNewMenu(true) }}
                   className="btn-secondary btn-sm gap-1.5">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -2126,6 +2133,9 @@ export default function EventPage() {
       )}
 
       {/* ── New Menu Modal ── */}
+      {showBulkAdd && (
+        <BulkAddItemModal menus={menus} onClose={() => setShowBulkAdd(false)} onDone={loadData} />
+      )}
       {showNewMenu && (
         <Modal title="New Menu" onClose={() => setShowNewMenu(false)}>
           <form onSubmit={handleCreateMenu} className="space-y-4">
