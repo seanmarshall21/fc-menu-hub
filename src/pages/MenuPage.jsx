@@ -152,6 +152,7 @@ export default function MenuPage() {
   const [event, setEvent]   = useState(null)
   const [menu, setMenu]     = useState(null)
   const [items, setItems]   = useState([])
+  const [siblings, setSiblings] = useState([])   // menus in this event, for prev/next nav
   const [eventSponsors, setEventSponsors] = useState([])
   // Resolved "Notify for edits" list — union of brand + series + event + menu.
   // Pre-fills the item edit form so editors don't have to remember to tag
@@ -239,6 +240,14 @@ export default function MenuPage() {
     setEvent(eventData)
 
     if (eventData) {
+      // Sibling menus in this event for prev/next navigation.
+      const { data: sibs } = await supabase
+        .from('menus')
+        .select('id, name, slug, sort_order')
+        .eq('event_id', eventData.id)
+        .order('sort_order')
+      setSiblings(sibs || [])
+
       const { data: menuData } = await supabase
         .from('menus')
         .select('*')
@@ -765,6 +774,31 @@ export default function MenuPage() {
         { label: event?.name, to: `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}` },
         { label: menu.name },
       ]}
+      subnav={(() => {
+        const idx = siblings.findIndex(s => s.slug === menuSlug)
+        if (idx < 0 || siblings.length < 2) return null
+        const base = `/brands/${brandSlug}/series/${seriesSlug}/events/${eventSlug}/menus`
+        const prev = idx > 0 ? siblings[idx - 1] : null
+        const next = idx < siblings.length - 1 ? siblings[idx + 1] : null
+        const cls = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-100 hover:bg-surface-200 text-ink-700 text-xs max-w-[42%] min-w-0'
+        return (
+          <div className="flex items-center justify-between gap-2">
+            {prev ? (
+              <Link to={`${base}/${prev.slug}`} className={cls} title={prev.name}>
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                <span className="truncate">{prev.name}</span>
+              </Link>
+            ) : <span className="w-px" />}
+            <span className="text-[11px] text-ink-400 whitespace-nowrap flex-shrink-0">{idx + 1} of {siblings.length}</span>
+            {next ? (
+              <Link to={`${base}/${next.slug}`} className={`${cls} justify-end`} title={next.name}>
+                <span className="truncate">{next.name}</span>
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </Link>
+            ) : <span className="w-px" />}
+          </div>
+        )
+      })()}
       actions={<>
         {event?.menus_freeze_at && menu.updated_at && new Date(menu.updated_at) > new Date(event.menus_freeze_at) && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap"

@@ -37,6 +37,7 @@ export default function PageScreen({
   iconColor,
   actions,
   secondaryActions,
+  subnav,         // optional row rendered directly under the title (e.g. prev/next)
   below,
   tourKey,        // optional — when set, shows a ? button in the header that
                   // opens the matching onboarding tour from src/lib/tours.js
@@ -143,6 +144,9 @@ export default function PageScreen({
             </div>
           </div>
 
+          {subnav && (
+            <div className="-mt-1 pb-2.5">{subnav}</div>
+          )}
           {secondaryActions && (
             <div className="flex items-center gap-2 flex-wrap pb-3 -mt-1">
               {secondaryActions}
