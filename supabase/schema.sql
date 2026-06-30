@@ -403,13 +403,15 @@ begin
         - 'last_synced_frame_id' - 'preview_image_url'
         - 'sponsor_approved_at' - 'sponsor_approved_by'
         - 'phase' - 'approval_overridden_by' - 'approval_overridden_at'
-        - 'sponsors_checked_at' - 'sponsors_checked_by' - 'print_file_url')
+        - 'sponsors_checked_at' - 'sponsors_checked_by'
+        - 'print_file_url' - 'prep_file_url' - 'locked')
      is distinct from
      (to_jsonb(old) - 'updated_at' - 'last_synced_at' - 'last_sync_digest'
         - 'last_synced_frame_id' - 'preview_image_url'
         - 'sponsor_approved_at' - 'sponsor_approved_by'
         - 'phase' - 'approval_overridden_by' - 'approval_overridden_at'
-        - 'sponsors_checked_at' - 'sponsors_checked_by' - 'print_file_url')
+        - 'sponsors_checked_at' - 'sponsors_checked_by'
+        - 'print_file_url' - 'prep_file_url' - 'locked')
   then
     new.updated_at = now();
   end if;
@@ -942,3 +944,11 @@ alter table series_approval_roles add column if not exists approval_mode text no
 -- approver is enough. Default true preserves prior "everyone signs" behavior.
 alter table event_approval_roles  add column if not exists required boolean not null default true;
 alter table series_approval_roles add column if not exists required boolean not null default true;
+
+-- Prep/print folder links (event) + optional prep/print file links (menu) +
+-- approval lock. Exported sets the prep folder; Complete sets the print folder.
+-- A menu's prep file is hidden once a print file is added. `locked` is set true
+-- on approval; the Menu Sync plugin refuses to overwrite a locked menu.
+alter table events add column if not exists prep_folder_url text;
+alter table menus  add column if not exists prep_file_url text;
+alter table menus  add column if not exists locked boolean not null default false;

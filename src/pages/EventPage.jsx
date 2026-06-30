@@ -820,6 +820,7 @@ export default function EventPage() {
   const [editPhase, setEditPhase]           = useState('')
   const [editFigmaUrl, setEditFigmaUrl]     = useState('')
   const [editPrintFolderUrl, setEditPrintFolderUrl] = useState('')
+  const [editPrepFolderUrl, setEditPrepFolderUrl] = useState('')
   const [editFreezeAt, setEditFreezeAt] = useState('')  // datetime-local string
   const [editFigmaPage, setEditFigmaPage]   = useState('')
   const [editIconUrl, setEditIconUrl]       = useState(null)
@@ -1020,6 +1021,7 @@ export default function EventPage() {
     setEditPhase(event.phase || 'build')
     setEditFigmaUrl(event.figma_file_url || '')
     setEditPrintFolderUrl(event.print_folder_url || '')
+    setEditPrepFolderUrl(event.prep_folder_url || '')
     setEditFreezeAt(event.menus_freeze_at
       ? (() => { const d = new Date(event.menus_freeze_at), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}` })()
       : '')
@@ -1042,6 +1044,7 @@ export default function EventPage() {
       phase:                 editPhase,
       figma_file_url:        editFigmaUrl.trim() || null,
       print_folder_url:      editPrintFolderUrl.trim() || null,
+      prep_folder_url:       editPrepFolderUrl.trim() || null,
       menus_freeze_at:       editFreezeAt ? new Date(editFreezeAt).toISOString() : null,
       figma_page_name:       editFigmaPage.trim() || null,
       icon_url:              editIconUrl,
@@ -1464,8 +1467,13 @@ export default function EventPage() {
           phase={event.phase}
           onChange={canEdit ? async (next) => {
             const patch = { phase: next }
-            if (next === 'exported' && !event.print_folder_url) {
-              const link = window.prompt('Exported! Paste the Dropbox/Drive link to this event’s print-files folder (leave blank to add later):', '')
+            // Exported → prep folder; Complete → final print folder.
+            if (next === 'exported' && !event.prep_folder_url) {
+              const link = window.prompt('Exported. Paste the Dropbox/Drive link to this event’s PREP folder (leave blank to add later):', '')
+              if (link && link.trim()) patch.prep_folder_url = link.trim()
+            }
+            if (next === 'complete' && !event.print_folder_url) {
+              const link = window.prompt('Complete. Paste the Dropbox/Drive link to this event’s final PRINT folder (leave blank to add later):', '')
               if (link && link.trim()) patch.print_folder_url = link.trim()
             }
             await supabase.from('events').update(patch).eq('id', event.id); loadData()
@@ -1479,10 +1487,16 @@ export default function EventPage() {
             Open Figma
           </a>
         )}
+        {event.prep_folder_url && (
+          <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the event's prep-files folder">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+            Prep folder ↗
+          </a>
+        )}
         {event.print_folder_url && (
           <a href={event.print_folder_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the event's print-files folder">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-            Print files ↗
+            Print folder ↗
           </a>
         )}
         {canEdit && (
@@ -2051,11 +2065,18 @@ export default function EventPage() {
                 placeholder="https://figma.com/design/…" />
             </div>
             <div>
+              <label className="label">Prep files folder <span className="text-ink-400 font-normal">(optional)</span></label>
+              <input className="input" type="url" value={editPrepFolderUrl}
+                onChange={e => setEditPrepFolderUrl(e.target.value)}
+                placeholder="https://… link to the prep-files folder" />
+              <p className="mt-1 text-[11px] text-ink-400">Set at the Exported stage — a “Prep folder” button appears on the event.</p>
+            </div>
+            <div>
               <label className="label">Print files folder <span className="text-ink-400 font-normal">(optional)</span></label>
               <input className="input" type="url" value={editPrintFolderUrl}
                 onChange={e => setEditPrintFolderUrl(e.target.value)}
                 placeholder="https://… link to the print-files folder" />
-              <p className="mt-1 text-[11px] text-ink-400">When the event reaches the export stage, paste the print-files folder link — a “Print files” button appears on the event.</p>
+              <p className="mt-1 text-[11px] text-ink-400">Set at the Complete stage — a “Print folder” button appears on the event.</p>
             </div>
             <div>
               <label className="label">Menus freeze date <span className="text-ink-400 font-normal">(optional)</span></label>
