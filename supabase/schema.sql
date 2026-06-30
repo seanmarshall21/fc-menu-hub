@@ -927,3 +927,14 @@ alter table events add column if not exists menus_freeze_at timestamptz;
 
 -- Sponsor row wrap setting (1-3 lines, evenly spaced) for the bulk sponsor tool.
 alter table menus add column if not exists sponsor_max_lines int default 1 check (sponsor_max_lines between 1 and 3);
+
+-- Approval mode per role roster: 'all' (every approver must sign) or 'any' (one
+-- is enough). Added 2026-06; default 'all' preserves prior unanimous behavior.
+alter table event_approval_roles  add column if not exists approval_mode text not null default 'all' check (approval_mode in ('all','any'));
+alter table series_approval_roles add column if not exists approval_mode text not null default 'all' check (approval_mode in ('all','any'));
+
+-- Per-approver "required" flag (supersedes approval_mode above). If a role has
+-- any required approvers, all of them must sign; if none are required, any one
+-- approver is enough. Default true preserves prior "everyone signs" behavior.
+alter table event_approval_roles  add column if not exists required boolean not null default true;
+alter table series_approval_roles add column if not exists required boolean not null default true;

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { ROLES } from '@/lib/roster'
+import { ROLES, gateStatus } from '@/lib/roster'
 import { format } from 'date-fns'
 
 // Per-menu sign-off. Shows each role's gate (required approvers + who's signed),
@@ -49,8 +49,8 @@ export default function MenuSignoffPanel({ menu, gates, needsSponsors, onChanged
       // Auto-advance: if proofing is now fully signed and the menu is still
       // pre-approval, mark it Approved.
       if (role === 'proofing') {
-        const g = byRole.proofing.gate
-        const willComplete = g.requiredCount > 0 && g.signedCount + 1 >= g.requiredCount
+        const after = [...signoffs, { role: 'proofing', user_id: uid }]
+        const willComplete = gateStatus(byRole.proofing.roster, after, 'proofing').complete
         if (willComplete && ['build', 'proof', 'edits'].includes(menu.phase)) {
           // Clean (fully-signed) approval — clear any prior override stamp.
           await supabase.from('menus').update({ phase: 'approved', approval_overridden_by: null, approval_overridden_at: null }).eq('id', menu.id)
@@ -87,10 +87,11 @@ export default function MenuSignoffPanel({ menu, gates, needsSponsors, onChanged
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <h3 className="text-sm font-semibold text-ink-900">{roleDef.label} sign-off</h3>
           <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${gate.complete ? 'bg-emerald-50 text-emerald-700' : gate.hasRoster ? 'bg-amber-50 text-amber-700' : 'bg-surface-100 text-ink-400'}`}>
-            {gate.hasRoster ? `${gate.signedCount}/${gate.requiredCount} signed` : 'no roster'}
+            {!gate.hasRoster ? 'no roster' : gate.anyMode ? `any 1 of ${gate.requiredCount} · ${gate.signedCount} signed` : `${gate.signedCount}/${gate.neededCount} signed`}
           </span>
         </div>
         {sponsorGate && !needsSponsors && <p className="text-[11px] text-ink-400 mb-1.5">This menu isn't flagged for sponsors — no sign-off needed.</p>}
+        {gate.anyMode && roster.length > 0 && <p className="text-[11px] text-ink-400 mb-1.5">Any one of these can approve it.</p>}
         {roster.length === 0 ? (
           <p className="text-xs text-ink-400 italic">No approvers set {inherited ? '(series default)' : ''} — gate is open.</p>
         ) : (
@@ -103,6 +104,7 @@ export default function MenuSignoffPanel({ menu, gates, needsSponsors, onChanged
                     <span className={so ? 'text-emerald-600' : 'text-ink-300'}>{so ? '✓' : '○'}</span>
                     <span className="text-ink-800">{nameOf(r.user_id)}</span>
                     {r.is_owner && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700 font-semibold">OWNER</span>}
+                    {r.required === false && <span className="text-[9px] text-ink-400">optional</span>}
                   </span>
                   {so
                     ? <span className="text-[11px] text-ink-400">{format(new Date(so.signed_at), 'MMM d, h:mma')}</span>

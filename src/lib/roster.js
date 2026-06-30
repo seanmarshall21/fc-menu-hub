@@ -9,23 +9,43 @@ export const ROLES = [
 ]
 
 // Effective roster rows for a role: the event's own rows if it has any for that
-// role (override); otherwise the series default rows.
+// role (override); otherwise the series default rows. `mode` is the role's
+// approval mode ('all' = every approver must sign, 'any' = one is enough),
+// read from the rows (they share it).
 export function effectiveRoster(eventRows, seriesRows, role) {
   const ev = (eventRows || []).filter(r => r.role === role)
-  if (ev.length) return { rows: ev, inherited: false }
-  return { rows: (seriesRows || []).filter(r => r.role === role), inherited: true }
+  const rows = ev.length ? ev : (seriesRows || []).filter(r => r.role === role)
+  const mode = rows[0]?.approval_mode === 'any' ? 'any' : 'all'
+  return { rows, inherited: !ev.length, mode }
 }
 
-// Gate status for a role: who's required, who has signed, and whether complete.
+// Gate status for a role. Per-approver `required` flag drives it:
+//   • some approvers required → ALL of those required ones must sign
+//   • none required           → ANY one approver in the role is enough
+// (Optional approvers may still sign; they just don't block.)
 export function gateStatus(rosterRows, signoffRows, role) {
-  const required = (rosterRows || []).filter(r => r.role === role).map(r => r.user_id)
+  const rows = (rosterRows || []).filter(r => r.role === role)
   const signed = new Set((signoffRows || []).filter(s => s.role === role).map(s => s.user_id))
-  const signedReq = required.filter(u => signed.has(u))
+  const requiredUsers = rows.filter(r => r.required !== false).map(r => r.user_id)
+  const anyMode = requiredUsers.length === 0
+  let signedCount, neededCount, complete
+  if (anyMode) {
+    signedCount = rows.filter(r => signed.has(r.user_id)).length
+    neededCount = rows.length ? 1 : 0
+    complete = rows.length > 0 && signedCount >= 1
+  } else {
+    const signedReq = requiredUsers.filter(u => signed.has(u))
+    signedCount = signedReq.length
+    neededCount = requiredUsers.length
+    complete = signedReq.length === requiredUsers.length
+  }
   return {
-    required,
-    signedCount: signedReq.length,
-    requiredCount: required.length,
-    complete: required.length > 0 && signedReq.length === required.length,
-    hasRoster: required.length > 0,
+    required: requiredUsers,
+    anyMode,
+    signedCount,
+    requiredCount: rows.length,
+    neededCount,
+    complete,
+    hasRoster: rows.length > 0,
   }
 }

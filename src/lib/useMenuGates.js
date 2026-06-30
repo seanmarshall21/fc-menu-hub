@@ -35,7 +35,8 @@ export function useMenuGates(menuId, eventId, seriesId) {
     byRole[r.key] = {
       roster: eff.rows,
       inherited: eff.inherited,
-      gate: gateStatus(eff.rows, signoffs, r.key),
+      mode: eff.mode,
+      gate: gateStatus(eff.rows, signoffs, r.key, eff.mode),
     }
   }
   return { loading, byRole, signoffs, users, reload }

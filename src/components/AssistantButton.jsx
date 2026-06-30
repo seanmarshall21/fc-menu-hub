@@ -190,10 +190,10 @@ export default function AssistantButton() {
       if (edits.length) out.push({ msg: `${edits.length} menu${edits.length === 1 ? '' : 's'} in Edits — need another review.`, to: path && `${path}?tab=menus` })
 
       // Creative / print pipeline. "Ready" = approved + sponsors resolved.
-      const sponsorRoster = effectiveRoster(eventRoles, seriesRoles, 'sponsorship').rows
+      const sponsorEff = effectiveRoster(eventRoles, seriesRoles, 'sponsorship')
       const sponsorsResolved = (m) => {
         if (!m.requires_sponsor_approval) return true
-        const g = gateStatus(sponsorRoster, signoffs.filter(s => s.menu_id === m.id), 'sponsorship')
+        const g = gateStatus(sponsorEff.rows, signoffs.filter(s => s.menu_id === m.id), 'sponsorship', sponsorEff.mode)
         return !g.hasRoster || g.complete
       }
       const ready = menus.filter(m => m.phase === 'approved' && sponsorsResolved(m))

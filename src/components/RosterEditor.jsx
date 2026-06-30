@@ -52,11 +52,18 @@ export default function RosterEditor({ scope, scopeId, seriesId, canEdit = false
     await supabase.from(table).update({ is_owner: true }).eq('id', row.id)
     load()
   }
+  // Toggle whether a specific approver's sign-off is required. If a role has any
+  // required approvers, all of them must sign; if none are required, any one is
+  // enough.
+  async function setRequired(row, val) {
+    await supabase.from(table).update({ required: val }).eq('id', row.id)
+    load()
+  }
   // Event-scope: seed an override from the series default (or empty), or revert.
   async function overrideRole(role) {
     const seed = seriesRows.filter(r => r.role === role)
     if (seed.length) {
-      await supabase.from(table).insert(seed.map(r => ({ [idCol]: scopeId, role, user_id: r.user_id, is_owner: r.is_owner })))
+      await supabase.from(table).insert(seed.map(r => ({ [idCol]: scopeId, role, user_id: r.user_id, is_owner: r.is_owner, required: r.required !== false })))
     } else {
       // No series default — create an empty override marker by adding nothing;
       // the UI shows the editor once any row exists, so add the current user? No —
@@ -110,6 +117,10 @@ export default function RosterEditor({ scope, scopeId, seriesId, canEdit = false
                   </span>
                   {canEdit && (isOverride || scope === 'series') && (
                     <span className="flex items-center gap-2 text-[11px]">
+                      <label className="flex items-center gap-1 text-ink-500 cursor-pointer whitespace-nowrap" title="Their sign-off is required">
+                        <input type="checkbox" checked={r.required !== false} onChange={e => setRequired(r, e.target.checked)} />
+                        Required
+                      </label>
                       {!r.is_owner && <button onClick={() => setOwner(r)} className="text-ink-400 hover:text-brand-600">Make owner</button>}
                       <button onClick={() => removeApprover(r)} className="text-ink-400 hover:text-red-600">Remove</button>
                     </span>
@@ -117,6 +128,14 @@ export default function RosterEditor({ scope, scopeId, seriesId, canEdit = false
                 </li>
               ))}
             </ul>
+
+            {canEdit && (isOverride || scope === 'series') && eff.rows.length > 0 && (
+              <p className="mt-2 text-[11px] text-ink-400">
+                {eff.rows.every(r => r.required === false)
+                  ? 'No one is required — any one of these can approve.'
+                  : 'Checked approvers must all sign. Uncheck everyone to let any one approve.'}
+              </p>
+            )}
 
             {canEdit && (isOverride || scope === 'series') && (
               <div className="mt-2">

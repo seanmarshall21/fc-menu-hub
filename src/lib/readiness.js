@@ -19,7 +19,7 @@ export function menuReadiness({ menu, eventRoles, seriesRoles, signoffs }) {
   if (!needsSponsors) return 'ready'
 
   const eff = effectiveRoster(eventRoles, seriesRoles, 'sponsorship')
-  const g = gateStatus(eff.rows, signoffs, 'sponsorship')
+  const g = gateStatus(eff.rows, signoffs, 'sponsorship', eff.mode)
   // If sponsors are needed and someone's required to sign, they must — else
   // (no roster configured) don't block on missing setup.
   return (!g.hasRoster || g.complete) ? 'ready' : 'awaiting_sponsors'
