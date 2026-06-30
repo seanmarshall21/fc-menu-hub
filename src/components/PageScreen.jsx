@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import EntityIcon from './EntityIcon'
 import TourOverlay, { useTour } from './TourOverlay'
 import { TOURS } from '@/lib/tours'
+import { useNavDrawer } from '@/contexts/NavDrawerContext'
 
 /**
  * Page chrome:
@@ -44,6 +45,7 @@ export default function PageScreen({
   children,
 }) {
   const navigate = useNavigate()
+  const openDrawer = useNavDrawer()
   const tour = useTour(tourKey)
   const tourDef = tourKey ? TOURS[tourKey] : null
 
@@ -87,6 +89,17 @@ export default function PageScreen({
 
           {/* Title row */}
           <div className={`flex items-center gap-3 ${isNested ? 'pt-1' : 'pt-3 sm:pt-4'} pb-3 sm:pb-4`}>
+            {openDrawer && (
+              <button
+                onClick={openDrawer}
+                className="md:hidden text-ink-500 hover:text-ink-900 p-1 -ml-1 flex-shrink-0"
+                aria-label="Open menu"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
             {showBack && (
               <button
                 onClick={() => navigate(-1)}

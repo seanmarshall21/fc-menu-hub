@@ -9,6 +9,7 @@ import VersionWatcher from '@/components/VersionWatcher'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import EntityIcon from '@/components/EntityIcon'
 import AssistantButton from '@/components/AssistantButton'
+import { NavDrawerContext } from '@/contexts/NavDrawerContext'
 import clsx from 'clsx'
 
 function IconHelp() {
@@ -327,7 +328,9 @@ export default function Layout() {
       {/* ── Main content ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <main className="flex-1 overflow-hidden bg-surface-50">
-          <Outlet />
+          <NavDrawerContext.Provider value={() => setDrawerOpen(true)}>
+            <Outlet />
+          </NavDrawerContext.Provider>
         </main>
       </div>
 
@@ -342,9 +345,9 @@ export default function Layout() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           } />
-          <BottomTabButton onClick={() => setDrawerOpen(true)} label="Menus" icon={
+          <BottomTab to="/my-tasks" label="My Tasks" icon={
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14-4H5m14 8H5m14 4H5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
           } />
           <BottomTab to="/inbox" label="Inbox" badge={unreadCount} icon={
