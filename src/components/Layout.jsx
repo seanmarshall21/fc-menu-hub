@@ -175,6 +175,13 @@ export default function Layout() {
           Dashboard
         </NavLink>
 
+        <NavLink to="/my-tasks" className={navLinkClass}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+          My Tasks
+        </NavLink>
+
         <NavLink to="/favorites" className={navLinkClass}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.86 5.706a1 1 0 00.95.69h6.001c.969 0 1.371 1.24.588 1.81l-4.857 3.527a1 1 0 00-.364 1.118l1.86 5.706c.3.921-.755 1.688-1.539 1.118l-4.857-3.527a1 1 0 00-1.176 0l-4.857 3.527c-.784.57-1.838-.197-1.539-1.118l1.86-5.706a1 1 0 00-.364-1.118L2.6 11.133c-.783-.57-.38-1.81.588-1.81h6.002a1 1 0 00.95-.69l1.86-5.706z" />

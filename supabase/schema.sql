@@ -952,3 +952,7 @@ alter table series_approval_roles add column if not exists required boolean not 
 alter table events add column if not exists prep_folder_url text;
 alter table menus  add column if not exists prep_file_url text;
 alter table menus  add column if not exists locked boolean not null default false;
+
+-- Departments a user belongs to (multi); drives the My Tasks view + phase
+-- notifications. Admins see all. Values: sponsorship, food_bev, design.
+alter table user_profiles add column if not exists departments text[] not null default '{}';

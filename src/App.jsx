@@ -20,6 +20,7 @@ import FavoritesPage from '@/pages/FavoritesPage'
 import SponsorsPage from '@/pages/SponsorsPage'
 import SearchPage from '@/pages/SearchPage'
 import ReadyForPrintPage from '@/pages/ReadyForPrintPage'
+import MyTasksPage from '@/pages/MyTasksPage'
 import ProfilePage from '@/pages/ProfilePage'
 import InboxPage from '@/pages/InboxPage'
 import PizzaLoader from '@/components/PizzaLoader'
@@ -69,6 +70,7 @@ function App() {
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="ready" element={<ReadyForPrintPage />} />
+            <Route path="my-tasks" element={<MyTasksPage />} />
             <Route path="sponsors" element={<SponsorsPage />} />
             <Route path="admin" element={<AdminPage />} />
             <Route path="brands" element={<BrandsListPage />} />

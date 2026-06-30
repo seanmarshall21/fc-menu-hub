@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
+import { DEPARTMENTS } from '@/lib/departments'
 
 const ROLES = ['admin', 'internal', 'external']
 const ROLE_LABELS = { admin: 'Admin', internal: 'Internal', external: 'External', pending: 'Pending' }
@@ -62,6 +63,7 @@ export default function AdminPage() {
   const [editCompany, setEditCompany] = useState('')
   const [editBrandAccess, setEditBrandAccess] = useState([])
   const [editCanEditStyles, setEditCanEditStyles] = useState(false)
+  const [editDepartments, setEditDepartments] = useState([])
   // Per-person capabilities. null = role default (full for internal); the
   // UI shows three states via a tri-state select: Default / On / Off.
   const [editCaps, setEditCaps] = useState({}) // { cap_edit_content: bool|null, ... }
@@ -152,6 +154,7 @@ export default function AdminPage() {
     setEditCompany(user.company || '')
     setEditBrandAccess(Array.isArray(user.brand_access) ? user.brand_access : [])
     setEditCanEditStyles(!!user.can_edit_styles)
+    setEditDepartments(Array.isArray(user.departments) ? user.departments : [])
     setEditCaps({
       cap_edit_content:  user.cap_edit_content  ?? null,
       cap_edit_sponsors: user.cap_edit_sponsors ?? null,
@@ -204,7 +207,7 @@ export default function AdminPage() {
         : { cap_edit_content: null, cap_edit_sponsors: null, cap_approve: null, cap_manage_events: null }
       await supabase
         .from('user_profiles')
-        .update({ can_edit_styles: editRole === 'internal' ? editCanEditStyles : false, ...capPatch })
+        .update({ can_edit_styles: editRole === 'internal' ? editCanEditStyles : false, departments: editDepartments, ...capPatch })
         .eq('id', userId)
       setEditingId(null)
       loadUsers()
@@ -553,6 +556,23 @@ export default function AdminPage() {
                   </span>
                 </label>
               )}
+
+              <div className="rounded-lg border border-surface-200 p-3 space-y-2">
+                <span className="text-sm font-medium text-ink-700">Departments</span>
+                <p className="text-[11px] text-ink-400 -mt-1">Drives their My Tasks view + phase notifications. Pick all that apply.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {DEPARTMENTS.map(d => {
+                    const on = editDepartments.includes(d.key)
+                    return (
+                      <button key={d.key} type="button"
+                        onClick={() => setEditDepartments(prev => prev.includes(d.key) ? prev.filter(x => x !== d.key) : [...prev, d.key])}
+                        className={`text-xs px-2.5 py-1 rounded-full border ${on ? 'bg-brand-50 border-brand-300 text-brand-700 font-medium' : 'bg-white border-surface-200 text-ink-500 hover:bg-surface-50'}`}>
+                        {on ? '✓ ' : ''}{d.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
               {editRole === 'internal' && (
                 <div className="rounded-lg border border-surface-200 p-3 space-y-2.5">
