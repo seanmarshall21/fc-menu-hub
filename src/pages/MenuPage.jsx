@@ -694,6 +694,15 @@ export default function MenuPage() {
     if (error) { alert('Could not disconnect: ' + error.message); return }
     loadMenu()
   }
+  // Manually clear the "Sync needed" flag — for when the menu already matches
+  // Figma but a stray save bumped updated_at. Stamps last_synced_at = now.
+  async function markSynced() {
+    const { error } = await supabase.from('menus')
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq('id', menu.id)
+    if (error) { alert('Could not mark synced: ' + error.message); return }
+    loadMenu()
+  }
   const isApproved = menu.phase === 'approved'
   const preApproval = ['build', 'proof', 'edits'].includes(menu.phase)  // approve button only relevant here
   const currency = resolveCurrencySpec(series, event, menu)
@@ -1147,6 +1156,17 @@ export default function MenuPage() {
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
               ● Sync needed
             </span>
+          )}
+          {/* Already matches Figma but a stray save flipped the flag — clear it */}
+          {syncNeeded && canEdit && (
+            <button
+              onClick={markSynced}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-700 text-[11px] font-medium hover:bg-surface-50 whitespace-nowrap"
+              title="Clear the Sync-needed flag — use this when the menu already matches Figma"
+            >
+              <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              Mark synced
+            </button>
           )}
           {/* Was synced before but now flagged — allow disconnect (e.g. frame deleted) */}
           {everSynced && syncNeeded && canEdit && (
