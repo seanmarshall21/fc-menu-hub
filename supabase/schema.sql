@@ -956,3 +956,30 @@ alter table menus  add column if not exists locked boolean not null default fals
 -- Departments a user belongs to (multi); drives the My Tasks view + phase
 -- notifications. Admins see all. Values: sponsorship, food_bev, design.
 alter table user_profiles add column if not exists departments text[] not null default '{}';
+
+-- ─── Department phase notifications ─────────────────────────────────────────
+-- Notify a whole department when their phase opens. menu_path() builds the deep
+-- link; notify_department() inserts one notification per user in the dept
+-- (excluding the actor). Triggers: new menu → Sponsorship; sponsors checked off
+-- → Food & Beverage; approved → Design; complete → Food & Beverage.
+create or replace function menu_path(p_menu_id uuid)
+returns text language sql stable as $$
+  select '/brands/' || b.slug || '/series/' || s.slug || '/events/' || e.slug || '/menus/' || m.slug
+  from menus m join events e on e.id = m.event_id
+  join series s on s.id = e.series_id join brands b on b.id = s.brand_id
+  where m.id = p_menu_id;
+$$;
+create or replace function notify_department(p_dept text, p_kind text, p_title text, p_body text, p_link text, p_menu_id uuid, p_event_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  insert into notifications (user_id, kind, title, body, link_url, context, triggered_by)
+  select up.id, p_kind, p_title, p_body, p_link,
+         jsonb_build_object('menu_id', p_menu_id, 'event_id', p_event_id),
+         nullif(coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid), '00000000-0000-0000-0000-000000000000'::uuid)
+  from user_profiles up
+  where p_dept = any(up.departments)
+    and up.id <> coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid);
+end;
+$$;
+-- (trigger functions trg_notify_menu_added / _sponsors_checked / _menu_phase_dept
+--  + their triggers are applied via the SQL editor — see migration notes.)

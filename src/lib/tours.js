@@ -19,6 +19,33 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TOURS = {
+  // ── MY TASKS ─────────────────────────────────────────────────────────────
+  'my-tasks': {
+    title: 'My Tasks',
+    summary: 'Your lane — only the work that’s yours, across every event.',
+    steps: [
+      {
+        title: 'This is your work queue',
+        body: 'Instead of the whole app, this page shows only the menus that need YOU right now — grouped by your department(s). An admin sets your departments in Admin.',
+      },
+      {
+        title: 'Each box is a phase of your job',
+        body: 'Sponsorship: menus to attach sponsors to, then verify. Food & Beverage: what’s ready to approve, approved, exported, complete. Design: what’s approved and ready to export, plus anything that needs a Figma re-sync.',
+        target: '[data-tour="mytasks-list"]',
+      },
+      {
+        title: 'Click a menu to jump straight there',
+        body: 'Every menu chip is a link — it drops you on that exact menu so you can do the step. Green boxes are “ready for you”; amber boxes are “waiting on you”.',
+        target: '[data-tour="mytasks-list"]',
+      },
+      {
+        title: 'You’ll get pinged when your phase opens',
+        body: 'When work reaches your team — menus added, sponsors verified, a menu approved — a “Your phase” notification lands in your Inbox with a link here. The ? button reopens this tour anytime.',
+        target: '[data-tour="inbox-link"]',
+      },
+    ],
+  },
+
   // ── DASHBOARD ────────────────────────────────────────────────────────────
   dashboard: {
     title: 'Welcome to Menu Hub',

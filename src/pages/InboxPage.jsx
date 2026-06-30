@@ -7,13 +7,14 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 
 // Color + label per notification kind, for grouping and at-a-glance scanning.
 const KIND_META = {
+  phase:          { label: 'Your phase',     chip: 'bg-brand-100 text-brand-700',   accent: 'bg-brand-500' },
   mention:        { label: 'Mentions',       chip: 'bg-purple-100 text-purple-700', accent: 'bg-purple-500' },
   tagged_in_edit: { label: 'Tagged',         chip: 'bg-blue-100 text-blue-700',     accent: 'bg-blue-500' },
   status_change:  { label: 'Status changes', chip: 'bg-indigo-100 text-indigo-700', accent: 'bg-indigo-500' },
   edit:           { label: 'Edits',          chip: 'bg-amber-100 text-amber-800',   accent: 'bg-amber-500' },
   comment:        { label: 'Comments',       chip: 'bg-teal-100 text-teal-700',     accent: 'bg-teal-500' },
 }
-const KIND_ORDER = ['mention', 'tagged_in_edit', 'status_change', 'edit', 'comment']
+const KIND_ORDER = ['phase', 'mention', 'tagged_in_edit', 'status_change', 'edit', 'comment']
 function kindMeta(k) { return KIND_META[k] || { label: 'Other', chip: 'bg-surface-100 text-ink-500', accent: 'bg-ink-300' } }
 
 /**

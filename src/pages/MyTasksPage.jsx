@@ -33,7 +33,7 @@ export default function MyTasksPage() {
   const visible = DEPARTMENTS.filter(d => myDepts.includes(d.key))
 
   return (
-    <PageScreen breadcrumbs={[{ label: 'My Tasks' }]}>
+    <PageScreen tourKey="my-tasks" breadcrumbs={[{ label: 'My Tasks' }]}>
       <PageBody>
         {loading ? (
           <div className="text-sm text-ink-400">Loading…</div>
@@ -43,7 +43,7 @@ export default function MyTasksPage() {
             <p className="text-xs text-ink-400 mt-1">An admin can set your departments in Admin → people, so this page shows your tasks.</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6" data-tour="mytasks-list">
             {visible.map(dept => (
               <div key={dept.key} className="card overflow-hidden">
                 <div className="px-4 sm:px-6 py-3 border-b border-surface-200">

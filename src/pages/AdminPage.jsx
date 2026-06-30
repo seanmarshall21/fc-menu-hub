@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -168,6 +168,12 @@ export default function AdminPage() {
     setEditingId(null); setEditError(null)
   }
 
+  // Inline department save (from the list dropdown) — optimistic + persisted.
+  async function saveDepartments(userId, departments) {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, departments } : u))
+    await supabase.from('user_profiles').update({ departments }).eq('id', userId)
+  }
+
   // Modal-side delete that closes the editor and opens the confirm dialog
   function requestDeleteFromEditor() {
     if (!editingId) return
@@ -301,6 +307,7 @@ export default function AdminPage() {
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider hidden md:table-cell">Email</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Company</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Role</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-ink-400 uppercase tracking-wider">Department</th>
                   <th className="px-4 sm:px-6 py-3 py-3 text-right text-xs font-medium text-ink-400 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -365,6 +372,11 @@ export default function AdminPage() {
                               )}
                             </div>
                           )}
+                        </td>
+
+                        {/* Department — inline quick-set, no modal */}
+                        <td className="px-4 sm:px-6 py-3">
+                          <DeptCell user={user} onSave={saveDepartments} />
                         </td>
 
                         {/* Actions */}
@@ -687,5 +699,49 @@ export default function AdminPage() {
       )}
       </PageBody>
     </PageScreen>
+  )
+}
+
+// Inline multi-select department dropdown for the user list. Toggling a
+// department saves immediately, so you can blow through the whole list.
+function DeptCell({ user, onSave }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const depts = Array.isArray(user.departments) ? user.departments : []
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+  const label = depts.length === 0
+    ? 'Set…'
+    : depts.map(d => DEPARTMENTS.find(x => x.key === d)?.label || d).join(', ')
+  function toggle(key) {
+    const next = depts.includes(key) ? depts.filter(d => d !== key) : [...depts, key]
+    onSave(user.id, next)
+  }
+  return (
+    <span className="relative inline-block" ref={ref}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border whitespace-nowrap max-w-[180px] ${depts.length ? 'border-surface-200 text-ink-700 bg-white' : 'border-dashed border-surface-300 text-ink-400'}`}>
+        <span className="truncate">{label}</span>
+        <svg className="w-3 h-3 opacity-60 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <span className="absolute left-0 top-full mt-1 z-30 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px]">
+          {DEPARTMENTS.map(d => {
+            const on = depts.includes(d.key)
+            return (
+              <button key={d.key} type="button" onClick={() => toggle(d.key)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-surface-50 text-left">
+                <input type="checkbox" readOnly checked={on} className="pointer-events-none" />
+                {d.label}
+              </button>
+            )
+          })}
+        </span>
+      )}
+    </span>
   )
 }
