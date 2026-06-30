@@ -401,11 +401,15 @@ begin
   end if;
   if (to_jsonb(new) - 'updated_at' - 'last_synced_at' - 'last_sync_digest'
         - 'last_synced_frame_id' - 'preview_image_url'
-        - 'sponsor_approved_at' - 'sponsor_approved_by')
+        - 'sponsor_approved_at' - 'sponsor_approved_by'
+        - 'phase' - 'approval_overridden_by' - 'approval_overridden_at'
+        - 'sponsors_checked_at' - 'sponsors_checked_by' - 'print_file_url')
      is distinct from
      (to_jsonb(old) - 'updated_at' - 'last_synced_at' - 'last_sync_digest'
         - 'last_synced_frame_id' - 'preview_image_url'
-        - 'sponsor_approved_at' - 'sponsor_approved_by')
+        - 'sponsor_approved_at' - 'sponsor_approved_by'
+        - 'phase' - 'approval_overridden_by' - 'approval_overridden_at'
+        - 'sponsors_checked_at' - 'sponsors_checked_by' - 'print_file_url')
   then
     new.updated_at = now();
   end if;

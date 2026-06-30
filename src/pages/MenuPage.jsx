@@ -22,6 +22,7 @@ import FavoriteButton from '@/components/FavoriteButton'
 import ApproversPanel from '@/components/ApproversPanel'
 import MenuSignoffPanel from '@/components/MenuSignoffPanel'
 import { useMenuGates } from '@/lib/useMenuGates'
+import { gateStatus } from '@/lib/roster'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
@@ -660,13 +661,15 @@ export default function MenuPage() {
   // (AI-review flags will join this list once they're persisted.)
   // This menu needs sponsors if it's flagged for sponsor approval or already has some.
   const needsSponsors = !!menu.requires_sponsor_approval || (menuSponsorIds?.length || 0) > 0
+  // Hard blockers for approval. The proofing roster is NOT a blocker here —
+  // approving records the approver's sign-off and only stays unapproved if other
+  // *required* people still owe one (handled in approveMenu).
   function approvalBlockedReason() {
     if (pendingCount > 0) return `${pendingCount} edit${pendingCount === 1 ? '' : 's'} still pending review`
     if (needsSponsorCheck) return 'sponsors still need checking'
-    const pg = menuGates.byRole?.proofing?.gate
-    if (pg && pg.hasRoster && !pg.complete) return `proofing sign-off incomplete (${pg.signedCount}/${pg.requiredCount})`
     return null
   }
+  const amRosterApprover = !!(profile?.id && menuGates.byRole?.proofing?.roster?.some(r => r.user_id === profile.id))
 
   // "Check sponsors": sponsors changed since they were last marked checked
   // (or were never checked). Cleared by marking them verified.
@@ -775,14 +778,28 @@ export default function MenuPage() {
     if (isApproved) return
     const reason = approvalBlockedReason()
     if (reason) { alert(`Can't approve yet — ${reason}. Resolve it first.`); return }
-    const { error } = await supabase.from('menus').update({ phase: 'approved' }).eq('id', menu.id)
-    if (error) { alert(error.message.includes('Not authorized') ? 'You are not a designated approver for this menu.' : error.message); return }
-    loadMenu()
+    const pg = menuGates.byRole?.proofing
+    // Record this approver's proofing sign-off so it counts toward the gate.
+    if (amRosterApprover && !menuGates.signoffs?.some(s => s.role === 'proofing' && s.user_id === profile?.id)) {
+      await supabase.from('menu_signoffs').insert({ menu_id: menu.id, role: 'proofing', user_id: profile?.id, ai_reviewed: true })
+    }
+    const after = [...(menuGates.signoffs || []), { role: 'proofing', user_id: profile?.id }]
+    const gate = (pg?.roster?.length) ? gateStatus(pg.roster, after, 'proofing') : { complete: true, hasRoster: false, signedCount: 0, neededCount: 0 }
+    if (!gate.hasRoster || gate.complete) {
+      const { error } = await supabase.from('menus').update({ phase: 'approved', locked: true, approval_overridden_by: null, approval_overridden_at: null }).eq('id', menu.id)
+      if (error) { alert(error.message.includes('Not authorized') ? 'You are not a designated approver for this menu.' : error.message); return }
+    } else if (isAdmin || isInternal) {
+      if (!confirm(`Other required approvers haven't signed yet (${gate.signedCount}/${gate.neededCount}). Approve anyway and record an override?`)) { loadMenu(); menuGates.reload(); return }
+      await supabase.from('menus').update({ phase: 'approved', locked: true, approval_overridden_by: profile?.id || null, approval_overridden_at: new Date().toISOString() }).eq('id', menu.id)
+    } else {
+      alert(`Signed off. Still waiting on other required approvers (${gate.signedCount}/${gate.neededCount}).`)
+    }
+    loadMenu(); menuGates.reload()
   }
 
   async function unapproveMenu() {
     if (!isApproved) return
-    await supabase.from('menus').update({ phase: 'proof' }).eq('id', menu.id)
+    await supabase.from('menus').update({ phase: 'proof', locked: false }).eq('id', menu.id)
     loadMenu()
   }
 
@@ -827,6 +844,19 @@ export default function MenuPage() {
             ⏰ Late
           </span>
         )}
+        {menu.locked && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">
+            🔒 Locked
+          </span>
+        )}
+        {/* Prep file is hidden once a final print file exists. */}
+        {menu.prep_file_url && !menu.print_file_url && (
+          <a href={menu.prep_file_url} target="_blank" rel="noreferrer"
+            className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the prep file">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V18a2 2 0 01-2 2z" /></svg>
+            Prep file ↗
+          </a>
+        )}
         {menu.print_file_url && (
           <a href={menu.print_file_url} target="_blank" rel="noreferrer"
             className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the final print file">
@@ -839,19 +869,22 @@ export default function MenuPage() {
           phase={menu.phase}
           hasPendingEdits={pendingCount > 0}
           onChange={(isAdmin || isInternal) ? async (next) => {
-            if (next === 'approved') {
-              const r = approvalBlockedReason()
-              if (r) {
-                if (!confirm(`Can't normally approve — ${r}. Override and approve anyway?`)) return
-                await supabase.from('menus').update({ phase: 'approved', approval_overridden_by: profile?.id || null, approval_overridden_at: new Date().toISOString() }).eq('id', menu.id); loadMenu(); return
-              }
-            }
+            // Approving routes through the sign-off-aware path (records the
+            // approver's sign-off, approves when the gate is met, override if not).
+            if (next === 'approved') { await approveMenu(); return }
             const patch = { phase: next }
-            // On export, capture the print file link if we don't have it yet.
-            if (next === 'exported' && !menu.print_file_url) {
-              const link = window.prompt('Exported! Paste the Dropbox/Drive link to this menu’s print file (leave blank to add later):', '')
+            // Files are optional. Prep file at Exported; final print file at Complete.
+            if (next === 'exported' && !menu.prep_file_url && !menu.print_file_url) {
+              const link = window.prompt('Exported. Optional — paste a link to this menu’s prep file (or leave blank):', '')
+              if (link && link.trim()) patch.prep_file_url = link.trim()
+            }
+            if (next === 'complete' && !menu.print_file_url) {
+              const link = window.prompt('Complete. Optional — paste a link to this menu’s final print file (or leave blank):', '')
               if (link && link.trim()) patch.print_file_url = link.trim()
             }
+            // Auto-lock at/after approval; unlock when reopened to an editable phase.
+            if (['exported', 'complete', 'archived'].includes(next)) patch.locked = true
+            if (['build', 'proof', 'edits'].includes(next)) patch.locked = false
             await supabase.from('menus').update(patch).eq('id', menu.id); loadMenu()
           } : null}
         />
@@ -879,7 +912,7 @@ export default function MenuPage() {
           >
             ✓ Approved
           </button>
-        ) : (preApproval && canApproveMenu) ? (
+        ) : (preApproval && (canApproveMenu || amRosterApprover)) ? (
           <button
             onClick={approveMenu}
             disabled={!!approvalBlockedReason()}
