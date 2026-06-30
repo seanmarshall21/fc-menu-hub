@@ -15,6 +15,7 @@ import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import LayoutFitBadge from '@/components/LayoutFitBadge'
 import VisualCheckButton from '@/components/VisualCheckButton'
+import SyncBadge from '@/components/SyncBadge'
 import EntityIconPicker from '@/components/EntityIconPicker'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import FavoriteButton from '@/components/FavoriteButton'
@@ -703,6 +704,15 @@ export default function MenuPage() {
     if (error) { alert('Could not mark synced: ' + error.message); return }
     loadMenu()
   }
+  // Force the flag back to "Sync needed" (override). Not sticky — a later edit
+  // would re-flag it anyway; this just lets you flip it on demand.
+  async function forceSyncNeeded() {
+    const { error } = await supabase.from('menus')
+      .update({ last_synced_at: null })
+      .eq('id', menu.id)
+    if (error) { alert('Could not update sync status: ' + error.message); return }
+    loadMenu()
+  }
   const isApproved = menu.phase === 'approved'
   const preApproval = ['build', 'proof', 'edits'].includes(menu.phase)  // approve button only relevant here
   const currency = resolveCurrencySpec(series, event, menu)
@@ -1092,92 +1102,31 @@ export default function MenuPage() {
               ⚑ Flag sponsor check
             </button>
           )}
-          {/* Synced + up to date: green chip + Disconnect */}
-          {everSynced && !syncNeeded && (
-            <>
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium"
-                title={`Synced to Figma ${new Date(menu.last_synced_at).toLocaleString()}`}
-              >
-                <FigmaLogo variant="line" size={12} />
-                Synced
-              </span>
-              {canEdit && (
-                <button
-                  onClick={disconnectFigma}
-                  className="text-[11px] text-ink-400 hover:text-red-600 underline underline-offset-2 whitespace-nowrap"
-                  title="Reset this menu to Not synced (e.g. the Figma frame was deleted)"
-                >
-                  Disconnect
-                </button>
-              )}
-            </>
-          )}
-          {syncNeeded && event?.figma_file_url && (() => {
-            // Deep-link to the specific frame when we know its id (the plugin
-            // writes it to menus.last_synced_frame_id on every sync). Figma
-            // respects ?node-id=… and scrolls to + selects the node, in either
-            // the browser or the desktop app.
-            let figmaUrl = event.figma_file_url
-            if (menu.last_synced_frame_id) {
+          {/* Sync status — editable dropdown. Also holds the Figma / plugin /
+              disconnect links so there's no extra button cluster. */}
+          {(everSynced || syncNeeded) && (() => {
+            let figmaUrl = event?.figma_file_url || null
+            if (figmaUrl && menu.last_synced_frame_id) {
               const sep = figmaUrl.includes('?') ? '&' : '?'
               figmaUrl = `${figmaUrl}${sep}node-id=${encodeURIComponent(menu.last_synced_frame_id)}`
             }
             return (
-              <a
-                href={figmaUrl}
-                onClick={(e) => openFigmaDesktopFirst(e, figmaUrl)}
-                target="_blank"
-                rel="noreferrer"
-                data-tour="menu-sync-chip"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100 whitespace-nowrap"
-                title={menu.last_synced_at
-                  ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} — edited since. Opens the linked frame in the Figma desktop app (falls back to browser).`
-                  : 'Never synced to Figma. Opens the Figma file in the desktop app — run the Menu Sync plugin there.'}
-              >
-                <FigmaLogo variant="line" size={12} />
-                Sync needed
-              </a>
+              <span data-tour="menu-sync-chip">
+                <SyncBadge
+                  syncNeeded={syncNeeded}
+                  everSynced={everSynced}
+                  lastSyncedAt={menu.last_synced_at}
+                  figmaUrl={figmaUrl}
+                  openFigma={openFigmaDesktopFirst}
+                  pluginUrl={PLUGIN_INSTALL_URL}
+                  canEdit={canEdit}
+                  onMarkSynced={markSynced}
+                  onForceNeeded={forceSyncNeeded}
+                  onDisconnect={disconnectFigma}
+                />
+              </span>
             )
           })()}
-          {syncNeeded && (
-            <a
-              href={PLUGIN_INSTALL_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-700 text-[11px] font-medium hover:bg-surface-50"
-              title="Install Menu Sync from Figma Community"
-            >
-              <FigmaLogo size={12} />
-              Plugin
-            </a>
-          )}
-          {syncNeeded && !event?.figma_file_url && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
-              ● Sync needed
-            </span>
-          )}
-          {/* Already matches Figma but a stray save flipped the flag — clear it */}
-          {syncNeeded && canEdit && (
-            <button
-              onClick={markSynced}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white border border-surface-200 text-ink-700 text-[11px] font-medium hover:bg-surface-50 whitespace-nowrap"
-              title="Clear the Sync-needed flag — use this when the menu already matches Figma"
-            >
-              <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              Mark synced
-            </button>
-          )}
-          {/* Was synced before but now flagged — allow disconnect (e.g. frame deleted) */}
-          {everSynced && syncNeeded && canEdit && (
-            <button
-              onClick={disconnectFigma}
-              className="text-[11px] text-ink-400 hover:text-red-600 underline underline-offset-2 whitespace-nowrap"
-              title="Reset this menu to Not synced (e.g. the Figma frame was deleted)"
-            >
-              Disconnect
-            </button>
-          )}
           {pendingCount > 0 && (isAdmin || isInternal) && (
             <button
               onClick={() => setTab('log')}
