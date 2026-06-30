@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import FigmaLogo from '@/components/FigmaLogo'
 
 // Sync status as an editable dropdown (mirrors PhaseBadge). Shows the computed
 // state (Synced / Sync needed) but lets an editor override it — handy when a
@@ -22,14 +23,13 @@ export default function SyncBadge({
 
   const synced = !syncNeeded
   const pill = synced ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
-  const dot = synced ? 'bg-emerald-500' : 'bg-amber-500'
   const label = synced ? 'Synced' : 'Sync needed'
   const title = lastSyncedAt ? `Last synced ${new Date(lastSyncedAt).toLocaleString()}` : 'Never synced to Figma'
 
   if (!canEdit) {
     return (
       <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium ${pill}`} title={title}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />{label}
+        <FigmaLogo variant="line" size={12} />{label}
       </span>
     )
   }
@@ -39,7 +39,7 @@ export default function SyncBadge({
       <button type="button" onClick={() => setOpen(o => !o)} title={title}
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium hover:opacity-80 whitespace-nowrap ${pill}`}
         aria-haspopup="menu" aria-expanded={open}>
-        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+        <FigmaLogo variant="line" size={12} />
         {label}
         <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>

@@ -241,12 +241,14 @@ export default function MenuPage() {
     setEvent(eventData)
 
     if (eventData) {
-      // Sibling menus in this event for prev/next navigation.
+      // Sibling menus in this event for prev/next navigation (same order as
+      // the event's menu list: category, then name).
       const { data: sibs } = await supabase
         .from('menus')
-        .select('id, name, slug, sort_order')
+        .select('id, name, slug, category')
         .eq('event_id', eventData.id)
-        .order('sort_order')
+        .order('category')
+        .order('name')
       setSiblings(sibs || [])
 
       const { data: menuData } = await supabase
