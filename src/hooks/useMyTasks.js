@@ -54,9 +54,13 @@ export function useMyTasks() {
         if (m.phase === 'approved') out.food_bev.approved.push(row)
         if (m.phase === 'exported') out.food_bev.exported.push(row)
         if (m.phase === 'complete') out.food_bev.complete.push(row)
-        // Design
-        if (m.phase === 'approved' && sponsorsResolved) out.design.readyToExport.push(row)
-        if (!['exported', 'complete'].includes(m.phase) && m.last_synced_at && syncStale) out.design.needsSync.push(row)
+        // Design. Approved + Figma current → ready to export. Approved but the
+        // Figma doesn't match the approved content yet → sync that version first.
+        const everSyncedM = !!m.last_synced_at
+        const figmaCurrent = everSyncedM && !syncStale
+        if (m.phase === 'approved' && sponsorsResolved && figmaCurrent) out.design.readyToExport.push(row)
+        if (m.phase === 'approved' && sponsorsResolved && !figmaCurrent) out.design.needsSync.push(row)
+        if (preApproval && everSyncedM && syncStale) out.design.needsSync.push(row)
         if (m.phase === 'exported') out.design.exported.push(row)
       }
       setLists(out); setLoading(false)

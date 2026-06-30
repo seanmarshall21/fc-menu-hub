@@ -180,6 +180,7 @@ export default function MenuPage() {
   const [batchBusy, setBatchBusy] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
+  const [previewView, setPreviewView] = useState(null) // null = auto (Figma when synced+current), else 'figma' | 'app'
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -844,6 +845,16 @@ export default function MenuPage() {
             ⏰ Late
           </span>
         )}
+        {menu.phase === 'approved' && everSynced && !syncNeeded && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">
+            ✓ Ready to export
+          </span>
+        )}
+        {menu.phase === 'approved' && syncNeeded && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">
+            ⚠ Sync approved version
+          </span>
+        )}
         {menu.locked && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">
             🔒 Locked
@@ -1445,6 +1456,11 @@ export default function MenuPage() {
         const activeSize = previewSize || menu.size || 'lg'
         const template = templates[activeSize]
         const hasTemplate = !!template?.background_url
+        // Figma image is the priority view once a menu is synced & current.
+        // Edits since the last sync drop it back to the live app preview.
+        const figmaReady = !!menu.preview_image_url
+        const view = previewView || ((figmaReady && !syncNeeded) ? 'figma' : 'app')
+        const showFigma = view === 'figma' && figmaReady
         return (
           <div>
             <SpacingOverridePanel
@@ -1472,7 +1488,7 @@ export default function MenuPage() {
                 ))}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {hasTemplate && (
+                {hasTemplate && !showFigma && (
                   <button
                     onClick={() => setLightboxOpen(true)}
                     className="btn-secondary btn-sm text-xs gap-1.5"
@@ -1484,7 +1500,7 @@ export default function MenuPage() {
                     Zoom
                   </button>
                 )}
-                {hasTemplate && (
+                {hasTemplate && !showFigma && (
                   <button
                     onClick={() => exportPng(activeSize)}
                     disabled={exporting}
@@ -1492,6 +1508,18 @@ export default function MenuPage() {
                   >
                     {exporting ? 'Exporting…' : 'Export PNG'}
                   </button>
+                )}
+                {figmaReady && (
+                  <div className="inline-flex rounded-lg border border-surface-200 overflow-hidden text-xs">
+                    <button onClick={() => setPreviewView('figma')}
+                      className={`px-2.5 py-1.5 font-medium ${showFigma ? 'bg-brand-500 text-white' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      Figma{syncNeeded ? ' ⚠' : ''}
+                    </button>
+                    <button onClick={() => setPreviewView('app')}
+                      className={`px-2.5 py-1.5 font-medium border-l border-surface-200 ${!showFigma ? 'bg-brand-500 text-white' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      App preview
+                    </button>
+                  </div>
                 )}
                 {menu.preview_image_url && (
                   <a href={menu.preview_image_url} target="_blank" rel="noreferrer"
@@ -1501,9 +1529,18 @@ export default function MenuPage() {
                 )}
               </div>
             </div>
+            {showFigma && syncNeeded && (
+              <div className="mb-4 px-4 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                ⚠ This Figma image is from the last sync — the menu has changed since. Re-sync in the plugin, or switch to <button onClick={() => setPreviewView('app')} className="underline font-medium">App preview</button> to see current content.
+              </div>
+            )}
 
-            {/* Inline canvas — always fits to container as a single solid piece */}
-            {hasTemplate ? (
+            {/* Figma render (priority when synced & current) or the live app preview */}
+            {showFigma ? (
+              <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
+                <img src={menu.preview_image_url} alt={`${menu.name} — Figma preview`} className="w-full block" />
+              </div>
+            ) : hasTemplate ? (
               <>
               <div className="mb-3 space-y-2">
                 <LayoutFitBadge
