@@ -1011,3 +1011,11 @@ end;
 $$;
 -- (trigger functions trg_notify_menu_added / _sponsors_checked / _menu_phase_dept
 --  + their triggers are applied via the SQL editor — see migration notes.)
+
+-- Admins can update ANY user's profile (departments, capabilities, styles).
+-- Without this, only the own_profile (id = auth.uid()) policy applied, so admin
+-- edits to other users silently affected 0 rows. is_admin() is SECURITY DEFINER
+-- so the check doesn't re-trigger RLS on user_profiles.
+drop policy if exists admin_update_profiles on user_profiles;
+create policy admin_update_profiles on user_profiles
+  for update using (is_admin()) with check (is_admin());
