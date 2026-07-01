@@ -33,7 +33,7 @@ export default function ReadyQueue() {
                     {m.size && <span className="text-[10px] uppercase ml-2 px-1.5 py-0.5 rounded bg-surface-100 text-ink-500">{m.size}</span>}
                     <span className="block text-xs text-ink-400 truncate">{m.events?.series?.brand?.name} · {m.events?.slug}</span>
                   </span>
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex-shrink-0">Ready</span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex-shrink-0">Ready to export</span>
                 </span>
               )
               return <li key={m.id}>{to ? <Link to={to} className="block table-row-hover">{row}</Link> : row}</li>

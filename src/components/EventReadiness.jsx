@@ -47,9 +47,8 @@ export default function EventReadiness({ menus = [], eventId, seriesId, onSelect
     <div className="flex items-center gap-1.5 flex-wrap mb-4">
       {shown.map(k => (
         <button key={k} onClick={() => onSelect?.(k)} title={`${counts[k]} ${READINESS_META[k].label} — click to view`}
-          className={`text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1.5 hover:opacity-80 ${READINESS_META[k].cls}`}>
-          {READY_ICON[k]}
-          {counts[k]}
+          className={`text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 hover:opacity-80 whitespace-nowrap ${READINESS_META[k].cls}`}>
+          {counts[k]} {READINESS_META[k].label.toLowerCase()}
         </button>
       ))}
     </div>

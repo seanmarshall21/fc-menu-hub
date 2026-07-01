@@ -4,7 +4,7 @@ const PHASE_LABELS = {
   build:    'Build',
   proof:    'Proof',
   edits:    'Edits',
-  approved: 'Approved',
+  approved: 'Ready to export',   // approval is a setting (the ✓ Approved button); the resulting status reads "Ready to export"
   exported: 'Exported',
   complete: 'Complete',
   archived: 'Archived',

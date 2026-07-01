@@ -28,7 +28,7 @@ export function menuReadiness({ menu, eventRoles, seriesRoles, signoffs }) {
 export const READINESS_META = {
   in_progress:       { label: 'In progress',       cls: 'bg-surface-100 text-ink-500' },
   awaiting_sponsors: { label: 'Awaiting sponsors',  cls: 'bg-amber-100 text-amber-800' },
-  ready:             { label: 'Ready for print',    cls: 'bg-emerald-100 text-emerald-800' },
+  ready:             { label: 'Ready to export',    cls: 'bg-emerald-100 text-emerald-800' },
   exported:          { label: 'Exported',           cls: 'bg-indigo-100 text-indigo-800' },
   complete:          { label: 'Complete',           cls: 'bg-teal-100 text-teal-800' },
   archived:          { label: 'Archived',           cls: 'bg-surface-200 text-ink-500' },

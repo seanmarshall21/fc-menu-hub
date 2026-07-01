@@ -844,9 +844,6 @@ export default function MenuPage() {
       actions={<FavoriteButton type="menu" id={menu.id} size="sm" />}
       secondaryActions={(() => {
         const isLate = event?.menus_freeze_at && menu.updated_at && new Date(menu.updated_at) > new Date(event.menus_freeze_at)
-        const readyToExport = menu.phase === 'approved' && everSynced && !syncNeeded
-        const syncApproved = menu.phase === 'approved' && syncNeeded
-        const hasStatus = isLate || readyToExport || syncApproved || menu.locked || syncNeeded
         return (
         <div className="w-full flex flex-col gap-2">
           {/* Status line — phase + read-only status chips, all on one line */}
@@ -871,10 +868,8 @@ export default function MenuPage() {
               } : null}
             />
             {isLate && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap" title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>⏰ Late</span>}
-            {readyToExport && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">✓ Ready to export</span>}
-            {syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">⚠ Sync approved version</span>}
-            {menu.locked && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">🔒 Locked</span>}
-            {syncNeeded && !syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma'}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Needs sync</span>}
+            {menu.locked && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Locked — the synced Figma frame shouldn't be overwritten">🔒 Locked</span>}
+            {syncNeeded && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.phase === 'approved' ? 'Approved, but Figma doesn’t match the approved content yet — re-sync it' : (menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma')}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Needs sync</span>}
           </div>
           {/* Actions row */}
           <div className="flex items-center gap-2 flex-wrap">
