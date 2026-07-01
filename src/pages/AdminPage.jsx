@@ -6,6 +6,8 @@ import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 import { DEPARTMENTS } from '@/lib/departments'
 import { useToast } from '@/contexts/ToastContext'
+import DepartmentsAdmin from '@/components/DepartmentsAdmin'
+import { useDepartments } from '@/hooks/useDepartments'
 
 const ROLES = ['admin', 'internal', 'external']
 const ROLE_LABELS = { admin: 'Admin', internal: 'Internal', external: 'External', pending: 'Pending' }
@@ -43,6 +45,8 @@ export default function AdminPage() {
   const navigate = useNavigate()
 
   const toast = useToast()
+  const [adminTab, setAdminTab] = useState('users')
+  const { departments: allDepts } = useDepartments()
   const [users, setUsers] = useState([])
   const [brands, setBrands] = useState([])
   const [loading, setLoading] = useState(true)
@@ -267,17 +271,26 @@ export default function AdminPage() {
 
   return (
     <PageScreen
-      breadcrumbs={[{ label: 'User Management' }]}
-      actions={(
+      breadcrumbs={[{ label: 'Admin' }]}
+      actions={adminTab === 'users' ? (
         <button onClick={openInvite} className="btn-primary btn-sm gap-1.5">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           Add User
         </button>
+      ) : null}
+      below={(
+        <div className="flex gap-1">
+          {[['users', 'Users'], ['departments', 'Departments']].map(([k, l]) => (
+            <button key={k} onClick={() => setAdminTab(k)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${adminTab === k ? 'border-brand-500 text-brand-600' : 'border-transparent text-ink-500 hover:text-ink-700'}`}>{l}</button>
+          ))}
+        </div>
       )}
     >
       <PageBody>
+      {adminTab === 'departments' ? <DepartmentsAdmin /> : (<>
       <p className="text-sm text-ink-400 mb-6">Invite, edit, and manage access for all Menu Hub users.</p>
 
       {error && (
@@ -379,7 +392,7 @@ export default function AdminPage() {
 
                         {/* Department — inline quick-set, no modal */}
                         <td className="px-4 sm:px-6 py-3">
-                          <DeptCell user={user} onSave={saveDepartments} />
+                          <DeptCell user={user} departments={allDepts} onSave={saveDepartments} />
                         </td>
 
                         {/* Actions */}
@@ -576,7 +589,7 @@ export default function AdminPage() {
                 <span className="text-sm font-medium text-ink-700">Departments</span>
                 <p className="text-[11px] text-ink-400 -mt-1">Drives their My Tasks view + phase notifications. Pick all that apply.</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {DEPARTMENTS.map(d => {
+                  {allDepts.map(d => {
                     const on = editDepartments.includes(d.key)
                     return (
                       <button key={d.key} type="button"
@@ -700,6 +713,7 @@ export default function AdminPage() {
           </div>
         </Modal>
       )}
+      </>)}
       </PageBody>
     </PageScreen>
   )
@@ -707,7 +721,7 @@ export default function AdminPage() {
 
 // Inline multi-select department dropdown for the user list. Toggling a
 // department saves immediately, so you can blow through the whole list.
-function DeptCell({ user, onSave }) {
+function DeptCell({ user, departments = [], onSave }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const depts = Array.isArray(user.departments) ? user.departments : []
@@ -719,7 +733,7 @@ function DeptCell({ user, onSave }) {
   }, [open])
   const label = depts.length === 0
     ? 'Set…'
-    : depts.map(d => DEPARTMENTS.find(x => x.key === d)?.label || d).join(', ')
+    : depts.map(d => departments.find(x => x.key === d)?.label || d).join(', ')
   function toggle(key) {
     const next = depts.includes(key) ? depts.filter(d => d !== key) : [...depts, key]
     onSave(user.id, next)
@@ -733,7 +747,7 @@ function DeptCell({ user, onSave }) {
       </button>
       {open && (
         <span className="absolute left-0 top-full mt-1 z-30 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px]">
-          {DEPARTMENTS.map(d => {
+          {departments.map(d => {
             const on = depts.includes(d.key)
             return (
               <button key={d.key} type="button" onClick={() => toggle(d.key)}

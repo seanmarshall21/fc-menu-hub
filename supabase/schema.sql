@@ -1046,3 +1046,18 @@ begin
          nullif(coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid), '00000000-0000-0000-0000-000000000000'::uuid)
   from user_profiles up where p_dept = any(up.departments) and up.id <> coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid);
 end $$;
+
+-- Configurable departments (admin-managed). The 3 built-ins are seeded; admins
+-- can edit them and add more. permissions = capability keys members inherit
+-- (stage 2), phases = lifecycle phases they own. (Applied live 2026-07.)
+create table if not exists departments (
+  id uuid primary key default gen_random_uuid(),
+  key text unique not null, label text not null, blurb text,
+  permissions text[] not null default '{}', phases text[] not null default '{}',
+  sort_order int default 0, built_in boolean default false, created_at timestamptz default now()
+);
+alter table departments enable row level security;
+drop policy if exists departments_read on departments;
+create policy departments_read on departments for select using (auth.uid() is not null);
+drop policy if exists departments_admin on departments;
+create policy departments_admin on departments for all using (is_admin()) with check (is_admin());
