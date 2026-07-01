@@ -4,6 +4,7 @@ import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import PizzaLoader from '@/components/PizzaLoader'
 import { useDelayedLoader } from '@/hooks/useDelayedLoader'
@@ -795,6 +796,7 @@ export default function EventPage() {
       setDeletingBusy(false)
     }
   }
+  const toast = useToast()
   const [menus, setMenus]   = useState([])
   const [sponsors, setSponsors] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -1145,8 +1147,8 @@ export default function EventPage() {
   async function quickSetPhase(menu, phase) {
     if (phase === 'approved') { const r = menuApprovalBlocked(menu); if (r) { alert(`Can't approve — ${r}.`); return } }
     const { error } = await supabase.from('menus').update({ phase }).eq('id', menu.id)
-    if (error) { alert('Could not update: ' + error.message); return }
-    loadData()
+    if (error) { toast('Could not save', { type: 'error' }); alert('Could not update: ' + error.message); return }
+    toast('Saved'); loadData()
   }
   // Flag / clear the "check sponsors" status on a single menu.
   async function flagSponsorsCheck(menu) {
@@ -1158,15 +1160,15 @@ export default function EventPage() {
     const { error } = await supabase.from('menus')
       .update({ sponsors_checked_at: new Date().toISOString(), sponsors_checked_by: profile?.id || null })
       .eq('id', menu.id)
-    if (error) { alert('Could not mark checked: ' + error.message); return }
-    loadData()
+    if (error) { toast('Could not save', { type: 'error' }); alert('Could not mark checked: ' + error.message); return }
+    toast('Marked checked'); loadData()
   }
   // Quick size change from the card chips. Updates menu.size — the next Figma
   // sync rebuilds it on the new-size template (see the plugin's resize logic).
   async function quickSetSize(menu, size) {
     const { error } = await supabase.from('menus').update({ size }).eq('id', menu.id)
-    if (error) { alert('Could not change size: ' + error.message); return }
-    loadData()
+    if (error) { toast('Could not save', { type: 'error' }); alert('Could not change size: ' + error.message); return }
+    toast('Saved'); loadData()
   }
 
   // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────

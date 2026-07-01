@@ -450,13 +450,26 @@ alter table menus  add column if not exists edit_approver_ids uuid[] default '{}
 --   user_can_approve(menu_id, kind) → admin always; empty union → internal
 --   default; else must be in the resolved union. Null auth.uid() (service
 --   role / backend) bypasses.
+-- Can the current user approve this menu? Admin always; else a designated
+-- proofing-roster approver (event override → series default) OR a legacy
+-- approver-list member; if no approvers configured, any internal user.
 create or replace function user_can_approve(p_menu_id uuid, p_kind text)
 returns boolean language plpgsql security definer stable as $$
-declare v_uid uuid := auth.uid(); v_role text; v_approvers uuid[];
+declare v_uid uuid := auth.uid(); v_role text; v_approvers uuid[]; v_event uuid; v_series uuid;
 begin
   if v_uid is null then return true; end if;
   select role into v_role from user_profiles where id = v_uid;
   if v_role = 'admin' then return true; end if;
+
+  select m.event_id, e.series_id into v_event, v_series
+    from menus m join events e on e.id = m.event_id where m.id = p_menu_id;
+  -- New proofing roster (event override → series default).
+  if p_kind = 'menu' then
+    if exists (select 1 from event_approval_roles where event_id = v_event and role='proofing' and user_id = v_uid) then return true; end if;
+    if not exists (select 1 from event_approval_roles where event_id = v_event and role='proofing')
+       and exists (select 1 from series_approval_roles where series_id = v_series and role='proofing' and user_id = v_uid) then return true; end if;
+  end if;
+
   if p_kind = 'menu' then
     select array(select distinct unnest(ids) from (
         select b.menu_approver_ids ids from menus m join events e on e.id=m.event_id join series s on s.id=e.series_id join brands b on b.id=s.brand_id where m.id=p_menu_id

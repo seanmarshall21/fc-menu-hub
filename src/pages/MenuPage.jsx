@@ -23,6 +23,7 @@ import ApproversPanel from '@/components/ApproversPanel'
 import MenuSignoffPanel from '@/components/MenuSignoffPanel'
 import { useMenuGates } from '@/lib/useMenuGates'
 import { gateStatus } from '@/lib/roster'
+import { useToast } from '@/contexts/ToastContext'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
@@ -179,6 +180,7 @@ export default function MenuPage() {
   const [selectedItemIds, setSelectedItemIds] = useState(new Set())
   const [batchBusy, setBatchBusy] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
+  const toast = useToast()
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
   const [previewView, setPreviewView] = useState(null) // null = auto (Figma when synced+current), else 'figma' | 'app'
   const [previewZoom, setPreviewZoom] = useState(1)    // (legacy — only used inside the lightbox now)
@@ -680,8 +682,8 @@ export default function MenuPage() {
     const { error } = await supabase.from('menus')
       .update({ sponsors_checked_at: new Date().toISOString(), sponsors_checked_by: profile?.id || null })
       .eq('id', menu.id)
-    if (error) { alert('Could not mark checked: ' + error.message); return }
-    loadMenu()
+    if (error) { toast('Could not save', { type: 'error' }); alert('Could not mark checked: ' + error.message); return }
+    toast('Sponsors checked'); loadMenu()
   }
   async function flagSponsorsCheck() {
     const { error } = await supabase.from('menus').update({ sponsors_updated_at: new Date().toISOString() }).eq('id', menu.id)
@@ -707,8 +709,8 @@ export default function MenuPage() {
     const { error } = await supabase.from('menus')
       .update({ last_synced_at: new Date().toISOString() })
       .eq('id', menu.id)
-    if (error) { alert('Could not mark synced: ' + error.message); return }
-    loadMenu()
+    if (error) { toast('Could not save', { type: 'error' }); alert('Could not mark synced: ' + error.message); return }
+    toast('Marked synced'); loadMenu()
   }
   // Force the flag back to "Sync needed" (override). Not sticky — a later edit
   // would re-flag it anyway; this just lets you flip it on demand.
@@ -716,8 +718,8 @@ export default function MenuPage() {
     const { error } = await supabase.from('menus')
       .update({ last_synced_at: null })
       .eq('id', menu.id)
-    if (error) { alert('Could not update sync status: ' + error.message); return }
-    loadMenu()
+    if (error) { toast('Could not save', { type: 'error' }); alert('Could not update sync status: ' + error.message); return }
+    toast('Set to Sync needed'); loadMenu()
   }
   const isApproved = menu.phase === 'approved'
   const preApproval = ['build', 'proof', 'edits'].includes(menu.phase)  // approve button only relevant here
@@ -896,7 +898,7 @@ export default function MenuPage() {
             // Auto-lock at/after approval; unlock when reopened to an editable phase.
             if (['exported', 'complete', 'archived'].includes(next)) patch.locked = true
             if (['build', 'proof', 'edits'].includes(next)) patch.locked = false
-            await supabase.from('menus').update(patch).eq('id', menu.id); loadMenu()
+            await supabase.from('menus').update(patch).eq('id', menu.id); toast('Saved'); loadMenu()
           } : null}
         />
         {syncNeeded && (

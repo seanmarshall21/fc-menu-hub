@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
 import Modal from '@/components/Modal'
 import { DEPARTMENTS } from '@/lib/departments'
+import { useToast } from '@/contexts/ToastContext'
 
 const ROLES = ['admin', 'internal', 'external']
 const ROLE_LABELS = { admin: 'Admin', internal: 'Internal', external: 'External', pending: 'Pending' }
@@ -41,6 +42,7 @@ export default function AdminPage() {
   const { isAdmin, profile } = useAuth()
   const navigate = useNavigate()
 
+  const toast = useToast()
   const [users, setUsers] = useState([])
   const [brands, setBrands] = useState([])
   const [loading, setLoading] = useState(true)
@@ -171,7 +173,8 @@ export default function AdminPage() {
   // Inline department save (from the list dropdown) — optimistic + persisted.
   async function saveDepartments(userId, departments) {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, departments } : u))
-    await supabase.from('user_profiles').update({ departments }).eq('id', userId)
+    const { error } = await supabase.from('user_profiles').update({ departments }).eq('id', userId)
+    toast(error ? 'Could not save' : 'Departments saved', error ? { type: 'error' } : {})
   }
 
   // Modal-side delete that closes the editor and opens the confirm dialog
