@@ -52,13 +52,18 @@ export function AuthProvider({ children }) {
   async function signInWithGoogle() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: window.location.origin,
+        // Always show Google's account chooser so you can switch accounts
+        // instead of being silently re-signed into the last one.
+        queryParams: { prompt: 'select_account' },
+      },
     })
     return { error }
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'global' })
   }
 
   const isAdmin       = profile?.role === 'admin'

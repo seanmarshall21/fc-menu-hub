@@ -23,7 +23,7 @@ export default function SyncBadge({
 
   const synced = !syncNeeded
   const pill = synced ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
-  const label = synced ? 'Synced' : 'Sync needed'
+  const label = synced ? 'Synced' : 'Needs sync'
   const title = lastSyncedAt ? `Last synced ${new Date(lastSyncedAt).toLocaleString()}` : 'Never synced to Figma'
 
   if (!canEdit) {
@@ -51,7 +51,7 @@ export default function SyncBadge({
           </button>
           <button type="button" onClick={() => { setOpen(false); if (!syncNeeded) onForceNeeded() }}
             className={`flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-surface-50 ${!synced ? 'bg-surface-50' : ''}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Sync needed {!synced && <span className="ml-auto text-amber-600">✓</span>}
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Needs sync {!synced && <span className="ml-auto text-amber-600">✓</span>}
           </button>
           <span className="block border-t border-surface-100" />
           {figmaUrl && (

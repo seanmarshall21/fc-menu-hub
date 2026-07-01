@@ -856,7 +856,7 @@ export default function MenuPage() {
               {readyToExport && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">✓ Ready to export</span>}
               {syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">⚠ Sync approved version</span>}
               {menu.locked && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">🔒 Locked</span>}
-              {syncNeeded && !syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma'}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Sync needed</span>}
+              {syncNeeded && !syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma'}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Needs sync</span>}
             </div>
           )}
           {/* Actions row */}
@@ -888,7 +888,6 @@ export default function MenuPage() {
                 className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 title={approvalBlockedReason() ? `Can't approve yet — ${approvalBlockedReason()}` : 'Mark this menu as Approved'}>Approve Menu</button>
             )}
-            <ActivityButton scopeType="menu" scopeId={menu.id} open={showActivity} onOpen={() => setShowActivity(true)} />
             {canEdit && (
               <button onClick={() => {
                 setEditMenuName(menu.name); setEditMenuTitle(menu.print_title || ''); setEditMenuPrintUrl(menu.print_file_url || '')
@@ -1073,7 +1072,9 @@ export default function MenuPage() {
         </p>
         {isInternal && (
           <div data-tour="menu-csv-toolbar" className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={() => setShowImport(v => !v)} data-tour="menu-import-csv" className="btn-secondary btn-sm whitespace-nowrap">Import CSV</button>
+            <button onClick={() => setShowImport(v => !v)} data-tour="menu-import-csv" className="btn-secondary btn-sm px-2" title="Import CSV">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>
+            </button>
             <CsvExport menu={menu} items={items} />
           </div>
         )}
@@ -1088,7 +1089,7 @@ export default function MenuPage() {
             <button onClick={flagSponsorsCheck}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
               title="Flag this menu so someone verifies the sponsors.">
-              ⚑ Flag sponsor check
+              ⚑ Flag sponsor
             </button>
           )}
           {/* Sync status — editable dropdown. Also holds the Figma / plugin /

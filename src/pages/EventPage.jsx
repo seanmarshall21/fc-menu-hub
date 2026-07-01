@@ -848,6 +848,7 @@ export default function EventPage() {
   const [typeFilter, setTypeFilter]     = useState([]) // categories
   const [statusFilter, setStatusFilter] = useState([]) // phases
   const [syncFilter, setSyncFilter]     = useState([]) // synced | needs_update | not_synced
+  const [filtersOpen, setFiltersOpen]   = useState(false)
   // Preview-all tab filters — same multi-select dropdowns as the Menus tab.
   const [previewTypeFilter, setPreviewTypeFilter]     = useState([]) // categories
   const [previewStatusFilter, setPreviewStatusFilter] = useState([]) // phases
@@ -1466,7 +1467,6 @@ export default function EventPage() {
         { label: event.name },
       ]}
       actions={<>
-        <ActivityButton scopeType="event" scopeId={event.id} open={showActivity} onOpen={() => setShowActivity(true)} />
         <FavoriteButton type="event" id={event.id} size="sm" />
         <PhaseBadge
           phase={event.phase}
@@ -1608,7 +1608,7 @@ export default function EventPage() {
                   className="hidden"
                   onChange={handleCsvFilesSelected}
                 />
-                <OverflowMenu triggerLabel="+ Add" align="right">
+                <OverflowMenu triggerLabel="+" hideChevron align="right" label="Add">
                   <button onClick={() => { setMenuName(''); setMenuSlugField(''); setMenuCategory('bar'); setMenuPhase('build'); setMenuSize('lg'); setSaveError(null); setShowNewMenu(true) }} className={MENU_ROW}>+ New menu</button>
                   <button onClick={() => setShowBulkAdd(true)} className={MENU_ROW}>+ Add item to menus</button>
                   <button onClick={() => csvInputRef.current?.click()} className={MENU_ROW}>↑ Import CSVs</button>
@@ -1626,30 +1626,34 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              {/* Filter dropdowns: type (multi) · status · synced + Select */}
+              {/* Filters collapse behind a funnel; Select is an icon. */}
               <div className="flex items-center gap-2 mb-5 flex-wrap">
-                {TYPE_FILTER_OPTS.length > 1 && (
-                  <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={typeFilter} onChange={setTypeFilter} />
-                )}
-                {PHASE_FILTER_OPTS.length > 1 && (
-                  <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={statusFilter} onChange={setStatusFilter} />
-                )}
-                <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={syncFilter} onChange={setSyncFilter} />
+                <button onClick={() => setFiltersOpen(o => !o)} title="Filters"
+                  className={`btn-secondary btn-sm px-2 inline-flex items-center gap-1 ${anyMenuFilter ? 'text-brand-600 border-brand-300' : ''}`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></svg>
+                  {anyMenuFilter ? <span className="text-[11px] font-semibold">{[typeFilter, statusFilter, syncFilter].reduce((n, f) => n + (f.length ? 1 : 0), 0)}</span> : null}
+                </button>
+                {filtersOpen && <>
+                  {TYPE_FILTER_OPTS.length > 1 && (
+                    <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={typeFilter} onChange={setTypeFilter} />
+                  )}
+                  {PHASE_FILTER_OPTS.length > 1 && (
+                    <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={statusFilter} onChange={setStatusFilter} />
+                  )}
+                  <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={syncFilter} onChange={setSyncFilter} />
+                </>}
                 {anyMenuFilter ? (
                   <button
                     onClick={() => { setTypeFilter([]); setStatusFilter([]); setSyncFilter([]) }}
                     className="text-xs text-ink-400 hover:text-ink-600 underline underline-offset-2 ml-1"
                   >
-                    Clear filters · {menusFiltered.length} of {menus.length}
+                    Clear · {menusFiltered.length} of {menus.length}
                   </button>
                 ) : null}
                 {canEdit && !menuSelectMode && (
-                  <button onClick={() => setMenuSelectMode(true)}
-                    className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center ml-auto">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Select
+                  <button onClick={() => setMenuSelectMode(true)} title="Select menus"
+                    className="btn-secondary btn-sm px-2 flex-shrink-0 inline-flex items-center ml-auto">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 12l2 2 4-4" /></svg>
                   </button>
                 )}
               </div>

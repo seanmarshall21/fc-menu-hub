@@ -44,16 +44,33 @@ export default function EventReadiness({ menus = [], eventId, seriesId }) {
   const shown = order.filter(k => counts[k])
 
   return (
-    <div className="flex items-center gap-2 flex-wrap mb-4">
-      <span className="text-xs font-medium text-ink-500">Readiness:</span>
+    <div className="flex items-center gap-1.5 flex-wrap mb-4">
       {shown.map(k => (
-        <span key={k} className={`text-xs font-medium px-2 py-0.5 rounded-full ${READINESS_META[k].cls}`}>
-          {counts[k]} {READINESS_META[k].label.toLowerCase()}
+        <span key={k} title={`${counts[k]} ${READINESS_META[k].label}`}
+          className={`text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1.5 ${READINESS_META[k].cls}`}>
+          {READY_ICON[k]}
+          {counts[k]}
         </span>
       ))}
-      {counts.ready > 0 && (
-        <span className="text-[11px] text-emerald-700 ml-1">— {counts.ready} ready for creative to prep</span>
-      )}
     </div>
   )
+}
+
+// Single-color Lucide icons per readiness state (stroke = currentColor).
+const svg = (children) => (
+  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">{children}</svg>
+)
+const READY_ICON = {
+  // wrench — work in progress
+  in_progress: svg(<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />),
+  // flag — needs sponsors
+  awaiting_sponsors: svg(<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>),
+  // file — ready for print
+  ready: svg(<><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v5h5" /></>),
+  // printer — exported / prepped
+  exported: svg(<><path d="M6 9V2h12v7" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></>),
+  // check-circle — complete
+  complete: svg(<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m22 4-10 10.01-3-3" /></>),
+  // archive
+  archived: svg(<><rect x="2" y="4" width="20" height="5" /><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" /><line x1="10" y1="13" x2="14" y2="13" /></>),
 }
