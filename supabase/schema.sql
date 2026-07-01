@@ -476,12 +476,27 @@ begin
   return v_uid = any(v_approvers);
 end; $$;
 
+-- Approving (entering 'approved') is approver-only. Un-approving (leaving
+-- 'approved' to reopen a menu for edits) is allowed for any internal/staff
+-- user, not just designated approvers — anyone who needs to make an edit must
+-- be able to take it off approved without waiting on an approver. Null
+-- auth.uid() (service role / backend) bypasses both.
 create or replace function trg_enforce_menu_approval()
 returns trigger language plpgsql security definer as $$
+declare v_uid uuid := auth.uid(); v_role text;
 begin
-  if NEW.phase is distinct from OLD.phase and ('approved' in (NEW.phase, OLD.phase)) then
+  if NEW.phase = 'approved' and OLD.phase is distinct from 'approved' then
+    -- Entering approved → must be a designated approver.
     if not user_can_approve(NEW.id, 'menu') then
-      raise exception 'Not authorized to change this menu''s approval status';
+      raise exception 'Not authorized to approve this menu';
+    end if;
+  elsif OLD.phase = 'approved' and NEW.phase is distinct from 'approved' then
+    -- Leaving approved → any internal/staff user may reopen it for edits.
+    if v_uid is not null then
+      select role into v_role from user_profiles where id = v_uid;
+      if v_role not in ('admin', 'internal') then
+        raise exception 'Not authorized to change this menu''s approval status';
+      end if;
     end if;
   end if;
   return NEW;

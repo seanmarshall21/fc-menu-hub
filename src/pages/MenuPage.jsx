@@ -916,10 +916,9 @@ export default function MenuPage() {
         {(isAdmin || isInternal) && (<>
         {isApproved ? (
           <button
-            onClick={canApproveMenu ? unapproveMenu : undefined}
-            disabled={!canApproveMenu}
-            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            title={canApproveMenu ? 'Click to move back to Proof' : 'Only designated approvers can change menu approval'}
+            onClick={unapproveMenu}
+            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium whitespace-nowrap"
+            title="Click to move this menu back to Proof so it can be edited"
           >
             ✓ Approved
           </button>
