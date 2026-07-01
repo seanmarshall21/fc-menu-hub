@@ -48,7 +48,8 @@ export default function BulkAddItemModal({ menus, onClose, onDone }) {
     const norm = (s) => (s || '').trim().toLowerCase()
     const sec = section.trim()
     const base = {
-      title: title.trim(), layout: 'main', section: sec,
+      // Two-size items use the side-by-side price layout ('alt'); single price is 'main'.
+      title: title.trim(), layout: twoSizes ? 'alt' : 'main', section: sec,
       description: description.trim() || null,
       two_sizes: twoSizes,
       size1: size1.trim() || null, price1: price1.trim() || null,
