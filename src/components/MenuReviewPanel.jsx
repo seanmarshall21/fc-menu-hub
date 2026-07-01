@@ -241,7 +241,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       type="button"
       onClick={(e) => { e.stopPropagation(); runAiReview() }}
       disabled={aiBusy}
-      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-purple-200 text-purple-700 hover:bg-purple-50 inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-surface-0 border border-purple-200 text-purple-700 hover:bg-purple-50 inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
       title="Run an AI pass for spelling, grammar, and naming consistency"
     >
       <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -325,7 +325,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       </button>
       {aiError && <p className="px-4 pb-2 text-[11px] text-red-600">{aiError}</p>}
       {open && (
-        <ul className="divide-y divide-amber-100 bg-white">
+        <ul className="divide-y divide-amber-100 bg-surface-0">
           {renderList.map(({ f, rec }, i) => (
             <li key={i} className={`px-4 py-2.5 text-sm ${rec ? 'bg-surface-50/60' : ''}`}>
               <div className="flex items-start gap-3">
@@ -401,7 +401,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       )}
 
       {open && ignoredCount > 0 && (
-        <div className="px-4 py-1.5 bg-white border-t border-amber-100 text-[11px] text-ink-400 flex items-center justify-between">
+        <div className="px-4 py-1.5 bg-surface-0 border-t border-amber-100 text-[11px] text-ink-400 flex items-center justify-between">
           <span>{ignoredCount} flag{ignoredCount === 1 ? '' : 's'} ignored on this menu</span>
           <button onClick={clearIgnored} className="underline hover:text-ink-700">Reset ignored</button>
         </div>

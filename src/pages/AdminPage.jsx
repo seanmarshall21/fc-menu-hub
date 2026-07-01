@@ -594,7 +594,7 @@ export default function AdminPage() {
                     return (
                       <button key={d.key} type="button"
                         onClick={() => setEditDepartments(prev => prev.includes(d.key) ? prev.filter(x => x !== d.key) : [...prev, d.key])}
-                        className={`text-xs px-2.5 py-1 rounded-full border ${on ? 'bg-brand-50 border-brand-300 text-brand-700 font-medium' : 'bg-white border-surface-200 text-ink-500 hover:bg-surface-50'}`}>
+                        className={`text-xs px-2.5 py-1 rounded-full border ${on ? 'bg-brand-50 border-brand-300 text-brand-700 font-medium' : 'bg-surface-0 border-surface-200 text-ink-500 hover:bg-surface-50'}`}>
                         {on ? '✓ ' : ''}{d.label}
                       </button>
                     )
@@ -658,7 +658,7 @@ export default function AdminPage() {
                             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                               checked
                                 ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700'
-                                : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                                : 'bg-surface-0 text-ink-600 border-surface-200 hover:border-brand-300'
                             }`}
                           >
                             {b.name}
@@ -741,12 +741,12 @@ function DeptCell({ user, departments = [], onSave }) {
   return (
     <span className="relative inline-block" ref={ref}>
       <button type="button" onClick={() => setOpen(o => !o)}
-        className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border whitespace-nowrap max-w-[180px] ${depts.length ? 'border-surface-200 text-ink-700 bg-white' : 'border-dashed border-surface-300 text-ink-400'}`}>
+        className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border whitespace-nowrap max-w-[180px] ${depts.length ? 'border-surface-200 text-ink-700 bg-surface-0' : 'border-dashed border-surface-300 text-ink-400'}`}>
         <span className="truncate">{label}</span>
         <svg className="w-3 h-3 opacity-60 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>
       {open && (
-        <span className="absolute left-0 top-full mt-1 z-30 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px]">
+        <span className="absolute left-0 top-full mt-1 z-30 bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px]">
           {departments.map(d => {
             const on = depts.includes(d.key)
             return (

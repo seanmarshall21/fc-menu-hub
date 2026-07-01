@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/contexts/ToastContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import Layout from '@/components/Layout'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Login from '@/pages/Login'
@@ -52,6 +53,7 @@ function ProtectedRoute({ children }) {
 function App() {
   return (
     <AuthProvider>
+      <ThemeProvider>
       <ToastProvider>
       <BrowserRouter>
         <Routes>
@@ -87,6 +89,7 @@ function App() {
         </Routes>
       </BrowserRouter>
       </ToastProvider>
+      </ThemeProvider>
     </AuthProvider>
   )
 }

@@ -69,7 +69,7 @@ export default function SizeChip({ size, onChange }) {
           ref={menuRef}
           onClick={stop}
           style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 60 }}
-          className="bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[120px] flex flex-col"
+          className="bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[120px] flex flex-col"
         >
           {SIZES.map(s => (
             <button

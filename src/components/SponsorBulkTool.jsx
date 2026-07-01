@@ -136,7 +136,7 @@ export default function SponsorBulkTool({ event, canEdit, onChange }) {
                       const on = sel.has(s.id)
                       return (
                         <button key={s.id} onClick={() => toggleSponsor(m, s)} disabled={busy === m.id + s.id}
-                          className={`text-xs px-2.5 py-1 rounded-full border ${on ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-ink-500 border-surface-200 hover:border-brand-300'}`}>
+                          className={`text-xs px-2.5 py-1 rounded-full border ${on ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-surface-0 text-ink-500 border-surface-200 hover:border-brand-300'}`}>
                           {on ? '✓ ' : ''}{s.name}{!s.logo_url ? ' ⚠' : ''}
                         </button>
                       )

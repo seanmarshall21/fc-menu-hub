@@ -18,7 +18,7 @@ export default function CsvExport({ menu, items }) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 z-20 bg-white border border-surface-200 rounded-lg shadow-lg w-56 p-2 text-sm">
+          <div className="absolute right-0 mt-1 z-20 bg-surface-0 border border-surface-200 rounded-lg shadow-lg w-56 p-2 text-sm">
             <p className="text-xs text-ink-400 px-2 py-1">Price format:</p>
             <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-50 rounded cursor-pointer">
               <input type="radio" name="csv-currency" checked={currency} onChange={() => setCurrency(true)} />

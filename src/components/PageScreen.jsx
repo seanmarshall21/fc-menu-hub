@@ -69,7 +69,7 @@ export default function PageScreen({
   return (
     <div className="flex flex-col h-full min-h-0">
       <header
-        className="z-30 bg-white border-b border-surface-200 flex-shrink-0"
+        className="z-30 bg-surface-0 border-b border-surface-200 flex-shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="px-4 sm:px-8 max-w-6xl mx-auto">

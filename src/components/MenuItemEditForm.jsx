@@ -239,7 +239,7 @@ export default function MenuItemEditForm({ item, menu, sections, defaultNotifyId
                       ? 'bg-surface-100 text-ink-300 border-surface-200 cursor-not-allowed'
                       : active
                         ? 'bg-brand-500 text-white border-brand-500'
-                        : 'bg-white text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
+                        : 'bg-surface-0 text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
                   }`}
                 >
                   {active && !isSelf && <span className="mr-1">✓</span>}

@@ -83,7 +83,7 @@ export default function ReviewersPanel({ resourceType, resourceId, canEdit = fal
                 title={u.email || ''}
                 className={`text-[11px] px-2 py-1 rounded-full border transition-colors whitespace-nowrap ${
                   on ? 'bg-brand-500 text-white border-brand-500'
-                     : 'bg-white text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
+                     : 'bg-surface-0 text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
                 } ${!canEdit ? 'cursor-default' : ''}`}
               >
                 {on && <span className="mr-1">✓</span>}

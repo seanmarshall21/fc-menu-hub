@@ -170,7 +170,7 @@ function Composer({ ctx, onSubmit, placeholder = 'Write a message…', initialHt
         <div className="relative">
           <ToolBtn onClick={() => setShowEmoji(s => !s)} title="Emoji"><span className="text-base leading-none">🙂</span></ToolBtn>
           {showEmoji && (
-            <div className="absolute bottom-full mb-1 right-0 z-20 bg-white border border-surface-200 rounded-lg shadow-lg p-2 w-[232px] grid grid-cols-8 gap-0.5">
+            <div className="absolute bottom-full mb-1 right-0 z-20 bg-surface-0 border border-surface-200 rounded-lg shadow-lg p-2 w-[232px] grid grid-cols-8 gap-0.5">
               {EMOJIS.map(em => (
                 <button key={em} type="button" onMouseDown={e => e.preventDefault()}
                   onClick={() => { exec('insertText', em); setShowEmoji(false) }}
@@ -204,7 +204,7 @@ function Composer({ ctx, onSubmit, placeholder = 'Write a message…', initialHt
         <div className="relative">
           <button onClick={() => setShowTag(s => !s)} className="btn-secondary btn-sm whitespace-nowrap">@ Tag</button>
           {showTag && (
-            <div className="absolute bottom-full mb-1 left-0 z-20 bg-white border border-surface-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto min-w-[180px]">
+            <div className="absolute bottom-full mb-1 left-0 z-20 bg-surface-0 border border-surface-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto min-w-[180px]">
               {users.map(u => (
                 <button key={u.id} onClick={() => addMention(u)}
                   className={`w-full text-left px-3 py-1.5 text-xs hover:bg-surface-50 ${mentions.has(u.id) ? 'text-brand-700 font-medium' : 'text-ink-700'}`}>
@@ -231,7 +231,7 @@ function ReactionBar({ ctx, m }) {
     <div className="flex items-center gap-1 flex-wrap mt-1.5">
       {groups.map(g => (
         <button key={g.emoji} onClick={() => ctx.onReact(m.id, g.emoji)}
-          className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border ${g.mine ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-surface-200 bg-white text-ink-600'} hover:border-brand-300`}>
+          className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border ${g.mine ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-surface-200 bg-surface-0 text-ink-600'} hover:border-brand-300`}>
           <span className="leading-none">{g.emoji}</span> {g.count}
         </button>
       ))}
@@ -240,7 +240,7 @@ function ReactionBar({ ctx, m }) {
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </button>
         {show && (
-          <div className="absolute bottom-full mb-1 left-0 z-20 bg-white border border-surface-200 rounded-lg shadow-lg p-1.5 flex gap-0.5">
+          <div className="absolute bottom-full mb-1 left-0 z-20 bg-surface-0 border border-surface-200 rounded-lg shadow-lg p-1.5 flex gap-0.5">
             {REACTIONS.map(em => (
               <button key={em} onClick={() => { ctx.onReact(m.id, em); setShow(false) }}
                 className="w-7 h-7 rounded hover:bg-surface-100 text-base leading-none">{em}</button>
@@ -415,7 +415,7 @@ export default function ActivityDrawer({ scopeType, scopeId, open, onClose, titl
     <>
       {/* Mobile backdrop — tap to dismiss. Desktop keeps the page usable alongside. */}
       <div onClick={onClose} className={`sm:hidden fixed inset-0 bg-black/40 z-[110] transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
-      <div style={{ width }} className={`fixed top-0 right-0 h-full max-w-[100vw] max-sm:!w-full bg-white border-l border-surface-200 shadow-2xl z-[120] flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div style={{ width }} className={`fixed top-0 right-0 h-full max-w-[100vw] max-sm:!w-full bg-surface-0 border-l border-surface-200 shadow-2xl z-[120] flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
       <div onMouseDown={startResize} title="Drag to resize" className="hidden sm:block absolute left-0 top-0 h-full w-1.5 -ml-0.5 cursor-ew-resize hover:bg-brand-300/60 z-10" />
       {/* Collapse handle — sticks out on the drawer's left edge, mirrors the
           floating open tab so the panel reads as a slide-out. Only when open

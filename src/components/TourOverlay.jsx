@@ -161,7 +161,7 @@ export default function TourOverlay({ tourKey, onClose }) {
         className="absolute pointer-events-auto tour-card-pos"
         style={cardPos}
       >
-        <div className="w-[min(420px,calc(100vw-32px))] bg-white rounded-xl shadow-2xl border border-surface-200 overflow-hidden">
+        <div className="w-[min(420px,calc(100vw-32px))] bg-surface-0 rounded-xl shadow-2xl border border-surface-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-surface-100 flex items-center justify-between">
             <div className="text-[11px] uppercase tracking-wider font-semibold text-brand-600 whitespace-nowrap">
               {tour.title} · {stepIdx + 1} / {tour.steps.length}

@@ -407,7 +407,7 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
                             <button
                               onClick={() => rejectItem(log.menu_item.id)}
                               disabled={isBusy}
-                              className="text-xs px-2 py-0.5 rounded-md bg-white border border-surface-200 text-ink-500 hover:text-red-600"
+                              className="text-xs px-2 py-0.5 rounded-md bg-surface-0 border border-surface-200 text-ink-500 hover:text-red-600"
                               title={log._groupCount > 1 ? `Reject all ${log._groupCount} edits on this item` : 'Reject this edit'}
                             >
                               ✕
@@ -463,7 +463,7 @@ export default function EditLog({ menuId, onApproveAll, onChange, canApprove = f
                 {batchBusy ? 'Working…' : `✓ Approve ${selected.size}`}
               </button>
               <button onClick={batchRejectSelected} disabled={batchBusy}
-                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-white border border-red-200 text-red-600 hover:bg-red-50 whitespace-nowrap flex-shrink-0 disabled:opacity-50">
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-surface-0 border border-red-200 text-red-600 hover:bg-red-50 whitespace-nowrap flex-shrink-0 disabled:opacity-50">
                 ✕ Reject {selected.size}
               </button>
               <button onClick={() => setSelected(new Set())} disabled={batchBusy}

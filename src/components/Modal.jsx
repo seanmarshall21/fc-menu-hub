@@ -19,8 +19,8 @@ export default function Modal({ title, onClose, children }) {
       }}
     >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md max-h-full overflow-y-auto z-10">
-        <div className="sticky top-0 bg-white px-6 pt-5 pb-3 border-b border-surface-100 flex items-center justify-between z-10">
+      <div className="relative bg-surface-0 rounded-xl shadow-xl w-full max-w-md max-h-full overflow-y-auto z-10">
+        <div className="sticky top-0 bg-surface-0 px-6 pt-5 pb-3 border-b border-surface-100 flex items-center justify-between z-10">
           <h2 className="text-base font-semibold text-ink-900">{title}</h2>
           <button onClick={onClose} className="btn-ghost btn-sm p-1.5 -mr-1" aria-label="Close">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

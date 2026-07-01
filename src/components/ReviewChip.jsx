@@ -77,7 +77,7 @@ export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedRea
           ref={menuRef}
           onClick={stop}
           style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 60 }}
-          className="bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px] flex flex-col py-1"
+          className="bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[170px] flex flex-col py-1"
         >
           <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">Status</div>
           {PHASES.map(p => {

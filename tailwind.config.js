@@ -1,37 +1,43 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Warm accent (was blue). 600 is the readable text/button orange;
-        // the footer + assistant use the brighter golden gradient as a fill.
+        // Semantic tokens are backed by CSS variables (RGB channels) defined in
+        // index.css, so a single `.dark` class on <html> repaints the whole app
+        // (see :root / .dark blocks). The `<alpha-value>` shim keeps opacity
+        // utilities like bg-surface-0/80 working.
+        //
+        // Warm accent (orange). 600 is the readable text/button orange; the
+        // footer + assistant use the brighter golden gradient as a fill.
         brand: {
-          50:  '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
+          50:  'rgb(var(--brand-50) / <alpha-value>)',
+          100: 'rgb(var(--brand-100) / <alpha-value>)',
+          200: 'rgb(var(--brand-200) / <alpha-value>)',
+          300: 'rgb(var(--brand-300) / <alpha-value>)',
+          500: 'rgb(var(--brand-500) / <alpha-value>)',
+          600: 'rgb(var(--brand-600) / <alpha-value>)',
+          700: 'rgb(var(--brand-700) / <alpha-value>)',
+          800: 'rgb(var(--brand-800) / <alpha-value>)',
         },
         surface: {
-          0:   '#ffffff',
-          50:  '#f8f9fb',
-          100: '#f0f2f5',
-          200: '#e4e7ec',
-          300: '#d0d5dd',
+          0:   'rgb(var(--surface-0) / <alpha-value>)',
+          50:  'rgb(var(--surface-50) / <alpha-value>)',
+          100: 'rgb(var(--surface-100) / <alpha-value>)',
+          200: 'rgb(var(--surface-200) / <alpha-value>)',
+          300: 'rgb(var(--surface-300) / <alpha-value>)',
         },
         ink: {
-          900: '#101828',
-          800: '#1d2939',
-          700: '#344054',
-          600: '#475467',
-          500: '#667085',
-          400: '#7e8fa8',
-          300: '#98a2b3',
-          200: '#b8c0cc',
+          900: 'rgb(var(--ink-900) / <alpha-value>)',
+          800: 'rgb(var(--ink-800) / <alpha-value>)',
+          700: 'rgb(var(--ink-700) / <alpha-value>)',
+          600: 'rgb(var(--ink-600) / <alpha-value>)',
+          500: 'rgb(var(--ink-500) / <alpha-value>)',
+          400: 'rgb(var(--ink-400) / <alpha-value>)',
+          300: 'rgb(var(--ink-300) / <alpha-value>)',
+          200: 'rgb(var(--ink-200) / <alpha-value>)',
         },
         phase: {
           build:      '#d1fae5',

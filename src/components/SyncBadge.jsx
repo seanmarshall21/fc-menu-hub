@@ -44,7 +44,7 @@ export default function SyncBadge({
         <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>
       {open && (
-        <span className="absolute left-0 top-full mt-1 z-30 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[200px] text-left">
+        <span className="absolute left-0 top-full mt-1 z-30 bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[200px] text-left">
           <button type="button" onClick={() => { setOpen(false); if (syncNeeded) onMarkSynced() }}
             className={`flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-surface-50 ${synced ? 'bg-surface-50' : ''}`}>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Synced {synced && <span className="ml-auto text-emerald-600">✓</span>}

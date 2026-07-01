@@ -5,6 +5,67 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Theme tokens (RGB channels) ──────────────────────────────────────────
+     Semantic colors are defined once here and consumed via Tailwind's
+     rgb(var(--token) / <alpha-value>) tokens. Light is the default; adding the
+     `.dark` class to <html> swaps in the warm "orange-dark" palette — no
+     per-utility dark: variants needed for anything already using surface/ink/
+     brand tokens. */
+  :root {
+    --brand-50:  255 247 237;
+    --brand-100: 255 237 213;
+    --brand-200: 254 215 170;
+    --brand-300: 253 186 116;
+    --brand-500: 249 115 22;
+    --brand-600: 234 88 12;
+    --brand-700: 194 65 12;
+    --brand-800: 154 52 18;
+
+    --surface-0:   255 255 255;
+    --surface-50:  248 249 251;
+    --surface-100: 240 242 245;
+    --surface-200: 228 231 236;
+    --surface-300: 208 213 221;
+
+    --ink-900: 16 24 40;
+    --ink-800: 29 41 57;
+    --ink-700: 52 64 84;
+    --ink-600: 71 84 103;
+    --ink-500: 102 112 133;
+    --ink-400: 126 143 168;
+    --ink-300: 152 162 179;
+    --ink-200: 184 192 204;
+  }
+
+  .dark {
+    /* Warm, orange-tinted dark — charcoal-brown surfaces (never pure black),
+       vivid orange accent, warm off-white text. Elevated surfaces (0) are
+       LIGHTER than the base canvas (50), the inverse of light mode. */
+    --brand-50:  42 28 16;    /* dark warm tint (active/hover bg) */
+    --brand-100: 58 38 20;
+    --brand-200: 77 51 25;    /* accent borders */
+    --brand-300: 107 71 31;
+    --brand-500: 249 115 22;  /* button fill — stays vivid */
+    --brand-600: 251 140 60;  /* readable accent text on dark */
+    --brand-700: 249 115 22;
+    --brand-800: 234 88 12;
+
+    --surface-0:   38 32 27;   /* cards / elevated panels */
+    --surface-50:  25 20 16;   /* app base canvas (deepest) */
+    --surface-100: 48 38 32;   /* hover / subtle fill */
+    --surface-200: 64 52 43;   /* borders, dividers */
+    --surface-300: 82 68 55;   /* stronger borders */
+
+    --ink-900: 250 246 241;    /* primary text (warm off-white) */
+    --ink-800: 240 233 225;
+    --ink-700: 224 214 202;
+    --ink-600: 197 184 169;    /* secondary text */
+    --ink-500: 168 154 139;
+    --ink-400: 147 133 118;    /* muted text */
+    --ink-300: 125 111 97;
+    --ink-200: 105 91 77;      /* faint text */
+  }
+
   html, body, #root {
     overscroll-behavior: none;
     overflow: hidden;
@@ -17,7 +78,7 @@
   }
 
   body {
-    @apply bg-white text-ink-900 m-0;
+    @apply bg-surface-50 text-ink-900 m-0;
   }
 
   #root {
@@ -51,7 +112,7 @@
   }
 
   .input {
-    @apply w-full px-3 py-2 rounded-lg border border-surface-300 bg-white text-ink-900 text-sm placeholder-ink-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:bg-surface-100 disabled:text-ink-500;
+    @apply w-full px-3 py-2 rounded-lg border border-surface-300 bg-surface-0 text-ink-900 text-sm placeholder-ink-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:bg-surface-100 disabled:text-ink-500;
   }
   .input-sm {
     @apply px-2.5 py-1.5 text-xs;
@@ -65,7 +126,7 @@
   }
 
   .card {
-    @apply bg-white border border-surface-200 rounded-xl shadow-sm;
+    @apply bg-surface-0 border border-surface-200 rounded-xl shadow-sm;
   }
 
   .phase-badge {
@@ -99,3 +160,9 @@
 .activity-body ol { list-style: decimal; padding-left: 1.25rem; }
 .activity-body code { background: #f1f1f4; padding: 0 0.25rem; border-radius: 3px; font-size: 0.85em; }
 .activity-body hr, .rich-editor hr { border: 0; border-top: 1px solid #e5e7eb; margin: 0.5rem 0; }
+
+/* Dark-mode fixups for the hardcoded (non-token) editor colors above */
+.dark .rich-editor:empty:before { color: #7c6d60; }
+.dark .rich-editor a, .dark .activity-body a { color: #fdba74; }
+.dark .activity-body code { background: #302620; color: #e0d6ca; }
+.dark .activity-body hr, .dark .rich-editor hr { border-top-color: #40342b; }

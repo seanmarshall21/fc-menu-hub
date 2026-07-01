@@ -567,7 +567,7 @@ function ExportLogosModal({ sponsors, onClose }) {
             <label className="label">Logo color</label>
             <div className="flex items-center gap-3">
               <input type="color" value={color} onChange={e => setColor(e.target.value)} disabled={useOriginal}
-                className="w-10 h-10 rounded border border-surface-300 bg-white cursor-pointer disabled:opacity-40" />
+                className="w-10 h-10 rounded border border-surface-300 bg-surface-0 cursor-pointer disabled:opacity-40" />
               <input value={color} onChange={e => setColor(e.target.value)} disabled={useOriginal}
                 className="input font-mono text-sm w-32 disabled:opacity-40" />
               <label className="inline-flex items-center gap-1.5 text-xs text-ink-600 cursor-pointer">

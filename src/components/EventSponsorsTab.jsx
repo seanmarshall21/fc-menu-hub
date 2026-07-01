@@ -436,7 +436,7 @@ export default function EventSponsorsTab({ event, series, canEdit, onChange }) {
           and use their existing per-field Save buttons. */}
       {canEdit && isDraftDirty && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-30 md:left-60 bg-white border-t border-amber-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
+          className="fixed bottom-0 left-0 right-0 z-30 md:left-60 bg-surface-0 border-t border-amber-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
         >
           <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3 max-w-6xl mx-auto">
@@ -467,7 +467,7 @@ function SponsorListRow({ ss, linked, defaultColor, canEdit, busy, toggleSponsor
   const tinted         = ss.sponsor.svg_url
 
   return (
-    <li className={`px-4 py-3 flex items-center gap-3 bg-white ${!active ? 'opacity-50' : ''}`}>
+    <li className={`px-4 py-3 flex items-center gap-3 bg-surface-0 ${!active ? 'opacity-50' : ''}`}>
       {handleListeners && canEdit && active && (
         <DragHandle listeners={handleListeners} />
       )}

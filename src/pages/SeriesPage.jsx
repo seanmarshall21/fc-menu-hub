@@ -500,7 +500,7 @@ function EventRowMenu({ event, isAdmin, onEdit, onDuplicate, onDelete }) {
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[61] bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]"
+            className="fixed z-[61] bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]"
             style={{ top: pos.top, right: pos.right }}
           >
             <button

@@ -111,7 +111,7 @@ export default function EntityIconPicker({
                 disabled={disabled}
                 className={`px-2.5 py-1 rounded-full transition-colors ${
                   mode === opt.value
-                    ? 'bg-white text-ink-900 shadow-sm border border-surface-200'
+                    ? 'bg-surface-0 text-ink-900 shadow-sm border border-surface-200'
                     : 'text-ink-500 hover:text-ink-800'
                 }`}
               >
@@ -174,7 +174,7 @@ export default function EntityIconPicker({
                 className={`aspect-square rounded-lg border flex items-center justify-center transition-colors ${
                   iconName === name
                     ? 'bg-brand-600 text-white border-brand-600'
-                    : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                    : 'bg-surface-0 text-ink-600 border-surface-200 hover:border-brand-300'
                 }`}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 22 }}>{name}</span>

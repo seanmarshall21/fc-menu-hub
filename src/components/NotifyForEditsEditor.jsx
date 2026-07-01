@@ -97,7 +97,7 @@ export default function NotifyForEditsEditor({
               const u = users.find(x => x.id === uid)
               if (!u) return null
               return (
-                <span key={uid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-surface-300 text-ink-600">
+                <span key={uid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-0 border border-surface-300 text-ink-600">
                   ✓ {u.full_name || u.email}
                 </span>
               )
@@ -128,7 +128,7 @@ export default function NotifyForEditsEditor({
                     ? 'bg-surface-100 text-ink-500 border-surface-200 cursor-not-allowed'
                     : isOn
                       ? 'bg-brand-500 text-white border-brand-500'
-                      : 'bg-white text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
+                      : 'bg-surface-0 text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
                 }`}
               >
                 {(isOn || isInherited) && <span className="mr-1">✓</span>}

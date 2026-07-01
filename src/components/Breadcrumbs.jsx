@@ -57,7 +57,7 @@ export default function Breadcrumbs({ crumbs }) {
               …
             </button>
             {open && (
-              <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-lg shadow-lg border border-surface-200 py-1 min-w-40">
+              <div className="absolute left-0 top-full mt-1 z-50 bg-surface-0 rounded-lg shadow-lg border border-surface-200 py-1 min-w-40">
                 {crumbs.map((crumb, i) => (
                   <div key={i}>
                     {crumb.to ? (

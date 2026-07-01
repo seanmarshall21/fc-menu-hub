@@ -338,7 +338,7 @@ export default function BrandPage() {
                           className="fixed inset-0 z-10"
                           onClick={() => setOpenMenuSeriesId(null)}
                         />
-                        <div className="absolute top-10 right-3 z-20 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]">
+                        <div className="absolute top-10 right-3 z-20 bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]">
                           <button
                             onClick={(e) => { e.preventDefault(); openEditSeries(s) }}
                             className="block w-full text-left px-3 py-2 text-sm text-ink-700 hover:bg-surface-50 transition-colors"

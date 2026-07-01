@@ -151,7 +151,7 @@ function SponsorRow({ row, canEdit, saving, handleListeners, onTintChange, onRem
   const sp = row.sponsor
   const tint = row.tint_color || ''
   return (
-    <div className="flex items-center gap-3 p-3 sm:p-4 bg-white">
+    <div className="flex items-center gap-3 p-3 sm:p-4 bg-surface-0">
       {canEdit && <DragHandle listeners={handleListeners} />}
       <div
         className="w-12 h-12 rounded-lg border border-surface-200 bg-surface-50 flex items-center justify-center overflow-hidden flex-shrink-0"
@@ -224,7 +224,7 @@ function AddSponsorModal({ available, adding, onClose, onConfirm }) {
               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
                 checked
                   ? 'bg-brand-50 border-brand-200'
-                  : 'bg-white border-surface-100 hover:border-brand-200'
+                  : 'bg-surface-0 border-surface-100 hover:border-brand-200'
               }`}
             >
               <div className="w-9 h-9 rounded-md border border-surface-200 bg-surface-50 flex items-center justify-center overflow-hidden flex-shrink-0">

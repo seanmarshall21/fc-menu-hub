@@ -56,7 +56,7 @@ export default function VersionWatcher() {
       </div>
       <button
         onClick={() => window.location.reload()}
-        className="bg-ink-900 hover:bg-ink-800 text-white text-sm font-bold tracking-wide rounded-xl px-5 py-3 transition-colors flex-shrink-0"
+        className="bg-ink-900 hover:bg-ink-800 text-surface-0 text-sm font-bold tracking-wide rounded-xl px-5 py-3 transition-colors flex-shrink-0"
       >
         UPDATE
       </button>

@@ -231,7 +231,7 @@ function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false, k
         {shown.map((n, i) => (
           <li
             key={n.id}
-            className={`px-4 py-3 flex items-start gap-3 ${selected?.has(n.id) ? 'bg-brand-50/60' : n.read_at ? 'bg-white' : 'bg-brand-50/30'}`}
+            className={`px-4 py-3 flex items-start gap-3 ${selected?.has(n.id) ? 'bg-brand-50/60' : n.read_at ? 'bg-surface-0' : 'bg-brand-50/30'}`}
           >
             {selectable && (
               <input type="checkbox" checked={!!selected?.has(n.id)} onClick={e => onSelect(kind, shown, i, n.id, e.shiftKey)} onChange={() => {}} className="mt-1 flex-shrink-0" />

@@ -95,7 +95,7 @@ function Editor({ form, setForm, toggle, onSave, onCancel, isNew }) {
         <div className="flex flex-wrap gap-1.5 mt-1">
           {DEPT_PERMISSIONS.map(p => (
             <button key={p.key} type="button" onClick={() => toggle('permissions', p.key)}
-              className={`text-xs px-2.5 py-1 rounded-full border ${form.permissions.includes(p.key) ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-white border-surface-200 text-ink-500'}`}>
+              className={`text-xs px-2.5 py-1 rounded-full border ${form.permissions.includes(p.key) ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-surface-0 border-surface-200 text-ink-500'}`}>
               {form.permissions.includes(p.key) ? '✓ ' : ''}{p.label}
             </button>
           ))}
@@ -106,7 +106,7 @@ function Editor({ form, setForm, toggle, onSave, onCancel, isNew }) {
         <div className="flex flex-wrap gap-1.5 mt-1">
           {LIFECYCLE_PHASES.map(p => (
             <button key={p} type="button" onClick={() => toggle('phases', p)}
-              className={`text-xs px-2.5 py-1 rounded-full border capitalize ${form.phases.includes(p) ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-white border-surface-200 text-ink-500'}`}>
+              className={`text-xs px-2.5 py-1 rounded-full border capitalize ${form.phases.includes(p) ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-surface-0 border-surface-200 text-ink-500'}`}>
               {p}
             </button>
           ))}

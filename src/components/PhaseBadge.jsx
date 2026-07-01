@@ -74,7 +74,7 @@ export default function PhaseBadge({ phase, hasPendingEdits = false, onChange, o
         </svg>
       </button>
       {open && (
-        <span className="absolute left-0 top-full mt-1 z-30 bg-white border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[120px]">
+        <span className="absolute left-0 top-full mt-1 z-30 bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[120px]">
           {options.map(p => (
             <button
               key={p}

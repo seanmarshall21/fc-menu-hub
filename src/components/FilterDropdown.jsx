@@ -46,7 +46,7 @@ export default function FilterDropdown({ label, options, selected, onChange }) {
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap transition-colors ${
           active
             ? 'bg-brand-50 border-brand-300 text-brand-700'
-            : 'bg-white border-surface-300 text-ink-600 hover:border-brand-300'
+            : 'bg-surface-0 border-surface-300 text-ink-600 hover:border-brand-300'
         }`}
       >
         {summary}
@@ -56,7 +56,7 @@ export default function FilterDropdown({ label, options, selected, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1 min-w-[180px] bg-white border border-surface-200 rounded-lg shadow-lg py-1">
+        <div className="absolute z-20 mt-1 min-w-[180px] bg-surface-0 border border-surface-200 rounded-lg shadow-lg py-1">
           {active && (
             <button
               type="button"

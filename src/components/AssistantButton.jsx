@@ -407,7 +407,7 @@ export default function AssistantButton() {
       {open && (
         <>
           <div className="fixed inset-0 z-[96] bg-black/30" onClick={() => setOpen(false)} />
-          <div className="fixed z-[97] inset-x-0 bottom-0 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[390px] h-[90vh] sm:h-[680px] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="fixed z-[97] inset-x-0 bottom-0 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[390px] h-[90vh] sm:h-[680px] sm:max-h-[90vh] bg-surface-0 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
             <div className="px-4 py-3 text-white flex items-center justify-between shrink-0" style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
               <span className="text-sm font-semibold inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Quick check</span>
@@ -520,12 +520,12 @@ export default function AssistantButton() {
       )}
       {!open && teaser && (
         <button onClick={() => { setTeaser(false); setOpen(true) }}
-          className="fixed bottom-44 sm:bottom-20 right-4 z-[95] max-w-[240px] text-left bg-white rounded-2xl rounded-br-sm shadow-xl border border-surface-200 px-3.5 py-2.5 animate-[fadeIn_.2s_ease-out]">
+          className="fixed bottom-44 sm:bottom-20 right-4 z-[95] max-w-[240px] text-left bg-surface-0 rounded-2xl rounded-br-sm shadow-xl border border-surface-200 px-3.5 py-2.5 animate-[fadeIn_.2s_ease-out]">
           <div className="flex items-start gap-2">
             <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span className="text-sm text-ink-800 leading-snug">Hi! Ask me what’s left to do and I’ll take you there.</span>
           </div>
-          <span onClick={(e) => { e.stopPropagation(); setTeaser(false) }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink-700 text-white text-[11px] flex items-center justify-center shadow">✕</span>
+          <span onClick={(e) => { e.stopPropagation(); setTeaser(false) }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink-700 text-surface-0 text-[11px] flex items-center justify-center shadow">✕</span>
         </button>
       )}
       {!open && (

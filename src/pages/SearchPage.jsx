@@ -176,7 +176,7 @@ export default function SearchPage() {
                 className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors border ${
                   filter === f.value
                     ? 'bg-brand-600 text-white border-brand-600'
-                    : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                    : 'bg-surface-0 text-ink-600 border-surface-200 hover:border-brand-300'
                 }`}
               >
                 {f.label}

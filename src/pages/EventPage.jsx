@@ -522,7 +522,7 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
                     className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                       Number(columns) === n
                         ? 'bg-brand-500 text-white border-brand-500'
-                        : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300'
+                        : 'bg-surface-0 text-ink-600 border-surface-200 hover:border-brand-300'
                     }`}
                   >
                     {n} col
@@ -588,7 +588,7 @@ function CategoryChip({ active, onClick, children }) {
       className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
         active
           ? 'bg-brand-500 text-white border-brand-500'
-          : 'bg-white text-ink-600 border-surface-200 hover:border-brand-300 hover:text-brand-600'
+          : 'bg-surface-0 text-ink-600 border-surface-200 hover:border-brand-300 hover:text-brand-600'
       }`}
     >
       {children}
@@ -620,7 +620,7 @@ function MenuCardActionMenu({ menu, canDelete, onDuplicate, onDelete }) {
       </button>
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 z-10 min-w-[160px] bg-white border border-surface-200 rounded-lg shadow-lg py-1"
+          className="absolute right-0 top-full mt-1 z-10 min-w-[160px] bg-surface-0 border border-surface-200 rounded-lg shadow-lg py-1"
           onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
         >
           <button
@@ -1248,7 +1248,7 @@ export default function EventPage() {
         {menuSelectMode && (
           <div className="absolute top-2 left-2 z-10">
             <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
-              isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white border-surface-300'
+              isSelected ? 'bg-brand-500 border-brand-500' : 'bg-surface-0 border-surface-300'
             }`}>
               {isSelected && '✓'}
             </div>
@@ -1345,7 +1345,7 @@ export default function EventPage() {
           {menu.preview_image_url ? (
             <img src={menu.preview_image_url} alt={menu.name} className="w-full h-full object-contain" loading="lazy" />
           ) : activeCount > 0 ? (
-            <LazyMount className="absolute inset-0 overflow-hidden pointer-events-none bg-white">
+            <LazyMount className="absolute inset-0 overflow-hidden pointer-events-none bg-surface-0">
               <TemplateCanvas
                 template={templates[menu.size] || templates.lg || templates.md}
                 series={series}
@@ -2263,7 +2263,7 @@ export default function EventPage() {
                             </select>
                           </div>
                           {/* Validation summary */}
-                          <div className="bg-white border border-surface-200 rounded-lg px-3 py-2.5 text-xs space-y-1.5">
+                          <div className="bg-surface-0 border border-surface-200 rounded-lg px-3 py-2.5 text-xs space-y-1.5">
                             <div className="flex items-center justify-between">
                               <span className="text-ink-400">Total items</span>
                               <span className="font-medium text-ink-700">{entry.items.length}</span>

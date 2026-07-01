@@ -170,7 +170,7 @@ export default function CsvImport({ menuId, currency, onImported }) {
       {preview && (
         <div className="mb-4">
           <p className="text-xs text-ink-500 mb-2">{preview.length} items parsed — preview (first 5):</p>
-          <div className="bg-white border border-surface-200 rounded-lg overflow-auto max-h-48">
+          <div className="bg-surface-0 border border-surface-200 rounded-lg overflow-auto max-h-48">
             <table className="text-xs w-full">
               <thead>
                 <tr className="border-b border-surface-100 bg-surface-50">

@@ -22,7 +22,7 @@ export default function SegmentedToggle({ value, options, onChange, disabled, si
             aria-pressed={active}
             className={`${sizing} font-medium rounded-full transition-colors ${
               active
-                ? 'bg-white text-ink-900 shadow-sm border border-surface-200'
+                ? 'bg-surface-0 text-ink-900 shadow-sm border border-surface-200'
                 : 'text-ink-500 hover:text-ink-800'
             }`}
           >

@@ -26,7 +26,7 @@ export function ToastProvider({ children }) {
           {toasts.map(t => (
             <div key={t.id}
               className={`px-3.5 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-[fadeIn_.15s_ease-out] ${
-                t.type === 'error' ? 'bg-red-600 text-white' : 'bg-ink-900 text-white'}`}>
+                t.type === 'error' ? 'bg-red-600 text-white' : 'bg-ink-900 text-surface-0'}`}>
               {t.type === 'error'
                 ? <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 : <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}

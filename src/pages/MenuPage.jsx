@@ -878,7 +878,7 @@ export default function MenuPage() {
             )}
             {(isAdmin || isInternal) && !isApproved && preApproval && (canApproveMenu || amRosterApprover) && (
               <button onClick={approveMenu} disabled={!!approvalBlockedReason()} data-tour="menu-approve-button"
-                className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xs px-3 py-1.5 rounded-md bg-surface-0 text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 title={approvalBlockedReason() ? `Can't approve yet — ${approvalBlockedReason()}` : 'Mark this menu as Approved'}>Approve Menu</button>
             )}
             {canEdit && (
@@ -1048,7 +1048,7 @@ export default function MenuPage() {
               <button
                 type="button"
                 onClick={() => { setDeleteConfirmText(''); setDeleteBackupDone(false); setDeleteError(null); setShowDeleteMenu(true) }}
-                className="text-xs font-medium px-3 py-1.5 rounded-md bg-white text-red-700 border border-red-300 hover:bg-red-50"
+                className="text-xs font-medium px-3 py-1.5 rounded-md bg-surface-0 text-red-700 border border-red-300 hover:bg-red-50"
               >
                 Delete this menu…
               </button>
@@ -1080,7 +1080,7 @@ export default function MenuPage() {
               red alert below handles the flagged state). */}
           {canEdit && !needsSponsorCheck && (
             <button onClick={flagSponsorsCheck}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-0 border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
               title="Flag this menu so someone verifies the sponsors.">
               ⚑ Flag sponsor
             </button>
@@ -1206,7 +1206,7 @@ export default function MenuPage() {
               </div>
               <button
                 onClick={undoApproveAll}
-                className="text-xs font-medium px-3 py-1.5 rounded-md bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
+                className="text-xs font-medium px-3 py-1.5 rounded-md bg-surface-0 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
               >
                 Undo
               </button>
@@ -1429,11 +1429,11 @@ export default function MenuPage() {
                 {figmaReady && (
                   <div className="inline-flex rounded-lg border border-surface-300 overflow-hidden text-xs">
                     <button onClick={() => setPreviewView('figma')}
-                      className={`px-2.5 py-1.5 font-medium ${showFigma ? 'bg-ink-900 text-gray-300' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      className={`px-2.5 py-1.5 font-medium ${showFigma ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
                       Figma{syncNeeded ? ' ⚠' : ''}
                     </button>
                     <button onClick={() => setPreviewView('app')}
-                      className={`px-2.5 py-1.5 font-medium border-l border-surface-300 ${!showFigma ? 'bg-ink-900 text-gray-300' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      className={`px-2.5 py-1.5 font-medium border-l border-surface-300 ${!showFigma ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
                       App preview
                     </button>
                   </div>
@@ -1658,7 +1658,7 @@ export default function MenuPage() {
               once we roll Save/Cancel out beyond the Sponsors tab. */}
           {canEdit && sponsorsDirty && (
             <div
-              className="fixed bottom-0 left-0 right-0 z-30 md:left-60 bg-white border-t border-amber-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
+              className="fixed bottom-0 left-0 right-0 z-30 md:left-60 bg-surface-0 border-t border-amber-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
             >
               <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3 max-w-6xl mx-auto">
@@ -1776,7 +1776,7 @@ export default function MenuPage() {
                   const ok = downloadMenuCsv(menu, items, { useCurrency: true })
                   if (ok) setDeleteBackupDone(true)
                 }}
-                className="text-xs font-medium px-3 py-1.5 rounded-md bg-white border border-surface-300 hover:bg-surface-100 inline-flex items-center gap-1.5"
+                className="text-xs font-medium px-3 py-1.5 rounded-md bg-surface-0 border border-surface-300 hover:bg-surface-100 inline-flex items-center gap-1.5"
               >
                 {deleteBackupDone ? '↻ Re-download CSV' : '↓ Download CSV backup'}
               </button>
@@ -2064,7 +2064,7 @@ function MenuSponsorsPanel({
 
 function MenuSponsorRow({ sp, active, canEdit, onToggle, handleListeners }) {
   return (
-    <li className={`px-4 py-2.5 flex items-center gap-3 bg-white ${!active ? 'opacity-60' : ''}`}>
+    <li className={`px-4 py-2.5 flex items-center gap-3 bg-surface-0 ${!active ? 'opacity-60' : ''}`}>
       {handleListeners && canEdit && active && <DragHandle listeners={handleListeners} />}
       {canEdit ? (
         <button

@@ -40,7 +40,7 @@ export default function MenuItemCard({ item, menu, canEdit, currency, sections, 
     <>
       <div
         onClick={() => canEdit && setEditing(true)}
-        className={`border rounded-lg p-3 ${pending ? 'border-red-200 bg-red-50' : 'border-surface-200 bg-white'} ${canEdit ? 'active:bg-surface-50 cursor-pointer' : ''}`}
+        className={`border rounded-lg p-3 ${pending ? 'border-red-200 bg-red-50' : 'border-surface-200 bg-surface-0'} ${canEdit ? 'active:bg-surface-50 cursor-pointer' : ''}`}
       >
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
