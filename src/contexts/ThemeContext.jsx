@@ -12,7 +12,7 @@ function getInitial() {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved === 'light' || saved === 'dark') return saved
   } catch (_) { /* ignore */ }
-  return 'light'
+  return 'dark' // dark is the default; users can switch to light
 }
 
 export function ThemeProvider({ children }) {

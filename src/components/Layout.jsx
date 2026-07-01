@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
+import ThemeToggle from '@/components/ThemeToggle'
 import { useBrands } from '@/hooks/useBrands'
 import { supabase } from '@/lib/supabase'
 import { setAppBadge } from '@/lib/pwa'
@@ -84,7 +84,6 @@ function BottomTabButton({ onClick, label, icon }) {
 
 export default function Layout() {
   const { profile, signOut, isAdmin, isInternal, isViewer } = useAuth()
-  const { theme, toggle: toggleTheme } = useTheme()
   const { brands, refetch } = useBrands()
   const navigate = useNavigate()
   const location = useLocation()
@@ -278,24 +277,6 @@ export default function Layout() {
               <p className="text-xs text-ink-400 capitalize">{profile?.role}</p>
             </div>
           </button>
-          <button
-            onClick={toggleTheme}
-            className="text-ink-400 hover:text-brand-500 transition-colors flex-shrink-0"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            aria-label="Toggle dark mode"
-          >
-            {theme === 'dark' ? (
-              // Sun — click to go light
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              // Moon — click to go dark
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
-          </button>
           <button onClick={handleSignOut} className="text-ink-400 hover:text-ink-700 transition-colors flex-shrink-0" title="Sign out">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -311,9 +292,12 @@ export default function Layout() {
 
       {/* ── DESKTOP sidebar (md+) ── */}
       <aside data-tour="sidebar" className="hidden md:flex w-60 flex-shrink-0 bg-surface-0 border-r border-surface-200 flex-col">
-        <div className="px-5 py-5 border-b border-surface-200 flex items-center gap-2.5">
-          <Logo />
-          <span className="font-semibold text-ink-900 text-sm tracking-tight">Menu Hub</span>
+        <div className="px-5 py-5 border-b border-surface-200 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Logo />
+            <span className="font-semibold text-ink-900 text-sm tracking-tight">Menu Hub</span>
+          </div>
+          <ThemeToggle />
         </div>
         <SidebarContents />
       </aside>
@@ -331,16 +315,19 @@ export default function Layout() {
         drawerOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {/* Drawer header */}
-        <div className="px-5 py-5 border-b border-surface-200 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+        <div className="px-5 py-5 border-b border-surface-200 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
             <Logo />
             <span className="font-semibold text-ink-900 text-sm tracking-tight">Menu Hub</span>
           </div>
-          <button onClick={() => setDrawerOpen(false)} className="text-ink-400 hover:text-ink-700 p-1 -mr-1">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <ThemeToggle />
+            <button onClick={() => setDrawerOpen(false)} className="text-ink-400 hover:text-ink-700 p-1 -mr-1">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
         <SidebarContents />
       </aside>

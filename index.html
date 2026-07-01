@@ -13,8 +13,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Menu Hub</title>
     <script>
-      // Apply saved theme before first paint to avoid a light flash on load.
-      try { if (localStorage.getItem('mh-theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}
+      // Apply theme before first paint to avoid a flash. Dark is the default —
+      // only an explicit 'light' choice opts out.
+      try { if (localStorage.getItem('mh-theme') !== 'light') document.documentElement.classList.add('dark'); } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
