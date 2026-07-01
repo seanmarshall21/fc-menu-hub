@@ -1467,6 +1467,9 @@ export default function MenuPage() {
                     Figma PNG ↗
                   </a>
                 )}
+                {menu.preview_image_url && (
+                  <VisualCheckButton imageUrl={menu.preview_image_url} items={items} menuName={menu.name} />
+                )}
               </div>
             </div>
             {showFigma && syncNeeded && (
@@ -1482,14 +1485,13 @@ export default function MenuPage() {
               </div>
             ) : hasTemplate ? (
               <>
-              <div className="mb-3 space-y-2">
+              <div className="mb-3">
                 <LayoutFitBadge
                   canvasRef={canvasRef}
                   size={activeSize}
                   sponsors={(menuSponsorIds?.length || 0) > 0}
                   depsKey={`${activeSize}|${menuSponsorIds?.length || 0}|${items.length}`}
                 />
-                <VisualCheckButton imageUrl={menu.preview_image_url} items={items} menuName={menu.name} />
               </div>
               <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
                 <TemplateCanvas
