@@ -142,6 +142,7 @@ export default function InboxPage() {
                       onVisit={visit}
                       onArchive={unarchiveOne}
                       archived
+                      defaultOpen
                     />
                   </div>
                 )}
@@ -154,18 +155,25 @@ export default function InboxPage() {
   )
 }
 
-function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false, kind }) {
+function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false, kind, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const [showAll, setShowAll] = useState(false)
   if (rows.length === 0) return null
   const meta = kindMeta(kind)
+  const unread = rows.filter(r => !r.read_at).length
+  const shown = showAll ? rows : rows.slice(0, 5)
   return (
     <section className="card overflow-hidden">
-      <div className="px-4 py-3 border-b border-surface-100 flex items-center gap-2">
-        <span className={`w-2.5 h-2.5 rounded-full ${meta.accent}`} />
-        <h2 className="text-sm font-semibold text-ink-900">{title} <span className="text-xs text-ink-400 font-normal">· {rows.length}</span></h2>
-        {subtitle && <p className="text-xs text-ink-400 mt-0.5 ml-2">{subtitle}</p>}
-      </div>
+      <button onClick={() => setOpen(o => !o)} className="w-full px-4 py-3 border-b border-surface-100 flex items-center gap-2 text-left hover:bg-surface-50">
+        <span className={`w-2.5 h-2.5 rounded-full ${meta.accent} flex-shrink-0`} />
+        <h2 className="text-sm font-semibold text-ink-900 flex-1 truncate">{title} <span className="text-xs text-ink-400 font-normal">· {rows.length}</span></h2>
+        {unread > 0 && <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${meta.chip}`}>{unread} new</span>}
+        <svg className={`w-4 h-4 text-ink-300 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {subtitle && open && <p className="text-xs text-ink-400 px-4 pt-2">{subtitle}</p>}
+      {open && (<>
       <ul className="divide-y divide-surface-100">
-        {rows.map(n => (
+        {shown.map(n => (
           <li
             key={n.id}
             className={`px-4 py-3 flex items-start gap-3 ${n.read_at ? 'bg-white' : 'bg-brand-50/30'}`}
@@ -193,6 +201,12 @@ function Bucket({ title, subtitle, rows, onVisit, onArchive, archived = false, k
           </li>
         ))}
       </ul>
+      {rows.length > 5 && !showAll && (
+        <button onClick={() => setShowAll(true)} className="w-full px-4 py-2.5 text-xs font-medium text-brand-600 hover:bg-surface-50 border-t border-surface-100">
+          See all {rows.length}
+        </button>
+      )}
+      </>)}
     </section>
   )
 }

@@ -1019,3 +1019,30 @@ $$;
 drop policy if exists admin_update_profiles on user_profiles;
 create policy admin_update_profiles on user_profiles
   for update using (is_admin()) with check (is_admin());
+
+-- Notification de-dup: superseding prior UNREAD notifications for the same menu
+-- so back-and-forth status changes don't pile up. (Applied live 2026-07.)
+create or replace function notify_menu_status() returns trigger language plpgsql security definer as $$
+declare lnk text;
+begin
+  if NEW.phase is distinct from OLD.phase then
+    lnk := menu_link(NEW.id);
+    delete from notifications where kind='status_change' and (context->>'menu_id')=NEW.id::text and read_at is null and archived_at is null;
+    insert into notifications (user_id, kind, title, body, link_url, context)
+    select p.user_id, 'status_change', NEW.name || ' → ' || NEW.phase, 'Status changed to ' || NEW.phase || '.', lnk,
+           jsonb_build_object('menu_id', NEW.id, 'event_id', NEW.event_id)
+    from notification_prefs p where p.all_status = true;
+  end if;
+  return NEW;
+end $$;
+create or replace function notify_department(p_dept text, p_kind text, p_title text, p_body text, p_link text, p_menu_id uuid, p_event_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  delete from notifications n using user_profiles up
+   where n.user_id = up.id and p_dept = any(up.departments) and n.kind = p_kind
+     and (n.context->>'menu_id') = p_menu_id::text and n.read_at is null and n.archived_at is null;
+  insert into notifications (user_id, kind, title, body, link_url, context, triggered_by)
+  select up.id, p_kind, p_title, p_body, p_link, jsonb_build_object('menu_id', p_menu_id, 'event_id', p_event_id),
+         nullif(coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid), '00000000-0000-0000-0000-000000000000'::uuid)
+  from user_profiles up where p_dept = any(up.departments) and up.id <> coalesce(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid);
+end $$;
