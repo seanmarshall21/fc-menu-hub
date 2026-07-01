@@ -27,12 +27,11 @@ hurt the print:
 - noticeably uneven / awkward spacing between items or sections, or a big empty gap
 - anything that looks visually broken
 If an item list is provided, flag a visible price or name that clearly conflicts
-with the list. Be CONSERVATIVE about "missing item" claims: before saying a
-listed item is missing, scan the ENTIRE image carefully — including small print,
-secondary sections at the very bottom (e.g. "NA" / non-alcoholic / add-ons / a
-single last row), and the edges. Menus routinely place a few items in a small
-separate section. Only report a missing item if you are confident it truly does
-not appear anywhere. When in doubt, do NOT flag it.
+with the list, AND flag any listed item that does NOT appear on the menu —
+missing items are important to catch. Before deciding an item is missing, scan
+the ENTIRE image, including small print and any secondary section at the very
+bottom (e.g. an "NA" / non-alcoholic / add-ons row, or a single last line). If,
+after that careful scan, an item genuinely doesn't appear anywhere, report it.
 Do NOT nitpick subjective design taste. If it looks clean and print-ready, return
 an empty findings array.
 
