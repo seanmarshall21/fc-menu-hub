@@ -7,7 +7,7 @@ import { menuReadiness, READINESS_META } from '@/lib/readiness'
 // this event's menu sign-offs itself.
 //
 // Props: menus (array with id, phase, requires_sponsor_approval), eventId, seriesId
-export default function EventReadiness({ menus = [], eventId, seriesId }) {
+export default function EventReadiness({ menus = [], eventId, seriesId, onSelect }) {
   const [eventRoles, setEventRoles] = useState([])
   const [seriesRoles, setSeriesRoles] = useState([])
   const [signoffs, setSignoffs] = useState([])
@@ -46,11 +46,11 @@ export default function EventReadiness({ menus = [], eventId, seriesId }) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap mb-4">
       {shown.map(k => (
-        <span key={k} title={`${counts[k]} ${READINESS_META[k].label}`}
-          className={`text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1.5 ${READINESS_META[k].cls}`}>
+        <button key={k} onClick={() => onSelect?.(k)} title={`${counts[k]} ${READINESS_META[k].label} — click to view`}
+          className={`text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1.5 hover:opacity-80 ${READINESS_META[k].cls}`}>
           {READY_ICON[k]}
           {counts[k]}
-        </span>
+        </button>
       ))}
     </div>
   )

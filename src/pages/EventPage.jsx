@@ -849,6 +849,7 @@ export default function EventPage() {
   const [statusFilter, setStatusFilter] = useState([]) // phases
   const [syncFilter, setSyncFilter]     = useState([]) // synced | needs_update | not_synced
   const [filtersOpen, setFiltersOpen]   = useState(false)
+  const [menuSearch, setMenuSearch]     = useState('')
   // Preview-all tab filters — same multi-select dropdowns as the Menus tab.
   const [previewTypeFilter, setPreviewTypeFilter]     = useState([]) // categories
   const [previewStatusFilter, setPreviewStatusFilter] = useState([]) // phases
@@ -1439,6 +1440,7 @@ export default function EventPage() {
   }))
 
   const menusFiltered = menus.filter(m => {
+    if (menuSearch.trim() && !m.name.toLowerCase().includes(menuSearch.trim().toLowerCase())) return false
     if (typeFilter.length   && !typeFilter.includes(m.category)) return false
     if (statusFilter.length && !statusFilter.includes(m.phase))  return false
     if (syncFilter.length   && !syncFilter.includes(syncStateOf(m))) return false
@@ -1595,26 +1597,39 @@ export default function EventPage() {
       {/* ── MENUS TAB ── */}
       {tab === 'menus' && (
         <>
-          <EventReadiness menus={menus} eventId={event.id} seriesId={series?.id} />
+          <EventReadiness menus={menus} eventId={event.id} seriesId={series?.id} onSelect={(state) => {
+            if (state === 'ready') { navigate('/ready'); return }
+            const phaseMap = { in_progress: ['build', 'proof', 'edits'], awaiting_sponsors: ['approved'], exported: ['exported'], complete: ['complete'], archived: ['archived'] }
+            if (phaseMap[state]) { setStatusFilter(phaseMap[state]); setFiltersOpen(true) }
+          }} />
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-ink-700">Menus</h2>
-            {canEdit && (
-              <div className="flex items-center gap-2">
-                <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv"
-                  multiple
-                  className="hidden"
-                  onChange={handleCsvFilesSelected}
-                />
-                <OverflowMenu triggerLabel="+" hideChevron align="right" label="Add">
-                  <button onClick={() => { setMenuName(''); setMenuSlugField(''); setMenuCategory('bar'); setMenuPhase('build'); setMenuSize('lg'); setSaveError(null); setShowNewMenu(true) }} className={MENU_ROW}>+ New menu</button>
-                  <button onClick={() => setShowBulkAdd(true)} className={MENU_ROW}>+ Add item to menus</button>
-                  <button onClick={() => csvInputRef.current?.click()} className={MENU_ROW}>↑ Import CSVs</button>
-                </OverflowMenu>
-              </div>
-            )}
+            {/* Toolbar — Filter · Select · Add, grouped together */}
+            <div className="flex items-center gap-1.5">
+              {menus.length > 0 && (
+                <button onClick={() => setFiltersOpen(o => !o)} title="Filter & search"
+                  className={`btn-secondary btn-sm px-2 inline-flex items-center gap-1 ${(anyMenuFilter || menuSearch) ? 'text-brand-600 border-brand-300' : ''}`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></svg>
+                  {anyMenuFilter ? <span className="text-[11px] font-semibold">{[typeFilter, statusFilter, syncFilter].reduce((n, f) => n + (f.length ? 1 : 0), 0)}</span> : null}
+                </button>
+              )}
+              {canEdit && menus.length > 0 && !menuSelectMode && (
+                <button onClick={() => setMenuSelectMode(true)} title="Select menus"
+                  className="btn-secondary btn-sm px-2 inline-flex items-center">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 12l2 2 4-4" /></svg>
+                </button>
+              )}
+              {canEdit && (
+                <>
+                  <input ref={csvInputRef} type="file" accept=".csv" multiple className="hidden" onChange={handleCsvFilesSelected} />
+                  <OverflowMenu triggerLabel="+" hideChevron align="right" label="Add">
+                    <button onClick={() => { setMenuName(''); setMenuSlugField(''); setMenuCategory('bar'); setMenuPhase('build'); setMenuSize('lg'); setSaveError(null); setShowNewMenu(true) }} className={MENU_ROW}>+ New menu</button>
+                    <button onClick={() => setShowBulkAdd(true)} className={MENU_ROW}>+ Add item to menus</button>
+                    <button onClick={() => csvInputRef.current?.click()} className={MENU_ROW}>↑ Import CSVs</button>
+                  </OverflowMenu>
+                </>
+              )}
+            </div>
           </div>
 
           {menus.length === 0 ? (
@@ -1626,14 +1641,11 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              {/* Filters collapse behind a funnel; Select is an icon. */}
-              <div className="flex items-center gap-2 mb-5 flex-wrap">
-                <button onClick={() => setFiltersOpen(o => !o)} title="Filters"
-                  className={`btn-secondary btn-sm px-2 inline-flex items-center gap-1 ${anyMenuFilter ? 'text-brand-600 border-brand-300' : ''}`}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></svg>
-                  {anyMenuFilter ? <span className="text-[11px] font-semibold">{[typeFilter, statusFilter, syncFilter].reduce((n, f) => n + (f.length ? 1 : 0), 0)}</span> : null}
-                </button>
-                {filtersOpen && <>
+              {/* Filter + search reveal (toggled by the funnel above) */}
+              {filtersOpen && (
+                <div className="flex items-center gap-2 mb-5 flex-wrap">
+                  <input value={menuSearch} onChange={e => setMenuSearch(e.target.value)} placeholder="Search menus…"
+                    className="input py-1.5 text-sm w-44" autoFocus />
                   {TYPE_FILTER_OPTS.length > 1 && (
                     <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={typeFilter} onChange={setTypeFilter} />
                   )}
@@ -1641,22 +1653,14 @@ export default function EventPage() {
                     <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={statusFilter} onChange={setStatusFilter} />
                   )}
                   <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={syncFilter} onChange={setSyncFilter} />
-                </>}
-                {anyMenuFilter ? (
-                  <button
-                    onClick={() => { setTypeFilter([]); setStatusFilter([]); setSyncFilter([]) }}
-                    className="text-xs text-ink-400 hover:text-ink-600 underline underline-offset-2 ml-1"
-                  >
-                    Clear · {menusFiltered.length} of {menus.length}
-                  </button>
-                ) : null}
-                {canEdit && !menuSelectMode && (
-                  <button onClick={() => setMenuSelectMode(true)} title="Select menus"
-                    className="btn-secondary btn-sm px-2 flex-shrink-0 inline-flex items-center ml-auto">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 12l2 2 4-4" /></svg>
-                  </button>
-                )}
-              </div>
+                  {(anyMenuFilter || menuSearch) ? (
+                    <button onClick={() => { setTypeFilter([]); setStatusFilter([]); setSyncFilter([]); setMenuSearch('') }}
+                      className="text-xs text-ink-400 hover:text-ink-600 underline underline-offset-2 ml-1">
+                      Clear · {menusFiltered.length} of {menus.length}
+                    </button>
+                  ) : null}
+                </div>
+              )}
 
               {/* Bulk action bar — approve / not approved / unsync */}
               {menuSelectMode && (

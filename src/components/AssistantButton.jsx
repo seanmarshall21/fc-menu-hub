@@ -67,6 +67,18 @@ export default function AssistantButton() {
   const location = useLocation()
 
   const [open, setOpen] = useState(false)
+  // First-arrival teaser: a small bubble flashes by the ✦ so people know they
+  // can ask what's left to do. Shows once per session, auto-dismisses.
+  const [teaser, setTeaser] = useState(false)
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('assistantTeaserSeen')) return
+      const t1 = setTimeout(() => setTeaser(true), 1200)
+      const t2 = setTimeout(() => setTeaser(false), 9000)
+      sessionStorage.setItem('assistantTeaserSeen', '1')
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    } catch (_) {}
+  }, [])
   const [events, setEvents] = useState([])
   const [eventId, setEventId] = useState(() => localStorage.getItem('assistantEvent') || '')
   const [data, setData] = useState(null)   // { menus, links, signoffs, eventRoles, seriesRoles, ev }
@@ -506,9 +518,19 @@ export default function AssistantButton() {
           </div>
         </>
       )}
+      {!open && teaser && (
+        <button onClick={() => { setTeaser(false); setOpen(true) }}
+          className="fixed bottom-44 sm:bottom-20 right-4 z-[95] max-w-[240px] text-left bg-white rounded-2xl rounded-br-sm shadow-xl border border-surface-200 px-3.5 py-2.5 animate-[fadeIn_.2s_ease-out]">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span className="text-sm text-ink-800 leading-snug">Hi! Ask me what’s left to do and I’ll take you there.</span>
+          </div>
+          <span onClick={(e) => { e.stopPropagation(); setTeaser(false) }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink-700 text-white text-[11px] flex items-center justify-center shadow">✕</span>
+        </button>
+      )}
       {!open && (
-        <button onClick={() => setOpen(true)} title="Quick check"
-          className="fixed bottom-28 sm:bottom-4 right-4 z-[95] w-14 h-14 rounded-full shadow-lg flex items-center justify-center ring-1 ring-white/10"
+        <button onClick={() => { setTeaser(false); setOpen(true) }} title="Quick check"
+          className={`fixed bottom-28 sm:bottom-4 right-4 z-[95] w-14 h-14 rounded-full shadow-lg flex items-center justify-center ring-1 ring-white/10 ${teaser ? 'animate-pulse' : ''}`}
           style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
           <Sparkles className="w-7 h-7" />
         </button>
