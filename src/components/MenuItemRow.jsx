@@ -53,7 +53,7 @@ export default function MenuItemRow({
 
   function cellByColumnId(colId, isFrozen) {
     const baseStyle = isFrozen
-      ? { position: 'sticky', left: 0, background: pendingFlag ? '#fef2f2' : 'white', zIndex: 1 }
+      ? { position: 'sticky', left: 0, background: pendingFlag ? '#fef2f2' : 'rgb(var(--surface-0))', zIndex: 1 }
       : undefined
     switch (colId) {
       case 'item':

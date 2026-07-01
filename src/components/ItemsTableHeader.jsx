@@ -77,7 +77,7 @@ function HeaderCell({ col, canEdit, onResize }) {
     opacity: isDragging ? 0.5 : 1,
     position: col.frozen ? 'sticky' : 'relative',
     left: col.frozen ? 0 : undefined,
-    background: col.frozen ? '#f7f8fa' : undefined,
+    background: col.frozen ? 'rgb(var(--surface-50))' : undefined,
     zIndex: col.frozen ? 2 : 1,
   }
 

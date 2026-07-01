@@ -241,7 +241,7 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       type="button"
       onClick={(e) => { e.stopPropagation(); runAiReview() }}
       disabled={aiBusy}
-      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-surface-0 border border-purple-200 text-purple-700 hover:bg-purple-50 inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
       title="Run an AI pass for spelling, grammar, and naming consistency"
     >
       <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
