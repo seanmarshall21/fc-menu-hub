@@ -530,9 +530,9 @@ export default function AssistantButton() {
       )}
       {!open && (
         <button onClick={() => { setTeaser(false); setOpen(true) }} title="Quick check"
-          className={`fixed bottom-28 sm:bottom-4 right-4 z-[95] w-14 h-14 rounded-full shadow-lg flex items-center justify-center ring-1 ring-white/10 ${teaser ? 'animate-pulse' : ''}`}
-          style={{ background: 'linear-gradient(145deg, #4a4a4a 0%, #1c1c1c 42%, #000 60%, #2e2e2e 100%)' }}>
-          <Sparkles className="w-7 h-7" />
+          className={`fixed bottom-28 sm:bottom-4 right-4 z-[95] w-14 h-14 rounded-full shadow-lg flex items-center justify-center ring-1 ring-black/10 ${teaser ? 'animate-pulse' : ''}`}
+          style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}>
+          <Sparkles className="w-7 h-7" color="#1c1c1c" />
         </button>
       )}
     </>,

@@ -51,12 +51,13 @@ export default function VersionWatcher() {
       }}
     >
       <div className="min-w-0">
-        <p className="text-xl font-extrabold text-ink-900 leading-none tracking-tight">NEW STUFF!</p>
-        <p className="text-xs text-ink-700 leading-tight mt-1.5">Updated version available</p>
+        {/* Banner sits on a fixed gold gradient in both themes — keep text dark. */}
+        <p className="text-xl font-extrabold text-gray-900 leading-none tracking-tight">NEW STUFF!</p>
+        <p className="text-xs text-gray-700 leading-tight mt-1.5">Updated version available</p>
       </div>
       <button
         onClick={() => window.location.reload()}
-        className="bg-ink-900 hover:bg-ink-800 text-surface-0 text-sm font-bold tracking-wide rounded-xl px-5 py-3 transition-colors flex-shrink-0"
+        className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold tracking-wide rounded-xl px-5 py-3 transition-colors flex-shrink-0"
       >
         UPDATE
       </button>
