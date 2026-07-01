@@ -32,7 +32,7 @@ export default function DepartmentGuide({ deptKey, lists, onClose }) {
               {open && (
                 <div className="px-3 pb-3 pl-10 text-xs text-ink-600 space-y-2">
                   <p className="leading-relaxed">{p.body}</p>
-                  {p.where && <Link to={p.where} onClick={onClose} className="inline-block text-brand-600 hover:underline font-medium">{p.whereLabel || 'Open'} →</Link>}
+                  <Link to={p.where || '/my-tasks'} onClick={onClose} className="inline-block text-brand-600 hover:underline font-medium">{p.whereLabel || 'Take me there'} →</Link>
                 </div>
               )}
             </li>

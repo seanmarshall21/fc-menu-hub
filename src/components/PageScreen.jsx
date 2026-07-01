@@ -140,6 +140,17 @@ export default function PageScreen({
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {actions}
+              {/* Wayfinding — jump to My Tasks (your next steps) */}
+              <button
+                onClick={() => navigate('/my-tasks')}
+                title="My Tasks — where you need to go next"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-full text-ink-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                aria-label="Go to My Tasks"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <circle cx="6" cy="19" r="3" /><circle cx="18" cy="5" r="3" /><path d="M9 19h5.5a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7H15" />
+                </svg>
+              </button>
               {/* Help / tour launcher — only renders when a tourKey exists */}
               {tourDef && (
                 <button

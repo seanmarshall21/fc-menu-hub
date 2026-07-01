@@ -39,13 +39,15 @@ export default function InboxPage() {
   const load = useCallback(async () => {
     if (!profile?.id) return
     setLoading(true)
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', profile.id)
-      .order('created_at', { ascending: false })
-      .limit(200)
-    setRows(data || [])
+    // Load active (non-archived) and archived separately, so unread/active
+    // notifications always appear even when hundreds of archived ones exist.
+    const [act, arc] = await Promise.all([
+      supabase.from('notifications').select('*').eq('user_id', profile.id)
+        .is('archived_at', null).order('created_at', { ascending: false }).limit(300),
+      supabase.from('notifications').select('*').eq('user_id', profile.id)
+        .not('archived_at', 'is', null).order('archived_at', { ascending: false }).limit(100),
+    ])
+    setRows([...(act.data || []), ...(arc.data || [])])
     setLoading(false)
   }, [profile?.id])
 
