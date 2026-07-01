@@ -50,7 +50,7 @@ export default function ReadyForPrintPage() {
   }, [filtered, group])
 
   return (
-    <PageScreen breadcrumbs={[{ label: 'Ready for print prep' }]}>
+    <PageScreen back breadcrumbs={[{ label: 'Ready for print prep' }]}>
       <PageBody>
         <div className="flex items-center justify-between gap-2 mb-4">
           <p className="text-sm text-ink-500">

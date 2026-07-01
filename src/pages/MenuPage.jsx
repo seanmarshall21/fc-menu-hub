@@ -849,18 +849,8 @@ export default function MenuPage() {
         const hasStatus = isLate || readyToExport || syncApproved || menu.locked || syncNeeded
         return (
         <div className="w-full flex flex-col gap-2">
-          {/* Status line — read-only chips */}
-          {hasStatus && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {isLate && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap" title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>⏰ Late</span>}
-              {readyToExport && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">✓ Ready to export</span>}
-              {syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">⚠ Sync approved version</span>}
-              {menu.locked && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">🔒 Locked</span>}
-              {syncNeeded && !syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma'}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Needs sync</span>}
-            </div>
-          )}
-          {/* Actions row */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Status line — phase + read-only status chips, all on one line */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <PhaseBadge
               phase={menu.phase}
               hasPendingEdits={pendingCount > 0}
@@ -880,6 +870,14 @@ export default function MenuPage() {
                 await supabase.from('menus').update(patch).eq('id', menu.id); toast('Saved'); loadMenu()
               } : null}
             />
+            {isLate && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap" title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>⏰ Late</span>}
+            {readyToExport && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">✓ Ready to export</span>}
+            {syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">⚠ Sync approved version</span>}
+            {menu.locked && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">🔒 Locked</span>}
+            {syncNeeded && !syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma'}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Needs sync</span>}
+          </div>
+          {/* Actions row */}
+          <div className="flex items-center gap-2 flex-wrap">
             {(isAdmin || isInternal) && isApproved && (
               <button onClick={unapproveMenu} className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium whitespace-nowrap" title="Move this menu back to Proof so it can be edited">✓ Approved</button>
             )}
@@ -1415,21 +1413,36 @@ export default function MenuPage() {
             />
             {/* Size switcher + Figma sync badge */}
             <div className="flex items-center justify-between mb-5 gap-4 flex-wrap">
-              <div className="flex items-center gap-1">
-                {Object.entries(SIZE_CONFIGS).map(([key, cfg]) => (
-                  <button
-                    key={key}
-                    onClick={() => setPreviewSize(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      activeSize === key
-                        ? 'bg-brand-500 text-white'
-                        : 'bg-surface-100 text-ink-500 hover:bg-surface-200'
-                    }`}
-                  >
-                    {cfg.label}
-                    <span className="ml-1 opacity-60 font-normal">{cfg.print}</span>
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1">
+                  {Object.entries(SIZE_CONFIGS).map(([key, cfg]) => (
+                    <button
+                      key={key}
+                      onClick={() => setPreviewSize(key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        activeSize === key
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-surface-100 text-ink-500 hover:bg-surface-200'
+                      }`}
+                    >
+                      {cfg.label}
+                      <span className="ml-1 opacity-60 font-normal">{cfg.print}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Figma ↔ App preview toggle (black active, not the orange accent) */}
+                {figmaReady && (
+                  <div className="inline-flex rounded-lg border border-surface-300 overflow-hidden text-xs">
+                    <button onClick={() => setPreviewView('figma')}
+                      className={`px-2.5 py-1.5 font-medium ${showFigma ? 'bg-ink-900 text-gray-300' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      Figma{syncNeeded ? ' ⚠' : ''}
+                    </button>
+                    <button onClick={() => setPreviewView('app')}
+                      className={`px-2.5 py-1.5 font-medium border-l border-surface-300 ${!showFigma ? 'bg-ink-900 text-gray-300' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      App preview
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {hasTemplate && !showFigma && (
@@ -1452,18 +1465,6 @@ export default function MenuPage() {
                   >
                     {exporting ? 'Exporting…' : 'Export PNG'}
                   </button>
-                )}
-                {figmaReady && (
-                  <div className="inline-flex rounded-lg border border-surface-200 overflow-hidden text-xs">
-                    <button onClick={() => setPreviewView('figma')}
-                      className={`px-2.5 py-1.5 font-medium ${showFigma ? 'bg-brand-500 text-white' : 'text-ink-500 hover:bg-surface-50'}`}>
-                      Figma{syncNeeded ? ' ⚠' : ''}
-                    </button>
-                    <button onClick={() => setPreviewView('app')}
-                      className={`px-2.5 py-1.5 font-medium border-l border-surface-200 ${!showFigma ? 'bg-brand-500 text-white' : 'text-ink-500 hover:bg-surface-50'}`}>
-                      App preview
-                    </button>
-                  </div>
                 )}
                 {menu.preview_image_url && (
                   <a href={menu.preview_image_url} target="_blank" rel="noreferrer"

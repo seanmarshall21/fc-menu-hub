@@ -36,7 +36,7 @@ export default function MyTasksPage() {
   const visible = DEPARTMENTS.filter(d => myDepts.includes(d.key))
 
   return (
-    <PageScreen tourKey="my-tasks" breadcrumbs={[{ label: 'My Tasks' }]}>
+    <PageScreen back tourKey="my-tasks" breadcrumbs={[{ label: 'My Tasks' }]}>
       <PageBody>
         {loading ? (
           <div className="text-sm text-ink-400">Loading…</div>

@@ -854,6 +854,7 @@ export default function EventPage() {
   const [previewTypeFilter, setPreviewTypeFilter]     = useState([]) // categories
   const [previewStatusFilter, setPreviewStatusFilter] = useState([]) // phases
   const [previewSyncFilter, setPreviewSyncFilter]     = useState([]) // synced | needs_update | not_synced
+  const [previewFiltersOpen, setPreviewFiltersOpen]   = useState(false)
 
   // Multi-CSV import
   const csvInputRef                             = useRef(null)
@@ -1854,21 +1855,28 @@ export default function EventPage() {
                   )}
                 </div>
               </div>
-              {/* Filter dropdowns — same system as the Menus tab */}
+              {/* Filters behind a funnel — same pattern as the Menus tab */}
               <div className="flex items-center gap-2 mb-4 flex-wrap">
-                {TYPE_FILTER_OPTS.length > 1 && (
-                  <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={previewTypeFilter} onChange={setPreviewTypeFilter} />
-                )}
-                {PHASE_FILTER_OPTS.length > 1 && (
-                  <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={previewStatusFilter} onChange={setPreviewStatusFilter} />
-                )}
-                <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={previewSyncFilter} onChange={setPreviewSyncFilter} />
+                <button onClick={() => setPreviewFiltersOpen(o => !o)} title="Filters"
+                  className={`btn-secondary btn-sm px-2 inline-flex items-center gap-1 ${anyPreviewFilter ? 'text-brand-600 border-brand-300' : ''}`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></svg>
+                  {anyPreviewFilter ? <span className="text-[11px] font-semibold">{[previewTypeFilter, previewStatusFilter, previewSyncFilter].reduce((n, f) => n + (f.length ? 1 : 0), 0)}</span> : null}
+                </button>
+                {previewFiltersOpen && <>
+                  {TYPE_FILTER_OPTS.length > 1 && (
+                    <FilterDropdown label="All types" options={TYPE_FILTER_OPTS} selected={previewTypeFilter} onChange={setPreviewTypeFilter} />
+                  )}
+                  {PHASE_FILTER_OPTS.length > 1 && (
+                    <FilterDropdown label="All status" options={PHASE_FILTER_OPTS} selected={previewStatusFilter} onChange={setPreviewStatusFilter} />
+                  )}
+                  <FilterDropdown label="All sync" options={SYNC_FILTER_OPTS} selected={previewSyncFilter} onChange={setPreviewSyncFilter} />
+                </>}
                 {anyPreviewFilter ? (
                   <button
                     onClick={() => { setPreviewTypeFilter([]); setPreviewStatusFilter([]); setPreviewSyncFilter([]) }}
                     className="text-xs text-ink-400 hover:text-ink-600 underline underline-offset-2 ml-1"
                   >
-                    Clear filters · {previewFiltered.length} of {menus.length}
+                    Clear · {previewFiltered.length} of {menus.length}
                   </button>
                 ) : null}
               </div>
