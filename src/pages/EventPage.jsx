@@ -32,6 +32,7 @@ import ApproversPanel from '@/components/ApproversPanel'
 import RosterEditor from '@/components/RosterEditor'
 import EventReadiness from '@/components/EventReadiness'
 import BulkAddItemModal from '@/components/BulkAddItemModal'
+import OverflowMenu, { MENU_ROW } from '@/components/OverflowMenu'
 import ReviewersPanel from '@/components/ReviewersPanel'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import TargetPicker from '@/components/TargetPicker'
@@ -1491,20 +1492,14 @@ export default function EventPage() {
             Open Figma
           </a>
         )}
-        {event.prep_folder_url && (
-          <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the event's prep-files folder">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-            Prep folder ↗
-          </a>
-        )}
-        {event.print_folder_url && (
-          <a href={event.print_folder_url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the event's print-files folder">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-            Print folder ↗
-          </a>
-        )}
         {canEdit && (
-          <button onClick={openEditEvent} className="btn-secondary btn-sm">Edit Event</button>
+          <button onClick={openEditEvent} className="btn-secondary btn-sm whitespace-nowrap">Edit Event</button>
+        )}
+        {(event.prep_folder_url || event.print_folder_url) && (
+          <OverflowMenu label="Folders">
+            {event.prep_folder_url && <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>}
+            {event.print_folder_url && <a href={event.print_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print folder ↗</a>}
+          </OverflowMenu>
         )}
       </>)}
       below={(
@@ -1613,24 +1608,11 @@ export default function EventPage() {
                   className="hidden"
                   onChange={handleCsvFilesSelected}
                 />
-                <button
-                  onClick={() => csvInputRef.current?.click()}
-                  className="btn-secondary btn-sm">
-                  ↑ Import CSVs
-                </button>
-                <button
-                  onClick={() => setShowBulkAdd(true)}
-                  className="btn-secondary btn-sm whitespace-nowrap">
-                  + Add item to menus
-                </button>
-                <button
-                  onClick={() => { setMenuName(''); setMenuSlugField(''); setMenuCategory('bar'); setMenuPhase('build'); setMenuSize('lg'); setSaveError(null); setShowNewMenu(true) }}
-                  className="btn-secondary btn-sm gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  New Menu
-                </button>
+                <OverflowMenu triggerLabel="+ Add" align="right">
+                  <button onClick={() => { setMenuName(''); setMenuSlugField(''); setMenuCategory('bar'); setMenuPhase('build'); setMenuSize('lg'); setSaveError(null); setShowNewMenu(true) }} className={MENU_ROW}>+ New menu</button>
+                  <button onClick={() => setShowBulkAdd(true)} className={MENU_ROW}>+ Add item to menus</button>
+                  <button onClick={() => csvInputRef.current?.click()} className={MENU_ROW}>↑ Import CSVs</button>
+                </OverflowMenu>
               </div>
             )}
           </div>

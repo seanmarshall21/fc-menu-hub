@@ -24,6 +24,7 @@ import MenuSignoffPanel from '@/components/MenuSignoffPanel'
 import { useMenuGates } from '@/lib/useMenuGates'
 import { gateStatus } from '@/lib/roster'
 import { useToast } from '@/contexts/ToastContext'
+import OverflowMenu, { MENU_ROW } from '@/components/OverflowMenu'
 import NotifyForEditsEditor from '@/components/NotifyForEditsEditor'
 import { resolveApprovers, canApprove } from '@/lib/approvers'
 import MenuReviewPanel from '@/components/MenuReviewPanel'
@@ -840,131 +841,72 @@ export default function MenuPage() {
           </div>
         )
       })()}
-      actions={<>
-        {event?.menus_freeze_at && menu.updated_at && new Date(menu.updated_at) > new Date(event.menus_freeze_at) && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap"
-            title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>
-            ⏰ Late
-          </span>
-        )}
-        {menu.phase === 'approved' && everSynced && !syncNeeded && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">
-            ✓ Ready to export
-          </span>
-        )}
-        {menu.phase === 'approved' && syncNeeded && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">
-            ⚠ Sync approved version
-          </span>
-        )}
-        {menu.locked && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">
-            🔒 Locked
-          </span>
-        )}
-        {/* Prep file is hidden once a final print file exists. */}
-        {menu.prep_file_url && !menu.print_file_url && (
-          <a href={menu.prep_file_url} target="_blank" rel="noreferrer"
-            className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the prep file">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V18a2 2 0 01-2 2z" /></svg>
-            Prep file ↗
-          </a>
-        )}
-        {menu.print_file_url && (
-          <a href={menu.print_file_url} target="_blank" rel="noreferrer"
-            className="btn-secondary btn-sm gap-1.5 inline-flex items-center whitespace-nowrap" title="Open the final print file">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V18a2 2 0 01-2 2z" /></svg>
-            Print file ↗
-          </a>
-        )}
-        <FavoriteButton type="menu" id={menu.id} size="sm" />
-        <PhaseBadge
-          phase={menu.phase}
-          hasPendingEdits={pendingCount > 0}
-          onChange={(isAdmin || isInternal) ? async (next) => {
-            // Approving routes through the sign-off-aware path (records the
-            // approver's sign-off, approves when the gate is met, override if not).
-            if (next === 'approved') { await approveMenu(); return }
-            const patch = { phase: next }
-            // Files are optional. Prep file at Exported; final print file at Complete.
-            if (next === 'exported' && !menu.prep_file_url && !menu.print_file_url) {
-              const link = window.prompt('Exported. Optional — paste a link to this menu’s prep file (or leave blank):', '')
-              if (link && link.trim()) patch.prep_file_url = link.trim()
-            }
-            if (next === 'complete' && !menu.print_file_url) {
-              const link = window.prompt('Complete. Optional — paste a link to this menu’s final print file (or leave blank):', '')
-              if (link && link.trim()) patch.print_file_url = link.trim()
-            }
-            // Auto-lock at/after approval; unlock when reopened to an editable phase.
-            if (['exported', 'complete', 'archived'].includes(next)) patch.locked = true
-            if (['build', 'proof', 'edits'].includes(next)) patch.locked = false
-            await supabase.from('menus').update(patch).eq('id', menu.id); toast('Saved'); loadMenu()
-          } : null}
-        />
-        {syncNeeded && (
-          <span
-            title={menu.last_synced_at
-              ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since`
-              : 'Never synced to Figma'}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-            Sync
-          </span>
-        )}
-      </>}
-      secondaryActions={(<>
-        <ActivityButton scopeType="menu" scopeId={menu.id} open={showActivity} onOpen={() => setShowActivity(true)} />
-        {(isAdmin || isInternal) && (<>
-        {isApproved ? (
-          <button
-            onClick={unapproveMenu}
-            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium whitespace-nowrap"
-            title="Click to move this menu back to Proof so it can be edited"
-          >
-            ✓ Approved
-          </button>
-        ) : (preApproval && (canApproveMenu || amRosterApprover)) ? (
-          <button
-            onClick={approveMenu}
-            disabled={!!approvalBlockedReason()}
-            data-tour="menu-approve-button"
-            className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-            title={approvalBlockedReason() ? `Can't approve yet — ${approvalBlockedReason()}` : 'Mark this menu as Approved'}
-          >
-            Approve Menu
-          </button>
-        ) : preApproval ? (
-          <span
-            className="text-xs px-3 py-1.5 rounded-md bg-surface-50 text-ink-400 border border-surface-200 font-medium whitespace-nowrap"
-            title="Only designated approvers can approve this menu"
-          >
-            Approval restricted
-          </span>
-        ) : null}
-        {canEdit && (
-          <button
-            onClick={() => {
-              setEditMenuName(menu.name)
-              setEditMenuTitle(menu.print_title || '')
-              setEditMenuPrintUrl(menu.print_file_url || '')
-              setEditMenuSize(menu.size || 'lg')
-              setEditMenuCategory(menu.category || 'bar')
-              setEditMenuIconUrl(menu.icon_url || null)
-              setEditMenuIconName(menu.icon_name || null)
-              setEditMenuRequiresSponsorApproval(!!menu.requires_sponsor_approval)
-              setEditMenuFigmaPrefix(menu.figma_component_prefix || '')
-              setEditMenuError(null)
-              setShowEditMenu(true)
-            }}
-            data-tour="menu-edit-button"
-            className="btn-secondary btn-sm whitespace-nowrap"
-          >
-            Edit
-          </button>
-        )}
-        </>)}
-      </>)}
+      actions={<FavoriteButton type="menu" id={menu.id} size="sm" />}
+      secondaryActions={(() => {
+        const isLate = event?.menus_freeze_at && menu.updated_at && new Date(menu.updated_at) > new Date(event.menus_freeze_at)
+        const readyToExport = menu.phase === 'approved' && everSynced && !syncNeeded
+        const syncApproved = menu.phase === 'approved' && syncNeeded
+        const hasStatus = isLate || readyToExport || syncApproved || menu.locked || syncNeeded
+        return (
+        <div className="w-full flex flex-col gap-2">
+          {/* Status line — read-only chips */}
+          {hasStatus && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {isLate && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap" title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>⏰ Late</span>}
+              {readyToExport && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" title="Approved and the Figma matches — design can export print files">✓ Ready to export</span>}
+              {syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="Approved, but Figma doesn't match the approved content — re-sync before exporting">⚠ Sync approved version</span>}
+              {menu.locked && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 text-ink-500" title="Approved & locked — synced Figma frame shouldn't be overwritten">🔒 Locked</span>}
+              {syncNeeded && !syncApproved && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title={menu.last_synced_at ? `Last synced ${new Date(menu.last_synced_at).toLocaleString()} · edited since` : 'Never synced to Figma'}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Sync needed</span>}
+            </div>
+          )}
+          {/* Actions row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <PhaseBadge
+              phase={menu.phase}
+              hasPendingEdits={pendingCount > 0}
+              onChange={(isAdmin || isInternal) ? async (next) => {
+                if (next === 'approved') { await approveMenu(); return }
+                const patch = { phase: next }
+                if (next === 'exported' && !menu.prep_file_url && !menu.print_file_url) {
+                  const link = window.prompt('Exported. Optional — paste a link to this menu’s prep file (or leave blank):', '')
+                  if (link && link.trim()) patch.prep_file_url = link.trim()
+                }
+                if (next === 'complete' && !menu.print_file_url) {
+                  const link = window.prompt('Complete. Optional — paste a link to this menu’s final print file (or leave blank):', '')
+                  if (link && link.trim()) patch.print_file_url = link.trim()
+                }
+                if (['exported', 'complete', 'archived'].includes(next)) patch.locked = true
+                if (['build', 'proof', 'edits'].includes(next)) patch.locked = false
+                await supabase.from('menus').update(patch).eq('id', menu.id); toast('Saved'); loadMenu()
+              } : null}
+            />
+            {(isAdmin || isInternal) && isApproved && (
+              <button onClick={unapproveMenu} className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium whitespace-nowrap" title="Move this menu back to Proof so it can be edited">✓ Approved</button>
+            )}
+            {(isAdmin || isInternal) && !isApproved && preApproval && (canApproveMenu || amRosterApprover) && (
+              <button onClick={approveMenu} disabled={!!approvalBlockedReason()} data-tour="menu-approve-button"
+                className="text-xs px-3 py-1.5 rounded-md bg-white text-brand-600 border border-brand-300 hover:bg-brand-50 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                title={approvalBlockedReason() ? `Can't approve yet — ${approvalBlockedReason()}` : 'Mark this menu as Approved'}>Approve Menu</button>
+            )}
+            <ActivityButton scopeType="menu" scopeId={menu.id} open={showActivity} onOpen={() => setShowActivity(true)} />
+            {canEdit && (
+              <button onClick={() => {
+                setEditMenuName(menu.name); setEditMenuTitle(menu.print_title || ''); setEditMenuPrintUrl(menu.print_file_url || '')
+                setEditMenuSize(menu.size || 'lg'); setEditMenuCategory(menu.category || 'bar'); setEditMenuIconUrl(menu.icon_url || null)
+                setEditMenuIconName(menu.icon_name || null); setEditMenuRequiresSponsorApproval(!!menu.requires_sponsor_approval)
+                setEditMenuFigmaPrefix(menu.figma_component_prefix || ''); setEditMenuError(null); setShowEditMenu(true)
+              }} data-tour="menu-edit-button" className="btn-secondary btn-sm whitespace-nowrap">Edit</button>
+            )}
+            {(menu.prep_file_url || menu.print_file_url) && (
+              <OverflowMenu label="Files">
+                {menu.prep_file_url && !menu.print_file_url && <a href={menu.prep_file_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep file ↗</a>}
+                {menu.print_file_url && <a href={menu.print_file_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print file ↗</a>}
+              </OverflowMenu>
+            )}
+          </div>
+        </div>
+        )
+      })()}
       below={(
         <div className="flex gap-1 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {tabs.map(t => (
