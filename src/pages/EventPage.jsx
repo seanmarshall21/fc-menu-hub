@@ -865,6 +865,9 @@ export default function EventPage() {
   const [previewStatusFilter, setPreviewStatusFilter] = useState([]) // phases
   const [previewSyncFilter, setPreviewSyncFilter]     = useState([]) // synced | needs_update | not_synced
   const [previewFiltersOpen, setPreviewFiltersOpen]   = useState(false)
+  // "Completed only" toggles — collapse each tab to just the finished menus.
+  const [menusCompletedOnly, setMenusCompletedOnly]     = useState(false)
+  const [previewCompletedOnly, setPreviewCompletedOnly] = useState(false)
 
   // Multi-CSV import
   const csvInputRef                             = useRef(null)
@@ -1471,6 +1474,58 @@ export default function EventPage() {
   const anyPreviewFilter = previewTypeFilter.length || previewStatusFilter.length || previewSyncFilter.length
   const previewCatsPresent = menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c))
 
+  // Render a menu grid with COMPLETED menus surfaced first under a gold/orange
+  // "Completed" header (regardless of category), then the rest grouped by
+  // category. A gradient toggle collapses to just the finished ones.
+  const COMPLETE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
+  function renderMenuGroups({ list, catsPresent, renderCard, gridClass, completedOnly, onToggleCompleted }) {
+    const completed = list.filter(m => m.phase === 'complete')
+    const rest = list.filter(m => m.phase !== 'complete')
+    const restCats = catsPresent.filter(c => rest.some(m => m.category === c))
+    return (
+      <>
+        {completed.length > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={onToggleCompleted}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex-shrink-0 text-black shadow-sm hover:brightness-105 transition"
+              style={{ background: COMPLETE_GRADIENT }}
+              title={completedOnly ? 'Showing only completed menus — click to show all' : 'Show only the completed, finalized menus'}
+            >
+              ✓ {completedOnly ? 'Showing completed' : 'View completed'} · {completed.length}
+              {completedOnly && <span className="font-normal opacity-80">— show all</span>}
+            </button>
+          </div>
+        )}
+        <div className="space-y-8">
+          {completed.length > 0 && (
+            <div>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-black mb-3" style={{ background: COMPLETE_GRADIENT }}>
+                ✓ Completed<span className="opacity-70 ml-1">· {completed.length}</span>
+              </span>
+              <div className={gridClass}>{completed.map(renderCard)}</div>
+            </div>
+          )}
+          {!completedOnly && (restCats.length > 1
+            ? restCats.map(c => (
+                <div key={c}>
+                  <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-3">
+                    {CATEGORY_LABELS[c] || c}<span className="ml-1.5 opacity-60">· {rest.filter(m => m.category === c).length}</span>
+                  </h3>
+                  <div className={gridClass}>{rest.filter(m => m.category === c).map(renderCard)}</div>
+                </div>
+              ))
+            : rest.length > 0
+              ? <div className={gridClass}>{rest.map(renderCard)}</div>
+              : null)}
+          {completedOnly && completed.length === 0 && (
+            <div className="text-center text-sm text-ink-400 py-12">No completed menus yet.</div>
+          )}
+        </div>
+      </>
+    )
+  }
+
   return (
     <PageScreen
       tourKey="event"
@@ -1725,27 +1780,14 @@ export default function EventPage() {
 
               {menusFiltered.length === 0 ? (
                 <div className="text-center text-sm text-ink-400 py-12">No menus match these filters.</div>
-              ) : filteredCatsPresent.length > 1 ? (
-                // Spans multiple categories — group by category with headings.
-                <div className="space-y-8">
-                  {filteredCatsPresent.map(c => (
-                    <div key={c}>
-                      <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-3">
-                        {CATEGORY_LABELS[c] || c}
-                        <span className="ml-1.5 opacity-60">· {menusFiltered.filter(m => m.category === c).length}</span>
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {menusFiltered.filter(m => m.category === c).map(renderMenuCard)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // Single category in results — flat grid, no headings.
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {menusFiltered.map(renderMenuCard)}
-                </div>
-              )}
+              ) : renderMenuGroups({
+                list: menusFiltered,
+                catsPresent: menuCategoriesPresent,
+                renderCard: renderMenuCard,
+                gridClass: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4',
+                completedOnly: menusCompletedOnly,
+                onToggleCompleted: () => setMenusCompletedOnly(v => !v),
+              })}
             </>
           )}
         </>
@@ -1917,27 +1959,14 @@ export default function EventPage() {
 
               {previewFiltered.length === 0 ? (
                 <div className="text-center text-sm text-ink-400 py-12">No menus match these filters.</div>
-              ) : previewCatsPresent.length > 1 ? (
-                // Spans multiple categories — group by category with headings.
-                <div className="space-y-8">
-                  {previewCatsPresent.map(c => (
-                    <div key={c}>
-                      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-3">
-                        {CATEGORY_LABELS[c] || c}
-                        <span className="ml-1.5 opacity-60">· {previewFiltered.filter(m => m.category === c).length}</span>
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {previewFiltered.filter(m => m.category === c).map(renderPreviewCard)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // Single category in results — flat grid.
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {previewFiltered.map(renderPreviewCard)}
-                </div>
-              )}
+              ) : renderMenuGroups({
+                list: previewFiltered,
+                catsPresent: menuCategoriesPresent,
+                renderCard: renderPreviewCard,
+                gridClass: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4',
+                completedOnly: previewCompletedOnly,
+                onToggleCompleted: () => setPreviewCompletedOnly(v => !v),
+              })}
             </>
           )}
         </>
