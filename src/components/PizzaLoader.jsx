@@ -57,7 +57,8 @@ const styles = /* css */`
   .pizza-loader-overlay {
     position: fixed; inset: 0; z-index: 50;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(247, 246, 243, 0.92);
+    /* Theme-aware: warm off-white in light, warm charcoal in dark. */
+    background: rgb(var(--surface-50) / 0.92);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
   }
@@ -70,16 +71,20 @@ const styles = /* css */`
     height: var(--mascot-size);
     object-fit: contain;
     pointer-events: none;
-    /* Erases the white frame background on browsers that fall back to
-       the plain H.264 mp4 (Safari, iOS). Harmless on WebM since its
-       transparent pixels stay transparent under multiply. The cartoon
-       colors get a barely-perceptible mute against the warm overlay,
-       acceptable for a loader. */
+    /* The mp4 fallback (Safari/iOS) carries a white frame; multiply erases it
+       against the light overlay. WebM (Chromium/Firefox — incl. the desktop
+       app) has real alpha, so it's clean regardless. */
     mix-blend-mode: multiply;
+  }
+  /* In dark mode there's no light overlay for multiply to work against — it
+     would crush the mascot. WebM's true transparency lets it sit cleanly on
+     the dark backdrop with no blend and no light square. */
+  .dark .pizza-loader-video {
+    mix-blend-mode: normal;
   }
   .pizza-loader-message {
     font-size: 13px; font-weight: 500;
-    color: rgba(31, 35, 48, 0.7);
+    color: rgb(var(--ink-600));
     letter-spacing: 0.01em;
     text-align: center;
   }
