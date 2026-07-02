@@ -1241,6 +1241,8 @@ export default function EventPage() {
       (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))
     const isSelected  = selectedMenuIds.has(menu.id)
     const CardTag = menuSelectMode ? 'div' : Link
+    // Completed menus get a bold gold ring so the finished tiles jump out.
+    const completeCls = menu.phase === 'complete' ? ' ring-2 ring-[#FFB300] border-[#FFB300]' : ''
     const cardProps = menuSelectMode
       ? {
           onClick: () => setSelectedMenuIds(prev => {
@@ -1249,12 +1251,12 @@ export default function EventPage() {
             return next
           }),
           className: `card p-5 transition-all flex flex-col relative cursor-pointer ${
-            isSelected ? 'ring-2 ring-brand-500 border-brand-500' : 'hover:shadow-md hover:border-brand-100'
+            isSelected ? 'ring-2 ring-brand-500 border-brand-500' : `hover:shadow-md hover:border-brand-100${completeCls}`
           }`,
         }
       : {
           to: `${baseUrl}/menus/${menu.slug}`,
-          className: 'card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative',
+          className: `card p-5 hover:shadow-md hover:border-brand-100 transition-all group flex flex-col relative${completeCls}`,
         }
     return (
       <CardTag key={menu.id} {...cardProps}>
@@ -1332,6 +1334,8 @@ export default function EventPage() {
     const isSelectable = selectMode // any menu can be selected for bulk actions
     const isSelected = selectedPreviewIds.has(menu.id)
     const CardTag = selectMode ? 'div' : Link
+    // Completed menus get a bold gold ring so the finished tiles jump out.
+    const completeCls = menu.phase === 'complete' ? ' ring-2 ring-[#FFB300] border-[#FFB300]' : ''
     const cardProps = selectMode
       ? {
           onClick: () => {
@@ -1344,13 +1348,13 @@ export default function EventPage() {
           },
           className: `card overflow-hidden transition-all flex flex-col cursor-pointer ${
             isSelected ? 'ring-2 ring-brand-500 border-brand-500' :
-            isSelectable ? 'hover:shadow-md hover:border-brand-100' :
+            isSelectable ? `hover:shadow-md hover:border-brand-100${completeCls}` :
             'opacity-50 cursor-not-allowed'
           }`,
         }
       : {
           to: `${baseUrl}/menus/${menu.slug}`,
-          className: 'card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col',
+          className: `card overflow-hidden hover:shadow-md hover:border-brand-100 transition-all group flex flex-col${completeCls}`,
         }
     return (
       <CardTag key={menu.id} {...cardProps}>
