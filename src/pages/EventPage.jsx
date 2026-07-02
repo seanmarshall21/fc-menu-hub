@@ -808,6 +808,16 @@ export default function EventPage() {
     const t = new URLSearchParams(window.location.search).get('tab')
     return ['menus', 'preview', 'sponsors', 'aireview', 'signoff', 'rules', 'templates', 'styles'].includes(t) ? t : 'menus'
   })
+  // Once the event is exported/complete, land on the Preview gallery (finished
+  // menus shown with their Figma synced photos) instead of the Menus table —
+  // unless the URL explicitly asked for a tab. Runs once, on first load.
+  const autoTabbed = useRef(false)
+  useEffect(() => {
+    if (!event || autoTabbed.current) return
+    autoTabbed.current = true
+    const hasParam = new URLSearchParams(window.location.search).get('tab')
+    if (!hasParam && (event.phase === 'exported' || event.phase === 'complete')) setTab('preview')
+  }, [event])
   const [templates, setTemplates] = useState({}) // keyed by size
 
   // Figma page name — inline edit
@@ -1498,9 +1508,33 @@ export default function EventPage() {
         {canEdit && (
           <button onClick={openEditEvent} className="btn-secondary btn-sm whitespace-nowrap">Edit Event</button>
         )}
-        {(event.prep_folder_url || event.print_folder_url) && (
+        {(event.print_folder_url || canEdit) && (
+          <button
+            onClick={async () => {
+              let url = event.print_folder_url
+              if (!url) {
+                if (!canEdit) return
+                const link = window.prompt('Paste the Dropbox/Drive link to this event’s PRINT / completed folder:', '')
+                if (!link || !link.trim()) return
+                url = link.trim()
+                await supabase.from('events').update({ print_folder_url: url }).eq('id', event.id)
+                loadData()
+              }
+              window.open(url, '_blank', 'noopener')
+            }}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition"
+            style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+            title={event.print_folder_url ? 'Open the print / completed folder' : 'Add the print / completed folder link'}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+            </svg>
+            {event.print_folder_url ? 'Print Files' : 'Add Print Files'}
+          </button>
+        )}
+        {event.prep_folder_url && (
           <OverflowMenu label="Folders">
-            {event.prep_folder_url && <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>}
+            <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>
             {event.print_folder_url && <a href={event.print_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print folder ↗</a>}
           </OverflowMenu>
         )}
