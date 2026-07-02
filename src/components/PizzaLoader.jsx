@@ -1,10 +1,11 @@
 /**
  * PizzaLoader — animated mascot loading state.
  *
- * Plays the hand-drawn pizza walk-cycle video at /loader/pizza-walk.mp4
- * inline. The video uses mix-blend-mode: multiply so the white frame
- * background reads as transparent on the overlay, leaving only the
- * mascot visible.
+ * Shows the hand-drawn pizza walk-cycle as a transparent animated WebP
+ * (/loader/pizza-walk.webp) via a plain <img>. WebP animation has true alpha
+ * and is supported everywhere we run — desktop Chromium AND iOS Safari 14+ —
+ * so the mascot sits cleanly on the (theme-aware) backdrop with no white frame
+ * and no blend hacks. Under prefers-reduced-motion we swap in a static frame.
  *
  * Usage:
  *   <PizzaLoader />               full-screen overlay with a backdrop
@@ -21,26 +22,14 @@ export default function PizzaLoader({
   // presence — at the old md size it read a little small in context.
   const dims = { sm: 138, md: 207, lg: 299 }[size] || 207
 
+  const reduced = typeof window !== 'undefined' && window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const src = reduced ? '/loader/pizza-walk.png' : '/loader/pizza-walk.webp'
+
   const stage = (
     <div className="pizza-loader-stage" style={{ '--mascot-size': `${dims}px` }}>
       <style>{styles}</style>
-      <video
-        className="pizza-loader-video"
-        autoPlay
-        loop
-        muted
-        playsInline
-        aria-hidden
-      >
-        {/* WebM VP9 gives Chrome/Firefox/Edge real per-pixel alpha. Safari
-            (desktop + iOS) can't read it and falls through to the H.264
-            mp4. That fallback has a white frame background, which
-            mix-blend-mode: multiply (in CSS below) erases visually. The
-            blend is also harmless on WebM since its transparent pixels
-            stay transparent. */}
-        <source src="/loader/pizza-walk.webm" type='video/webm; codecs="vp9"' />
-        <source src="/loader/pizza-walk.mp4"  type="video/mp4" />
-      </video>
+      <img className="pizza-loader-img" src={src} alt="" aria-hidden />
       {message && <div className="pizza-loader-message">{message}</div>}
     </div>
   )
@@ -66,30 +55,16 @@ const styles = /* css */`
     display: flex; flex-direction: column; align-items: center;
     gap: 16px;
   }
-  .pizza-loader-video {
+  .pizza-loader-img {
     width: var(--mascot-size);
     height: var(--mascot-size);
     object-fit: contain;
     pointer-events: none;
-    /* The mp4 fallback (Safari/iOS) carries a white frame; multiply erases it
-       against the light overlay. WebM (Chromium/Firefox — incl. the desktop
-       app) has real alpha, so it's clean regardless. */
-    mix-blend-mode: multiply;
-  }
-  /* In dark mode there's no light overlay for multiply to work against — it
-     would crush the mascot. WebM's true transparency lets it sit cleanly on
-     the dark backdrop with no blend and no light square. */
-  .dark .pizza-loader-video {
-    mix-blend-mode: normal;
   }
   .pizza-loader-message {
     font-size: 13px; font-weight: 500;
     color: rgb(var(--ink-600));
     letter-spacing: 0.01em;
     text-align: center;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    /* Pause the loop for users who've asked for reduced motion */
-    .pizza-loader-video { animation-play-state: paused; }
   }
 `
