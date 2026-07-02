@@ -21,6 +21,12 @@ const PHASE_LABELS = {
 // The quick-set phases offered on the chip.
 const PHASES = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
 
+// "Complete" gets the Menu Hub gold→orange gradient (black text) so it stands
+// clearly apart from the green Approved/Synced states.
+const COMPLETE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
+const chipClass = (p) => (p === 'complete' ? 'text-black' : (PHASE_CLASSES[p] || 'bg-surface-100 text-ink-500'))
+const chipStyle = (p) => (p === 'complete' ? { background: COMPLETE_GRADIENT } : undefined)
+
 export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedReason, onSetPhase, onFlagSponsors, onMarkSponsorsChecked, onFeedback }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
@@ -52,7 +58,7 @@ export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedRea
     }
   }, [open])
 
-  const cls = PHASE_CLASSES[phase] || 'bg-surface-100 text-ink-500'
+  const cls = chipClass(phase)
   const label = PHASE_LABELS[phase] || phase
   const stop = (e) => { e.preventDefault(); e.stopPropagation() }
   const choose = (e, fn) => { stop(e); setOpen(false); fn && fn() }
@@ -64,6 +70,7 @@ export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedRea
         type="button"
         onClick={(e) => { stop(e); if (!open) place(); setOpen(o => !o) }}
         className={`phase-badge ${cls} hover:opacity-80 cursor-pointer inline-flex items-center gap-1 pr-1.5`}
+        style={chipStyle(phase)}
         title="Set status"
       >
         {label}
@@ -87,7 +94,7 @@ export default function ReviewChip({ phase, needsSponsorCheck, approveBlockedRea
                 onClick={(e) => choose(e, () => { if (!blocked && p !== phase) onSetPhase(p) })}
                 title={blocked ? `Can't approve — ${approveBlockedReason}` : ''}
                 className={`flex items-center gap-2 px-3 py-1.5 text-xs text-left ${blocked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-50'} ${p === phase ? 'font-semibold text-ink-900' : 'text-ink-700'}`}>
-                <span className={`phase-badge ${PHASE_CLASSES[p]} text-[10px]`}>{PHASE_LABELS[p]}</span>
+                <span className={`phase-badge ${chipClass(p)} text-[10px]`} style={chipStyle(p)}>{PHASE_LABELS[p]}</span>
                 {blocked && <span className="ml-auto text-[9px] text-red-500 normal-case">{approveBlockedReason}</span>}
                 {p === phase && !blocked && <span className="ml-auto text-brand-500">✓</span>}
               </button>

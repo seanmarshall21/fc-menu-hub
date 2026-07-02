@@ -30,6 +30,8 @@ export const READINESS_META = {
   awaiting_sponsors: { label: 'Awaiting sponsors',  cls: 'bg-amber-100 text-amber-800' },
   ready:             { label: 'Ready to export',    cls: 'bg-emerald-100 text-emerald-800' },
   exported:          { label: 'Exported',           cls: 'bg-indigo-100 text-indigo-800' },
-  complete:          { label: 'Complete',           cls: 'bg-teal-100 text-teal-800' },
+  // Complete uses the Menu Hub gold→orange gradient (via inline style) so it
+  // reads clearly apart from the green "Ready"/Approved states.
+  complete:          { label: 'Complete',           cls: 'text-black', style: { background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' } },
   archived:          { label: 'Archived',           cls: 'bg-surface-200 text-ink-500' },
 }
