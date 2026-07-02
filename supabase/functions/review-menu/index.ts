@@ -19,28 +19,37 @@ const CORS = {
 
 const MODEL = 'claude-sonnet-4-6'
 
-const SYSTEM = `You are a meticulous menu copy editor for food & beverage event menus.
-You review a list of menu items and flag THREE kinds of issues:
+const SYSTEM = `You are a careful copy editor for food & beverage event menus. Your job is to
+catch clear, objective mistakes — NOT to critique style. These menus get edited
+and re-reviewed repeatedly, so by the time you see one it is usually already
+clean. Finding nothing is the normal, expected, CORRECT result — not a failure.
 
-1. "spelling" — a misspelled word. Suggest the corrected full field text.
-2. "grammar" — a grammar/punctuation problem (not casing, not spacing — those
-   are handled elsewhere). Suggest the corrected full field text.
-3. "consistency" — the SAME product or term written differently across items,
-   e.g. "Tito's" vs "Tito's Handmade Vodka", "Street Corn" vs "Elote (Street Corn)",
-   "taco" vs "tacos" referring to the same thing, or a sponsor/brand spelled two
-   ways. Pick the form that appears most often or is most complete as the suggestion.
+Flag ONLY high-confidence issues that a professional editor would unquestionably
+fix. There are three kinds:
 
-Rules:
-- Menu item TITLES are intentionally Title Case; DESCRIPTIONS are sentence case.
-  NEVER flag a word being capitalized in a title but lowercase in a description —
-  that is correct, not an inconsistency.
-- Do not flag stylistic choices, intentional brand spellings, or abbreviations
-  that are clearly deliberate (oz, GF, VT, VE).
-- Do not invent issues. If the menu is clean, return an empty findings array.
-- Be precise: every finding must reference a real item id and field.
-- BE EXHAUSTIVE: report EVERY issue you find in this single pass across ALL
-  items. Do not stop after a few — this is the only pass, so the list must be
-  complete. Re-scan every item before finishing.
+1. "spelling" — a genuinely misspelled word (NOT a brand spelling, NOT a regional
+   or loanword variant, NOT an intentional abbreviation). Suggest the corrected
+   full field text.
+2. "grammar" — a clear grammar or punctuation error that plainly reads as wrong
+   (NOT casing, NOT spacing — handled elsewhere; NOT optional/stylistic
+   punctuation like a serial comma). Suggest the corrected full field text.
+3. "consistency" — the SAME product or brand written two materially different
+   ways across items, e.g. "Tito's" vs "Tito's Handmade Vodka", or a sponsor
+   name spelled two ways. Suggest the most complete / most common form.
+
+Hard rules — when in doubt, DO NOT flag:
+- If a reasonable editor could leave it exactly as-is, leave it out. A thing you
+  would merely "improve" or "prefer differently" is NOT a finding. Precision
+  matters far more than catching everything — a false flag is worse than a miss.
+- Do NOT flag stylistic choices, word-choice or phrasing preferences, marketing
+  voice, debatable punctuation, abbreviations (oz, GF, VT, VE), or intentional
+  brand spellings.
+- Titles are intentionally Title Case; descriptions are sentence case. NEVER flag
+  a word capitalized in a title but lowercase in a description.
+- Do NOT invent issues or reach for something to report to seem useful. If the
+  menu is clean, return an empty findings array. That is a complete answer.
+- Report each real issue once; never list minor variations of the same issue.
+- Every finding must reference a real item id and field.
 
 Respond with ONLY a JSON object, no prose:
 {"findings":[{"itemId":"<id>","itemTitle":"<title>","field":"title|description","kind":"spelling|grammar|consistency","message":"<short human explanation>","suggestion":"<corrected full field text, or omit for consistency notes that span items>"}]}`
@@ -79,6 +88,18 @@ Deno.serve(async (req: Request) => {
       confirmedNote = `\n\nIMPORTANT — the following were reviewed by an editor and CONFIRMED CORRECT / intentional. Do NOT flag these or anything equivalent to them again:\n${lines}\n`
     }
 
+    // Findings the editor has already SEEN and chosen to leave as-is. These
+    // must not resurface — not even reworded — so the review converges instead
+    // of re-litigating settled items on every re-run.
+    const dismissed = Array.isArray(body.dismissed) ? body.dismissed : []
+    let dismissedNote = ''
+    if (dismissed.length) {
+      const lines = dismissed
+        .map((c: any) => `- [${c.kind || 'item'}${c.field ? '/' + c.field : ''}] ${c.label || ''}${c.message ? ` — ${c.message}` : ''}`)
+        .join('\n')
+      dismissedNote = `\n\nALREADY REVIEWED — the editor has already seen and INTENTIONALLY LEFT the following as fine. Do NOT raise these again, or any substantially equivalent issue (same item, field, or theme), even worded differently:\n${lines}\n`
+    }
+
     // Optional custom review rules (e.g. "all vodka must say Tito's Handmade Vodka").
     const rules = Array.isArray(body.rules) ? body.rules : []
     let rulesNote = ''
@@ -87,7 +108,7 @@ Deno.serve(async (req: Request) => {
       if (lines) rulesNote = `\n\nADDITIONAL REVIEW RULES — also flag any item that violates these (kind "consistency"):\n${lines}\n`
     }
 
-    const userPrompt = `Review these ${reviewable.length} menu items. Here is the JSON:\n\n${JSON.stringify(reviewable, null, 2)}${rulesNote}${confirmedNote}`
+    const userPrompt = `Review these ${reviewable.length} menu items. Here is the JSON:\n\n${JSON.stringify(reviewable, null, 2)}${rulesNote}${confirmedNote}${dismissedNote}`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -99,6 +120,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 2048,
+        temperature: 0, // deterministic — a clean menu stays clean across re-runs
         system: SYSTEM,
         messages: [{ role: 'user', content: userPrompt }],
       }),

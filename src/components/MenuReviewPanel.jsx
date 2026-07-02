@@ -150,9 +150,13 @@ export default function MenuReviewPanel({ items, menuId, onJumpToItem, onChanged
       // Feed confirmed-correct items back so the model stops re-flagging them.
       const correct = decisions.filter(d => d.decision === 'correct')
         .map(d => ({ field: d.field, label: d.label, kind: d.kind, message: d.detail }))
+      // Feed dismissed/ignored findings back too, so re-runs converge instead
+      // of re-raising things you already chose to leave.
+      const dismissed = decisions.filter(d => d.decision === 'ignored')
+        .map(d => ({ field: d.field, label: d.label, kind: d.kind, message: d.detail }))
       // Custom rules — 'edit' rules ask the model to suggest a fix.
       const ruleList = rules.map(r => ({ text: r.text + (r.mode === 'edit' ? ' (suggest the corrected text)' : '') }))
-      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items, correct, rules: ruleList } })
+      const { data, error } = await supabase.functions.invoke('review-menu', { body: { items, correct, dismissed, rules: ruleList } })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
       const fnd = Array.isArray(data?.findings) ? data.findings : []
