@@ -25,6 +25,20 @@ const PHASE_CLASSES = {
 
 const ALL_PHASES = ['build', 'proof', 'edits', 'approved', 'exported', 'complete', 'archived']
 
+// "Complete" gets the Menu Hub gold→orange gradient (black text) so a finished
+// event/menu is unmistakable at a glance — the same treatment as the Print
+// Files button.
+const COMPLETE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
+function chipClass(phase, pending) {
+  if (pending) return 'phase-badge bg-red-100 text-red-700'
+  if (phase === 'complete') return 'phase-badge text-black'
+  return PHASE_CLASSES[phase] || 'phase-badge bg-surface-100 text-ink-500'
+}
+function chipStyle(phase, pending) {
+  if (!pending && phase === 'complete') return { background: COMPLETE_GRADIENT }
+  return undefined
+}
+
 /**
  * Phase badge.
  *   <PhaseBadge phase="build" />
@@ -50,13 +64,12 @@ export default function PhaseBadge({ phase, hasPendingEdits = false, onChange, o
 
   if (!phase) return null
 
-  const baseClass = hasPendingEdits
-    ? 'phase-badge bg-red-100 text-red-700'
-    : (PHASE_CLASSES[phase] || 'phase-badge bg-surface-100 text-ink-500')
+  const baseClass = chipClass(phase, hasPendingEdits)
+  const baseStyle = chipStyle(phase, hasPendingEdits)
   const label = hasPendingEdits ? 'Edits' : (PHASE_LABELS[phase] || phase)
 
   if (!onChange) {
-    return <span className={baseClass}>{label}</span>
+    return <span className={baseClass} style={baseStyle}>{label}</span>
   }
 
   return (
@@ -65,6 +78,7 @@ export default function PhaseBadge({ phase, hasPendingEdits = false, onChange, o
         type="button"
         onClick={() => setOpen(o => !o)}
         className={`${baseClass} hover:opacity-80 cursor-pointer inline-flex items-center gap-1 pr-1.5`}
+        style={baseStyle}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -82,7 +96,7 @@ export default function PhaseBadge({ phase, hasPendingEdits = false, onChange, o
               onClick={() => { setOpen(false); if (p !== phase) onChange(p) }}
               className={`block w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-surface-50 ${p === phase ? 'bg-surface-50' : ''}`}
             >
-              <span className={`${PHASE_CLASSES[p]} mr-2`}>{PHASE_LABELS[p]}</span>
+              <span className={`${chipClass(p, false)} mr-2`} style={chipStyle(p, false)}>{PHASE_LABELS[p]}</span>
             </button>
           ))}
         </span>
