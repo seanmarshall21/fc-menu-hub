@@ -26,27 +26,37 @@ const IconExternal = ({ className }) => (<svg className={className} {...svgBase}
 const IconX = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>)
 const IconChevronLeft = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>)
 const IconChevronRight = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>)
+const IconTrash = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m1 0-.5 12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6.5 7" /></svg>)
 
 export default function PreviewSharePage() {
   const { shareId } = useParams()
   const [share, setShare] = useState(undefined) // undefined = loading, null = not found/private
   const [idx, setIdx] = useState(null)          // lightbox index, or null
   const [comments, setComments] = useState([])
+  const [meId, setMeId] = useState(null)        // current user (owner can moderate feedback)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const { data, error } = await supabase
         .from('menu_preview_shares')
-        .select('title, items, is_public, show_print_files, allow_comments')
+        .select('title, items, is_public, show_print_files, allow_comments, created_by')
         .eq('id', shareId)
         .maybeSingle()
       if (cancelled) return
       setShare((error || !data) ? null : data)
       if (data && data.allow_comments) loadComments()
     })()
+    supabase.auth.getUser().then(({ data }) => { if (!cancelled) setMeId(data?.user?.id || null) })
     return () => { cancelled = true }
   }, [shareId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The share's creator (signed in on the same domain) can delete feedback.
+  const isOwner = !!(meId && share && share.created_by === meId)
+  async function deleteComment(id) {
+    await supabase.from('menu_preview_share_comments').delete().eq('id', id)
+    loadComments()
+  }
 
   async function loadComments() {
     const { data } = await supabase
@@ -175,6 +185,8 @@ export default function PreviewSharePage() {
                 menuIndex={idx}
                 comments={comments.filter(c => c.menu_index === idx)}
                 onPosted={loadComments}
+                canModerate={isOwner}
+                onDelete={deleteComment}
               />
             </div>
           )}
@@ -184,7 +196,7 @@ export default function PreviewSharePage() {
   )
 }
 
-function CommentsPanel({ shareId, menuIndex, comments, onPosted }) {
+function CommentsPanel({ shareId, menuIndex, comments, onPosted, canModerate, onDelete }) {
   const [name, setName] = useState('')
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
@@ -211,9 +223,20 @@ function CommentsPanel({ shareId, menuIndex, comments, onPosted }) {
       <div className="px-4 overflow-y-auto flex-1 min-h-0 space-y-2 pb-2">
         {comments.length === 0 && <p className="text-white/40 text-xs py-2">No feedback yet — be the first.</p>}
         {comments.map(c => (
-          <div key={c.id} className="text-sm text-white/90">
-            <span className="font-medium">{c.author_name || 'Anonymous'}</span>
-            <span className="text-white/40 text-[11px] ml-2">{new Date(c.created_at).toLocaleString()}</span>
+          <div key={c.id} className="text-sm text-white/90 group">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{c.author_name || 'Anonymous'}</span>
+              <span className="text-white/40 text-[11px]">{new Date(c.created_at).toLocaleString()}</span>
+              {canModerate && (
+                <button
+                  onClick={() => { if (window.confirm('Delete this feedback?')) onDelete(c.id) }}
+                  className="ml-auto text-white/40 hover:text-red-300 p-0.5 flex-shrink-0"
+                  aria-label="Delete feedback"
+                >
+                  <IconTrash className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <p className="text-white/80 whitespace-pre-wrap">{c.body}</p>
           </div>
         ))}

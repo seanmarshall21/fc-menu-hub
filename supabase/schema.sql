@@ -1109,3 +1109,8 @@ drop policy if exists "insert share comments" on public.menu_preview_share_comme
 create policy "insert share comments" on public.menu_preview_share_comments for insert with check (
   exists (select 1 from public.menu_preview_shares s
     where s.id = share_id and s.allow_comments = true and (s.is_public = true or auth.role() = 'authenticated')));
+-- The share's creator can delete feedback on their own shares (moderation).
+drop policy if exists "owner delete share comments" on public.menu_preview_share_comments;
+create policy "owner delete share comments" on public.menu_preview_share_comments for delete to authenticated using (
+  exists (select 1 from public.menu_preview_shares s
+    where s.id = menu_preview_share_comments.share_id and s.created_by = auth.uid()));

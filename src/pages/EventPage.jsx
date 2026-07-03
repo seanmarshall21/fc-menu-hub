@@ -763,6 +763,10 @@ export default function EventPage() {
   // preview card grows a checkbox + the toolbar shows Selected count
   // and Export.
   const [selectMode, setSelectMode] = useState(false)
+  // When entered via "Send previews", the toolbar stays share-only (Quick
+  // select + Select all + Send previews); the bulk export/status controls are
+  // hidden. "Select / Export" enters the full toolbar (shareMode = false).
+  const [shareMode, setShareMode] = useState(false)
   const [selectedPreviewIds, setSelectedPreviewIds] = useState(() => new Set())
   // "Send previews" → public gallery share link.
   const [shareInfo, setShareInfo] = useState(null)   // { id, url } once created
@@ -1520,7 +1524,7 @@ export default function EventPage() {
     if (error) { alert('Could not create the share link: ' + error.message); return }
     setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments })
     setShareCopied(false)
-    setSelectMode(false); setSelectedPreviewIds(new Set())
+    setSelectMode(false); setShareMode(false); setSelectedPreviewIds(new Set())
   }
   async function updateShare(patch) {
     if (!shareInfo) return
@@ -1973,46 +1977,51 @@ export default function EventPage() {
                       >
                         {selectedPreviewIds.size === previewFiltered.length ? 'Clear' : 'Select all'}
                       </button>
-                      {canEdit && (
+                      {shareMode ? (
+                        <button
+                          onClick={() => createPreviewShare(selectedPreviewIds)}
+                          disabled={selectedPreviewIds.size === 0 || shareBusy}
+                          className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
+                          style={{ background: SHARE_GRADIENT }}
+                          title="Create a public gallery link for the selected menus"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                          {shareBusy ? 'Creating…' : `Send previews ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
+                        </button>
+                      ) : (
                         <>
-                          <select
-                            value=""
-                            disabled={!selectedPreviewIds.size || bulkBusy}
-                            onChange={e => { if (e.target.value) bulkSetPhase(selectedPreviewIds, e.target.value); e.target.value = '' }}
-                            className="input py-1.5 text-sm w-auto disabled:opacity-40"
+                          {canEdit && (
+                            <>
+                              <select
+                                value=""
+                                disabled={!selectedPreviewIds.size || bulkBusy}
+                                onChange={e => { if (e.target.value) bulkSetPhase(selectedPreviewIds, e.target.value); e.target.value = '' }}
+                                className="input py-1.5 text-sm w-auto disabled:opacity-40"
+                              >
+                                <option value="">Set status…</option>
+                                {MENU_PHASES.map(p => <option key={p} value={p}>{PHASE_LABELS[p]}</option>)}
+                              </select>
+                              <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedPreviewIds)}
+                                className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
+                              <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkUnsync(selectedPreviewIds)}
+                                className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => openPreviewExportWindow(
+                              menus.filter(m => selectedPreviewIds.has(m.id) && m.preview_image_url),
+                              event?.name || 'Menus',
+                            )}
+                            disabled={selectedPreviewIds.size === 0}
+                            className="btn-primary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+                            title="Exports the selected menus that have preview images"
                           >
-                            <option value="">Set status…</option>
-                            {MENU_PHASES.map(p => <option key={p} value={p}>{PHASE_LABELS[p]}</option>)}
-                          </select>
-                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedPreviewIds)}
-                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
-                          <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkUnsync(selectedPreviewIds)}
-                            className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
+                            Export {selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}
+                          </button>
                         </>
                       )}
                       <button
-                        onClick={() => openPreviewExportWindow(
-                          menus.filter(m => selectedPreviewIds.has(m.id) && m.preview_image_url),
-                          event?.name || 'Menus',
-                        )}
-                        disabled={selectedPreviewIds.size === 0}
-                        className="btn-primary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-50"
-                        title="Exports the selected menus that have preview images"
-                      >
-                        Export {selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}
-                      </button>
-                      <button
-                        onClick={() => createPreviewShare(selectedPreviewIds)}
-                        disabled={selectedPreviewIds.size === 0 || shareBusy}
-                        className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
-                        style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
-                        title="Create a public gallery link for the selected menus"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
-                        {shareBusy ? 'Creating…' : `Send previews ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
-                      </button>
-                      <button
-                        onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
+                        onClick={() => { setSelectMode(false); setShareMode(false); setSelectedPreviewIds(new Set()) }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                       >
                         Done
@@ -2021,16 +2030,16 @@ export default function EventPage() {
                   ) : (
                     <>
                       <button
-                        onClick={() => setSelectMode(true)}
+                        onClick={() => { setSelectMode(true); setShareMode(true) }}
                         className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold shadow-sm hover:brightness-105 transition"
-                        style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+                        style={{ background: SHARE_GRADIENT }}
                         title="Pick menus and send a shareable preview-gallery link"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
                         Send previews
                       </button>
                       <button
-                        onClick={() => setSelectMode(true)}
+                        onClick={() => { setSelectMode(true); setShareMode(false) }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
