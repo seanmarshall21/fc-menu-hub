@@ -53,6 +53,9 @@ const PHASE_LABELS = {
   build: 'Build', proof: 'Proof', edits: 'Edits', approved: 'Approved',
   exported: 'Exported', complete: 'Complete', archived: 'Archived',
 }
+// Menu Hub gold/orange accent — shared by the Complete chips, Send-previews
+// button, and the quick-select group chips.
+const SHARE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -1482,6 +1485,24 @@ export default function EventPage() {
   const anyPreviewFilter = previewTypeFilter.length || previewStatusFilter.length || previewSyncFilter.length
   const previewCatsPresent = menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c))
 
+  // Quick-select for select mode (Send previews / Export): tap a status or type
+  // to add/remove that whole group at once instead of ticking tiles. Scoped to
+  // the currently-filtered preview set so active filters still narrow the pool.
+  const quickStatusOpts = MENU_PHASES
+    .filter(p => previewFiltered.some(m => m.phase === p))
+    .map(p => ({ key: 'status:' + p, label: PHASE_LABELS[p], ids: previewFiltered.filter(m => m.phase === p).map(m => m.id) }))
+  const quickTypeOpts = previewCatsPresent
+    .map(c => ({ key: 'type:' + c, label: CATEGORY_LABELS[c] || c, ids: previewFiltered.filter(m => m.category === c).map(m => m.id) }))
+  const groupFullySelected = (ids) => ids.length > 0 && ids.every(id => selectedPreviewIds.has(id))
+  function toggleQuickGroup(ids) {
+    setSelectedPreviewIds(prev => {
+      const next = new Set(prev)
+      if (ids.every(id => next.has(id))) ids.forEach(id => next.delete(id))
+      else ids.forEach(id => next.add(id))
+      return next
+    })
+  }
+
   // "Send previews" — snapshot the chosen menus into a public share row and
   // hand back a standalone /share/:id gallery link (no login, no app nav).
   async function createPreviewShare(idsSet) {
@@ -2021,6 +2042,41 @@ export default function EventPage() {
                   )}
                 </div>
               </div>
+              {/* Quick-select: tap a status/type to grab that whole group. */}
+              {selectMode && (quickStatusOpts.length > 0 || quickTypeOpts.length > 1) && (
+                <div className="flex items-center gap-x-3 gap-y-2 mb-4 flex-wrap">
+                  <span className="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Quick select</span>
+                  {quickStatusOpts.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {quickStatusOpts.map(o => {
+                        const on = groupFullySelected(o.ids)
+                        return (
+                          <button key={o.key} onClick={() => toggleQuickGroup(o.ids)}
+                            className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0 border transition ${on ? 'text-black border-transparent shadow-sm' : 'border-ink-200 text-ink-500 hover:border-ink-300'}`}
+                            style={on ? { background: SHARE_GRADIENT } : undefined}>
+                            {o.label} · {o.ids.length}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {quickTypeOpts.length > 1 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {quickStatusOpts.length > 0 && <span className="text-ink-300">·</span>}
+                      {quickTypeOpts.map(o => {
+                        const on = groupFullySelected(o.ids)
+                        return (
+                          <button key={o.key} onClick={() => toggleQuickGroup(o.ids)}
+                            className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0 border transition ${on ? 'text-black border-transparent shadow-sm' : 'border-ink-200 text-ink-500 hover:border-ink-300'}`}
+                            style={on ? { background: SHARE_GRADIENT } : undefined}>
+                            {o.label} · {o.ids.length}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Filters behind a funnel — same pattern as the Menus tab */}
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <button onClick={() => setPreviewFiltersOpen(o => !o)} title="Filters"
