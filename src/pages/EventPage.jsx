@@ -1611,6 +1611,7 @@ export default function EventPage() {
       eventDate: event?.event_date || null,
       eventLocation: event?.venue || null,
       neededBy: neededBy || null,
+      printFolder: event?.print_folder_url || null,
       eventIcon: { iconName: event?.icon_name || null, color: brand?.color || null, name: event?.name || null },
     }
     const payload = { kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true }

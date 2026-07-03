@@ -184,6 +184,7 @@ export default function MenuPage() {
   const [selectedItemIds, setSelectedItemIds] = useState(new Set())
   const [batchBusy, setBatchBusy] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
+  const [refreshingPreview, setRefreshingPreview] = useState(false)
   const toast = useToast()
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
   const [previewView, setPreviewView] = useState(null) // null = auto (Figma when synced+current), else 'figma' | 'app'
@@ -740,6 +741,23 @@ export default function MenuPage() {
       .eq('id', menu.id)
     if (error) { toast('Could not save', { type: 'error' }); alert('Could not update sync status: ' + error.message); return }
     toast('Set to Sync needed'); loadMenu()
+  }
+  // Re-fetch the print preview from the linked PDF: clears the cached image and
+  // re-fires the render, then polls for the fresh render (Netlify, ~5–20s).
+  async function refreshPrintPreview() {
+    setRefreshingPreview(true)
+    const before = menu.print_preview_url
+    const { error } = await supabase.rpc('refresh_print_preview', { p_menu_id: menu.id })
+    if (error) { setRefreshingPreview(false); toast('Could not refresh: ' + error.message, { type: 'error' }); return }
+    let tries = 0
+    const poll = setInterval(async () => {
+      tries++
+      const { data } = await supabase.from('menus').select('print_preview_url').eq('id', menu.id).single()
+      if ((data?.print_preview_url && data.print_preview_url !== before) || tries > 20) {
+        clearInterval(poll); setRefreshingPreview(false); loadMenu()
+        if (tries > 20) toast('Still rendering — check back in a moment')
+      }
+    }, 2000)
   }
   const isApproved = menu.phase === 'approved'
   const preApproval = ['build', 'proof', 'edits'].includes(menu.phase)  // approve button only relevant here
@@ -1554,6 +1572,14 @@ export default function MenuPage() {
                     className="btn-secondary btn-sm text-xs">
                     Print preview ↗
                   </a>
+                )}
+                {menu.print_file_url && canSetQuantity && (
+                  <button onClick={refreshPrintPreview} disabled={refreshingPreview}
+                    className="btn-secondary btn-sm text-xs inline-flex items-center gap-1 disabled:opacity-50"
+                    title="Re-fetch the preview image from the linked print PDF">
+                    <svg className={`w-3.5 h-3.5 ${refreshingPreview ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    {refreshingPreview ? 'Refreshing…' : 'Refresh preview'}
+                  </button>
                 )}
                 {menu.preview_image_url && (
                   <a href={menu.preview_image_url} target="_blank" rel="noreferrer"

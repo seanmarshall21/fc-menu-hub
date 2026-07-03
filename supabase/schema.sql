@@ -930,6 +930,19 @@ begin
   update public.menus set quantity = p_quantity where id = p_menu_id;
 end $$;
 grant execute on function public.set_menu_quantity(uuid, integer) to authenticated;
+
+-- Re-fetch a menu's print preview from its PDF (clear cache + re-fire render).
+create or replace function public.refresh_print_preview(p_menu_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])) then
+    raise exception 'not authorized';
+  end if;
+  update public.menus set print_preview_url = null, print_file_url = print_file_url where id = p_menu_id;
+end $$;
+grant execute on function public.refresh_print_preview(uuid) to authenticated;
+-- NOTE: menus_stamp_updated_at_skip_sync_meta() also skips 'quantity' and
+-- 'print_preview_url' so those never mark a menu "needs sync".
 alter table events add column if not exists print_folder_url text;  -- link to the event's print-files folder
 
 -- Auto-generate the print preview: when a menu becomes complete with a direct

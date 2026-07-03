@@ -21,6 +21,8 @@ function downloadHref(image, name) {
 }
 
 const SHARE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
+// Physical print dimensions per size (width × height).
+const SIZE_SPECS = { SM: '23.5" × 23.5"', MD: '23.5" × 35.25"', LG: '23.5" × 47.5"' }
 const Stat = ({ label, value }) => (
   <div className="rounded-md bg-surface-100 px-3 py-2">
     <p className="text-lg font-bold text-ink-900 leading-none">{value}</p>
@@ -224,9 +226,17 @@ export default function PreviewSharePage() {
             </div>
           </div>
 
-          {fmtDate(meta.neededBy) && (
-            <div className="text-sm text-ink-800"><span className="text-ink-400">Order needed by:</span> <span className="font-semibold">{fmtDate(meta.neededBy)}</span></div>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {fmtDate(meta.neededBy) && (
+              <div className="text-sm text-ink-800"><span className="text-ink-400">Order needed by:</span> <span className="font-semibold">{fmtDate(meta.neededBy)}</span></div>
+            )}
+            {share.show_print_files && meta.printFolder && (
+              <a href={meta.printFolder} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition whitespace-nowrap flex-shrink-0 print:hidden" style={{ background: SHARE_GRADIENT }}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+                Open print folder
+              </a>
+            )}
+          </div>
 
           {/* Totals summary — expandable + can be turned off */}
           {showSummary ? (
@@ -353,6 +363,15 @@ export default function PreviewSharePage() {
                     )}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {Object.keys(sizeTotals).some(s => SIZE_SPECS[s]) && (
+            <div className="border-t border-surface-200 pt-3 text-[11px] text-ink-400 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="font-semibold text-ink-500 uppercase tracking-wide">Print sizes (w × h)</span>
+              {Object.keys(sizeTotals).filter(s => SIZE_SPECS[s]).sort().map(s => (
+                <span key={s}><span className="font-medium text-ink-600">{s}</span> {SIZE_SPECS[s]}</span>
               ))}
             </div>
           )}
