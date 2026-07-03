@@ -6,6 +6,12 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Background function renders print PDFs → JPEG with mupdf (wasm). Ship mupdf
+# unbundled so its .wasm files are included in the function package.
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["mupdf"]
+
 # SPA fallback — all routes go to index.html for React Router
 [[redirects]]
   from   = "/*"
