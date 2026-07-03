@@ -1061,3 +1061,51 @@ drop policy if exists departments_read on departments;
 create policy departments_read on departments for select using (auth.uid() is not null);
 drop policy if exists departments_admin on departments;
 create policy departments_admin on departments for all using (is_admin()) with check (is_admin());
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Preview share links ("Send previews" → public review pieces). A share snapshots
+-- {name, category, size, image, printFile} per menu so the public /share/:id
+-- gallery needs no access to the RLS-protected menus table. Toggles: is_public
+-- (private = login required), show_print_files, allow_comments.
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.menu_preview_shares (
+  id uuid primary key default gen_random_uuid(),
+  title text,
+  items jsonb not null default '[]'::jsonb,
+  is_public boolean not null default true,
+  show_print_files boolean not null default false,
+  allow_comments boolean not null default false,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+alter table public.menu_preview_shares enable row level security;
+drop policy if exists "read public shares" on public.menu_preview_shares;
+create policy "read public shares" on public.menu_preview_shares for select using (is_public = true);
+drop policy if exists "auth read shares" on public.menu_preview_shares;
+create policy "auth read shares" on public.menu_preview_shares for select to authenticated using (true);
+drop policy if exists "insert own shares" on public.menu_preview_shares;
+create policy "insert own shares" on public.menu_preview_shares for insert to authenticated with check (auth.uid() = created_by);
+drop policy if exists "update own shares" on public.menu_preview_shares;
+create policy "update own shares" on public.menu_preview_shares for update to authenticated using (auth.uid() = created_by);
+drop policy if exists "delete own shares" on public.menu_preview_shares;
+create policy "delete own shares" on public.menu_preview_shares for delete to authenticated using (auth.uid() = created_by);
+
+create table if not exists public.menu_preview_share_comments (
+  id uuid primary key default gen_random_uuid(),
+  share_id uuid not null references public.menu_preview_shares(id) on delete cascade,
+  menu_index int,
+  author_name text,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_share_comments_share on public.menu_preview_share_comments(share_id);
+alter table public.menu_preview_share_comments enable row level security;
+drop policy if exists "read share comments" on public.menu_preview_share_comments;
+create policy "read share comments" on public.menu_preview_share_comments for select using (
+  exists (select 1 from public.menu_preview_shares s where s.id = share_id and s.is_public = true));
+drop policy if exists "auth read share comments" on public.menu_preview_share_comments;
+create policy "auth read share comments" on public.menu_preview_share_comments for select to authenticated using (true);
+drop policy if exists "insert share comments" on public.menu_preview_share_comments;
+create policy "insert share comments" on public.menu_preview_share_comments for insert with check (
+  exists (select 1 from public.menu_preview_shares s
+    where s.id = share_id and s.allow_comments = true and (s.is_public = true or auth.role() = 'authenticated')));

@@ -6,6 +6,7 @@ import Layout from '@/components/Layout'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Login from '@/pages/Login'
 import PluginAuthPage from '@/pages/PluginAuthPage'
+import PreviewSharePage from '@/pages/PreviewSharePage'
 import PendingPage from '@/pages/PendingPage'
 import Dashboard from '@/pages/Dashboard'
 import BrandsListPage from '@/pages/BrandsListPage'
@@ -59,6 +60,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/plugin-auth" element={<PluginAuthPage />} />
+          {/* Public, no-login menu-preview gallery */}
+          <Route path="/share/:shareId" element={<PreviewSharePage />} />
           <Route
             path="/"
             element={

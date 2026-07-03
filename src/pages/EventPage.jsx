@@ -761,6 +761,10 @@ export default function EventPage() {
   // and Export.
   const [selectMode, setSelectMode] = useState(false)
   const [selectedPreviewIds, setSelectedPreviewIds] = useState(() => new Set())
+  // "Send previews" → public gallery share link.
+  const [shareInfo, setShareInfo] = useState(null)   // { id, url } once created
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
 
   // Menus tab bulk-select (approve / not approved / unsync).
   const [menuSelectMode, setMenuSelectMode] = useState(false)
@@ -1478,6 +1482,31 @@ export default function EventPage() {
   const anyPreviewFilter = previewTypeFilter.length || previewStatusFilter.length || previewSyncFilter.length
   const previewCatsPresent = menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c))
 
+  // "Send previews" — snapshot the chosen menus into a public share row and
+  // hand back a standalone /share/:id gallery link (no login, no app nav).
+  async function createPreviewShare(idsSet) {
+    const chosen = menus.filter(m => idsSet.has(m.id) && m.preview_image_url)
+    if (!chosen.length) { alert('Select at least one menu that has a preview image.'); return }
+    setShareBusy(true)
+    const items = chosen.map(m => ({
+      name: m.name, category: m.category, size: m.size,
+      image: m.preview_image_url, printFile: m.print_file_url || null,
+    }))
+    const { data, error } = await supabase.from('menu_preview_shares')
+      .insert({ title: event?.name || 'Menu previews', items, created_by: profile?.id })
+      .select('id, is_public, show_print_files, allow_comments').single()
+    setShareBusy(false)
+    if (error) { alert('Could not create the share link: ' + error.message); return }
+    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments })
+    setShareCopied(false)
+    setSelectMode(false); setSelectedPreviewIds(new Set())
+  }
+  async function updateShare(patch) {
+    if (!shareInfo) return
+    setShareInfo(s => ({ ...s, ...patch }))
+    await supabase.from('menu_preview_shares').update(patch).eq('id', shareInfo.id)
+  }
+
   // Render a menu grid with COMPLETED menus surfaced first under a gold/orange
   // "Completed" header (regardless of category), then the rest grouped by
   // category. A gradient toggle collapses to just the finished ones.
@@ -1950,6 +1979,15 @@ export default function EventPage() {
                         Export {selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}
                       </button>
                       <button
+                        onClick={() => createPreviewShare(selectedPreviewIds)}
+                        disabled={selectedPreviewIds.size === 0 || shareBusy}
+                        className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
+                        style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+                        title="Create a public gallery link for the selected menus"
+                      >
+                        🔗 {shareBusy ? 'Creating…' : `Send previews ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
+                      </button>
+                      <button
                         onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                       >
@@ -1957,15 +1995,25 @@ export default function EventPage() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => setSelectMode(true)}
-                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
-                      </svg>
-                      Select / Export
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setSelectMode(true)}
+                        className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold shadow-sm hover:brightness-105 transition"
+                        style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+                        title="Pick menus and send a shareable preview-gallery link"
+                      >
+                        🔗 Send previews
+                      </button>
+                      <button
+                        onClick={() => setSelectMode(true)}
+                        className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
+                        </svg>
+                        Select / Export
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -2129,6 +2177,46 @@ export default function EventPage() {
             Tip: rules added on the brand or series apply to every event under them too. Per-menu rules can be added from a menu's own page (coming alongside this). The AI review on each menu checks these on top of spelling, grammar, and consistency.
           </p>
         </div>
+      )}
+
+      {/* ── Send previews (share link) modal ── */}
+      {shareInfo && (
+        <Modal title="Preview gallery link" onClose={() => setShareInfo(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-ink-600">
+              A standalone gallery of the selected menus — no Menu Hub login, nothing else from the app.
+              Anyone with this link can flip through the previews and download the PNGs.
+              {!shareInfo.is_public && ' (Private: a Menu Hub account is required to open it.)'}
+            </p>
+            <div className="flex items-center gap-2">
+              <input readOnly value={shareInfo.url} onFocus={e => e.target.select()} className="input text-xs flex-1" />
+              <button
+                onClick={() => { try { navigator.clipboard?.writeText(shareInfo.url) } catch (_) {} setShareCopied(true) }}
+                className="btn-primary btn-sm whitespace-nowrap flex-shrink-0"
+              >{shareCopied ? 'Copied ✓' : 'Copy'}</button>
+            </div>
+            <div className="space-y-2.5 border-t border-surface-100 pt-3">
+              <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide">Turn on for this link</p>
+              <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={shareInfo.show_print_files} onChange={e => updateShare({ show_print_files: e.target.checked })} />
+                <span>Show a <strong>Print file</strong> link on each menu (where one is set)</span>
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={shareInfo.allow_comments} onChange={e => updateShare({ allow_comments: e.target.checked })} />
+                <span>Let viewers leave <strong>feedback</strong> (comments) — turns it into a review link</span>
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={!shareInfo.is_public} onChange={e => updateShare({ is_public: !e.target.checked })} />
+                <span><strong>Private</strong> — require a Menu Hub account to view</span>
+              </label>
+              <p className="text-[11px] text-ink-400">Downloading the preview PNG is always available. Changes apply instantly to the same link.</p>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <a href={shareInfo.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Open gallery ↗</a>
+              <button onClick={() => setShareInfo(null)} className="btn-secondary btn-sm">Done</button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* ── Edit Event Modal ── */}
