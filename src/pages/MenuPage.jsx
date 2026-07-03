@@ -906,8 +906,8 @@ export default function MenuPage() {
                     }
                     window.open(url, '_blank', 'noopener')
                   }}
-                  className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold text-black shadow-sm hover:brightness-105 transition"
-                  style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition ${menu.print_file_url ? 'text-black shadow-sm hover:brightness-105' : 'border border-[#FFB300] text-[#FFB300] hover:bg-[#FFB300]/10'}`}
+                  style={menu.print_file_url ? { background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' } : undefined}
                   title={menu.print_file_url ? 'Open this menu’s print file' : 'Add this menu’s print file link'}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

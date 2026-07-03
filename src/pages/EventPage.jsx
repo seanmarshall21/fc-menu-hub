@@ -1596,8 +1596,8 @@ export default function EventPage() {
                 }
                 window.open(url, '_blank', 'noopener')
               }}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition"
-              style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition ${event.print_folder_url ? 'text-black shadow-sm hover:brightness-105' : 'border border-[#FFB300] text-[#FFB300] hover:bg-[#FFB300]/10'}`}
+              style={event.print_folder_url ? { background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' } : undefined}
               title={event.print_folder_url ? 'Open the print / completed folder' : 'Add the print / completed folder link'}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
