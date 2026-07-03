@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import EntityIcon from '@/components/EntityIcon'
 
 // Public, no-login "review piece": a standalone gallery of menu preview images.
 // Reached via /share/:shareId. NOTHING else from Menu Hub is exposed here — no
@@ -17,6 +18,14 @@ function downloadHref(image, name) {
   const sep = image.includes('?') ? '&' : '?'
   return `${image}${sep}download=${encodeURIComponent((name || 'menu') + '.png')}`
 }
+
+const SHARE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
+const Stat = ({ label, value }) => (
+  <div className="rounded-md bg-surface-100 px-3 py-2">
+    <p className="text-lg font-bold text-ink-900 leading-none">{value}</p>
+    <p className="text-[11px] text-ink-400 mt-1">{label}</p>
+  </div>
+)
 
 // Inline outline icons, matching Menu Hub's icon style (no emoji, no icon lib).
 const svgBase = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, viewBox: '0 0 24 24' }
@@ -37,6 +46,9 @@ export default function PreviewSharePage() {
   const [meId, setMeId] = useState(null)        // current user (owner can moderate feedback)
   const [sort, setSort] = useState({ key: 'name', dir: 'asc' }) // order list sorting
   const [liveItems, setLiveItems] = useState(null) // live-order: current menu values by menuId
+  const [orderTab, setOrderTab] = useState('list') // 'list' | 'gallery' (layout='both')
+  const [showSummary, setShowSummary] = useState(true)
+  const [summaryOpen, setSummaryOpen] = useState(false) // expanded breakdown
 
   useEffect(() => {
     let cancelled = false
@@ -83,6 +95,23 @@ export default function PreviewSharePage() {
     acc[s] = (acc[s] || 0) + (Number(it.quantity) || 0)
     return acc
   }, {})
+  // Fuller breakdowns for the expandable summary: menus + print-count per size
+  // and per category.
+  const bySize = displayItems.reduce((acc, it) => {
+    const s = (it.size || '—').toString().toUpperCase()
+    acc[s] = acc[s] || { menus: 0, qty: 0 }
+    acc[s].menus++; acc[s].qty += Number(it.quantity) || 0
+    return acc
+  }, {})
+  const byCategory = displayItems.reduce((acc, it) => {
+    const c = (it.category || 'Other').toString()
+    acc[c] = acc[c] || { menus: 0, qty: 0 }
+    acc[c].menus++; acc[c].qty += Number(it.quantity) || 0
+    return acc
+  }, {})
+  const uniqueMenus = displayItems.length
+  const uniqueSizes = Object.keys(bySize).length
+  const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
   const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null
   // Sortable copy of the items for the order list table.
   const sortedItems = [...displayItems].sort((a, b) => {
@@ -175,31 +204,95 @@ export default function PreviewSharePage() {
       {items.length === 0 ? (
         <p className="text-center text-ink-400 text-sm py-16">Nothing in this {isOrder ? 'order' : 'gallery'}.</p>
       ) : isOrder ? (
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-          {/* Order summary — event info + totals */}
-          <div className="bg-surface-0 border border-surface-200 rounded-lg px-4 py-3 space-y-3">
-            {(fmtDate(meta.eventDate) || meta.eventLocation || fmtDate(meta.neededBy)) && (
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-700">
-                {fmtDate(meta.eventDate) && <span><span className="text-ink-400">Event date:</span> {fmtDate(meta.eventDate)}</span>}
-                {meta.eventLocation && <span><span className="text-ink-400">Location:</span> {meta.eventLocation}</span>}
-                {fmtDate(meta.neededBy) && <span className="font-semibold text-ink-900"><span className="text-ink-400 font-normal">Needed by:</span> {fmtDate(meta.neededBy)}</span>}
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-surface-100 font-semibold text-ink-700">{items.length} menu{items.length === 1 ? '' : 's'}</span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-black font-semibold" style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}>{totalQty} total</span>
-              {Object.entries(sizeTotals).sort().map(([s, q]) => (
-                <span key={s} className="inline-flex items-center px-2.5 py-1 rounded-md bg-surface-100 text-ink-600"><span className="font-semibold mr-1">{s}</span> {q}</span>
-              ))}
+        <div className="p-6 max-w-4xl mx-auto space-y-5">
+          {/* Event logo + title (prints at the top of the sheet) */}
+          <div className="flex items-center gap-3">
+            <EntityIcon
+              iconName={meta.eventIcon?.iconName}
+              iconUrl={meta.eventIcon?.iconUrl}
+              fallbackText={meta.eventIcon?.name || share.title || 'Order'}
+              fallbackColor={meta.eventIcon?.color || '#FFB300'}
+              size={44} rounded="lg"
+            />
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-ink-900 leading-tight truncate">{share.title || 'Menu order'}</h1>
+              {(fmtDate(meta.eventDate) || meta.eventLocation) && (
+                <p className="text-xs text-ink-400 truncate">{[fmtDate(meta.eventDate), meta.eventLocation].filter(Boolean).join(' · ')}</p>
+              )}
             </div>
           </div>
+
+          {fmtDate(meta.neededBy) && (
+            <div className="text-sm text-ink-800"><span className="text-ink-400">Order needed by:</span> <span className="font-semibold">{fmtDate(meta.neededBy)}</span></div>
+          )}
+
+          {/* Totals summary — expandable + can be turned off */}
+          {showSummary ? (
+            <div className="bg-surface-0 border border-surface-200 rounded-lg px-4 py-3 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-surface-100 font-semibold text-ink-700">{uniqueMenus} menu{uniqueMenus === 1 ? '' : 's'}</span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-black font-semibold" style={{ background: SHARE_GRADIENT }}>{totalQty} to print</span>
+                  {Object.entries(sizeTotals).sort().map(([s, q]) => (
+                    <span key={s} className="inline-flex items-center px-2.5 py-1 rounded-md bg-surface-100 text-ink-600"><span className="font-semibold mr-1">{s}</span> {q}</span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 print:hidden">
+                  <button onClick={() => setSummaryOpen(o => !o)} className="text-[11px] text-brand-600 hover:underline whitespace-nowrap">{summaryOpen ? 'Less' : 'More'}</button>
+                  <button onClick={() => setShowSummary(false)} className="text-ink-300 hover:text-ink-500" aria-label="Hide summary"><IconX className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+              {summaryOpen && (
+                <div className="border-t border-surface-100 pt-3 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <Stat label="Unique menus" value={uniqueMenus} />
+                    <Stat label="Unique sizes" value={uniqueSizes} />
+                    <Stat label="Menus to print" value={totalQty} />
+                    <Stat label="Types" value={Object.keys(byCategory).length} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-ink-400 mb-1">By size</p>
+                      <div className="space-y-0.5 text-sm">
+                        {Object.entries(bySize).sort().map(([s, v]) => (
+                          <div key={s} className="flex justify-between text-ink-700"><span className="font-medium">{s}</span><span className="text-ink-500">{v.menus} menu{v.menus === 1 ? '' : 's'} · {v.qty} to print</span></div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-ink-400 mb-1">By type</p>
+                      <div className="space-y-0.5 text-sm">
+                        {Object.entries(byCategory).sort().map(([c, v]) => (
+                          <div key={c} className="flex justify-between text-ink-700"><span className="font-medium capitalize">{cap(c)}</span><span className="text-ink-500">{v.menus} menu{v.menus === 1 ? '' : 's'} · {v.qty} to print</span></div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button onClick={() => setShowSummary(true)} className="text-xs text-brand-600 hover:underline print:hidden">Show summary</button>
+          )}
 
           {share.notes && (
             <div className="text-sm text-ink-700 bg-surface-0 border border-surface-200 rounded-lg px-4 py-3 whitespace-pre-wrap">{share.notes}</div>
           )}
 
+          {/* Tabs (only when both layouts are included; print shows both) */}
+          {orderLayout === 'both' && (
+            <div className="flex items-center gap-1 border-b border-surface-200 print:hidden">
+              {['list', 'gallery'].map(t => (
+                <button key={t} onClick={() => setOrderTab(t)}
+                  className={`px-3 py-1.5 text-sm font-medium border-b-2 -mb-px capitalize ${orderTab === t ? 'border-brand-500 text-brand-600' : 'border-transparent text-ink-500 hover:text-ink-700'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+
           {orderLayout !== 'gallery' && (
-            <div className="overflow-x-auto">
+            <div className={`overflow-x-auto ${orderLayout === 'both' && orderTab !== 'list' ? 'hidden print:block' : ''}`}>
               <table className="w-full text-sm border border-surface-200 rounded-lg overflow-hidden">
                 <thead className="bg-surface-100 text-ink-500 text-xs uppercase tracking-wide">
                   <tr>
@@ -240,7 +333,7 @@ export default function PreviewSharePage() {
           )}
 
           {orderLayout !== 'list' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 ${orderLayout === 'both' && orderTab !== 'gallery' ? 'hidden print:grid' : ''}`}>
               {displayItems.map((it, i) => (
                 <div key={i} className="card overflow-hidden flex flex-col">
                   <button onClick={() => setIdx(i)} className="relative w-full aspect-[2/3] bg-surface-0 overflow-hidden text-left hover:opacity-95">

@@ -1578,9 +1578,11 @@ export default function EventPage() {
       .map(m => supabase.rpc('set_menu_quantity', { p_menu_id: m.id, p_quantity: qtyOf(m) })))
     setMenus(prev => prev.map(m => quantities[m.id] != null ? { ...m, quantity: qtyOf(m) } : m))
     const meta = {
+      eventId: event?.id || null,
       eventDate: event?.event_date || null,
       eventLocation: event?.venue || null,
       neededBy: neededBy || null,
+      eventIcon: { iconName: event?.icon_name || null, color: brand?.color || null, name: event?.name || null },
     }
     const { data, error } = await supabase.from('menu_preview_shares')
       .insert({ kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true, created_by: profile?.id })
