@@ -1172,7 +1172,7 @@ export default function MenuPage() {
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           {/* Flag-for-check button — only when NOT already flagged (the large
               red alert below handles the flagged state). */}
-          {canEdit && !needsSponsorCheck && (
+          {canManageLinks && !needsSponsorCheck && (
             <button onClick={flagSponsorsCheck}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-0 border border-surface-200 text-ink-400 text-xs font-medium hover:border-red-300 hover:text-red-600 whitespace-nowrap"
               title="Flag this menu so someone verifies the sponsors.">
@@ -1196,7 +1196,7 @@ export default function MenuPage() {
                   figmaUrl={figmaUrl}
                   openFigma={openFigmaDesktopFirst}
                   pluginUrl={PLUGIN_INSTALL_URL}
-                  canEdit={canEdit}
+                  canEdit={canManageLinks}
                   onMarkSynced={markSynced}
                   onForceNeeded={forceSyncNeeded}
                   onDisconnect={disconnectFigma}
