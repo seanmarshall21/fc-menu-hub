@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import EntityIcon from '@/components/EntityIcon'
+import ThemeToggle from '@/components/ThemeToggle'
 
 // Public, no-login "review piece": a standalone gallery of menu preview images.
 // Reached via /share/:shareId. NOTHING else from Menu Hub is exposed here — no
@@ -194,6 +195,7 @@ export default function PreviewSharePage() {
               : `${items.length} menu${items.length === 1 ? '' : 's'} · tap any to view full size${share.allow_comments ? ' · leave feedback' : ''}`}
           </p>
         </div>
+        <ThemeToggle className="flex-shrink-0" />
         {isOrder && (
           <button onClick={() => window.print()} className="btn-primary btn-sm inline-flex items-center gap-1.5 flex-shrink-0">
             <IconPrint className="w-4 h-4" /> Print / Save PDF

@@ -786,6 +786,8 @@ export default function EventPage() {
   const [menuSelectMode, setMenuSelectMode] = useState(false)
   const [selectedMenuIds, setSelectedMenuIds] = useState(() => new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
+  // Last undoable bulk action: { label, undo }. Shown in a floating bar.
+  const [undoAction, setUndoAction] = useState(null)
 
   // Quick-review feedback modal (Preview tab).
   const [feedbackMenu, setFeedbackMenu] = useState(null)
@@ -840,6 +842,12 @@ export default function EventPage() {
     const hasParam = new URLSearchParams(window.location.search).get('tab')
     if (!hasParam && (event.phase === 'exported' || event.phase === 'complete')) setTab('preview')
   }, [event])
+  // Auto-dismiss the undo bar after a bit.
+  useEffect(() => {
+    if (!undoAction) return
+    const t = setTimeout(() => setUndoAction(null), 12000)
+    return () => clearTimeout(t)
+  }, [undoAction])
   const [templates, setTemplates] = useState({}) // keyed by size
 
   // Figma page name — inline edit
@@ -1212,6 +1220,28 @@ export default function EventPage() {
 
   // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────
   // "Not approved" sends the menu back to the working 'build' phase.
+  // Apply the same patch to many menus and register an undo that restores each
+  // row's prior values of the changed columns. Every bulk action goes through
+  // this, so anything done can be undone.
+  const pick = (obj, keys) => { const o = {}; keys.forEach(k => { o[k] = obj?.[k] ?? null }); return o }
+  async function applyBulkWithUndo(idsSet, label, patch, snapCols) {
+    const ids = [...idsSet]
+    if (!ids.length) return
+    const snaps = menus.filter(m => ids.includes(m.id)).map(m => ({ id: m.id, ...pick(m, snapCols) }))
+    setBulkBusy(true)
+    const { error } = await supabase.from('menus').update(patch).in('id', ids)
+    setBulkBusy(false)
+    if (error) { alert('Could not update: ' + error.message); return }
+    setUndoAction({
+      label: `${label} · ${ids.length} menu${ids.length === 1 ? '' : 's'}`,
+      undo: async () => {
+        setUndoAction(null)
+        for (const s of snaps) { const { id, ...vals } = s; await supabase.from('menus').update(vals).eq('id', id) }
+        await loadData()
+      },
+    })
+    await loadData()
+  }
   async function bulkSetPhase(idsSet, phase) {
     let ids = [...idsSet]
     if (!ids.length) return
@@ -1223,34 +1253,17 @@ export default function EventPage() {
       skipped = all - ids.length
       if (!ids.length) { alert("None of the selected menus can be approved yet — they have pending edits or open sponsor checks."); return }
     }
-    setBulkBusy(true)
-    const { error } = await supabase.from('menus').update({ phase }).in('id', ids)
-    setBulkBusy(false)
-    if (error) { alert('Could not update status: ' + error.message); return }
-    if (skipped > 0) alert(`Approved ${ids.length}. Skipped ${skipped} that still have pending edits or sponsor checks.`)
-    await loadData()
+    if (skipped > 0) alert(`Approving ${ids.length}. Skipping ${skipped} that still have pending edits or sponsor checks.`)
+    await applyBulkWithUndo(new Set(ids), `Set status to ${PHASE_LABELS[phase] || phase}`, { phase }, ['phase'])
   }
-  async function bulkUnsync(idsSet) {
-    const ids = [...idsSet]
-    if (!ids.length) return
-    if (!confirm(`Unsync ${ids.length} menu${ids.length === 1 ? '' : 's'} from Figma? They'll show as "Not synced". This doesn't change the Figma file — if a frame still exists, unlink it in the plugin too.`)) return
-    setBulkBusy(true)
-    const { error } = await supabase.from('menus')
-      .update({ last_synced_at: null, last_synced_frame_id: null, last_sync_digest: null })
-      .in('id', ids)
-    setBulkBusy(false)
-    if (error) { alert('Could not unsync: ' + error.message); return }
-    await loadData()
-  }
-  async function bulkFlagSponsors(idsSet) {
-    const ids = [...idsSet]
-    if (!ids.length) return
-    setBulkBusy(true)
-    const { error } = await supabase.from('menus').update({ sponsors_updated_at: new Date().toISOString() }).in('id', ids)
-    setBulkBusy(false)
-    if (error) { alert('Could not flag: ' + error.message); return }
-    await loadData()
-  }
+  const nowIso = () => new Date().toISOString()
+  // Sponsor-check flag is derived from sponsors_updated_at vs sponsors_checked_at,
+  // so restoring both columns fully reverses either direction.
+  const bulkFlagSponsors  = (ids) => applyBulkWithUndo(ids, 'Flagged sponsor check', { sponsors_updated_at: nowIso() }, ['sponsors_updated_at', 'sponsors_checked_at'])
+  const bulkClearSponsors = (ids) => applyBulkWithUndo(ids, 'Cleared sponsor check', { sponsors_checked_at: nowIso() }, ['sponsors_updated_at', 'sponsors_checked_at'])
+  const bulkMarkSynced    = (ids) => applyBulkWithUndo(ids, 'Marked synced', { last_synced_at: nowIso() }, ['last_synced_at'])
+  const bulkMarkNeedsSync = (ids) => applyBulkWithUndo(ids, 'Marked needs sync', { updated_at: nowIso() }, ['updated_at'])
+  const bulkUnsync        = (ids) => applyBulkWithUndo(ids, 'Unsynced', { last_synced_at: null, last_synced_frame_id: null, last_sync_digest: null }, ['last_synced_at', 'last_synced_frame_id', 'last_sync_digest'])
 
   // One menu card for the Menus tab — extracted so we can render it inside
   // category groups or a filtered grid without duplicating the markup.
@@ -1971,10 +1984,21 @@ export default function EventPage() {
                       <option value="">Set status…</option>
                       {MENU_PHASES.map(p => <option key={p} value={p}>{PHASE_LABELS[p]}</option>)}
                     </select>
-                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedMenuIds)}
-                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
-                    <button disabled={!selectedMenuIds.size || bulkBusy} onClick={() => bulkUnsync(selectedMenuIds)}
-                      className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
+                    <select value="" disabled={!selectedMenuIds.size || bulkBusy}
+                      onChange={e => { const v = e.target.value; if (v === 'flag') bulkFlagSponsors(selectedMenuIds); else if (v === 'clear') bulkClearSponsors(selectedMenuIds); e.target.value = '' }}
+                      className="input py-1.5 text-sm w-auto disabled:opacity-40">
+                      <option value="">Sponsor check…</option>
+                      <option value="flag">Flag for check</option>
+                      <option value="clear">Clear check</option>
+                    </select>
+                    <select value="" disabled={!selectedMenuIds.size || bulkBusy}
+                      onChange={e => { const v = e.target.value; if (v === 'synced') bulkMarkSynced(selectedMenuIds); else if (v === 'needs') bulkMarkNeedsSync(selectedMenuIds); else if (v === 'unsync') bulkUnsync(selectedMenuIds); e.target.value = '' }}
+                      className="input py-1.5 text-sm w-auto disabled:opacity-40">
+                      <option value="">Sync…</option>
+                      <option value="synced">Mark as synced</option>
+                      <option value="needs">Mark as needs sync</option>
+                      <option value="unsync">Unsync</option>
+                    </select>
                     <button onClick={() => { setMenuSelectMode(false); setSelectedMenuIds(new Set()) }}
                       className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">Done</button>
                   </div>
@@ -2123,10 +2147,21 @@ export default function EventPage() {
                                 <option value="">Set status…</option>
                                 {MENU_PHASES.map(p => <option key={p} value={p}>{PHASE_LABELS[p]}</option>)}
                               </select>
-                              <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkFlagSponsors(selectedPreviewIds)}
-                                className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">⚑ Check sponsors</button>
-                              <button disabled={!selectedPreviewIds.size || bulkBusy} onClick={() => bulkUnsync(selectedPreviewIds)}
-                                className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 disabled:opacity-40">Unsync</button>
+                              <select value="" disabled={!selectedPreviewIds.size || bulkBusy}
+                                onChange={e => { const v = e.target.value; if (v === 'flag') bulkFlagSponsors(selectedPreviewIds); else if (v === 'clear') bulkClearSponsors(selectedPreviewIds); e.target.value = '' }}
+                                className="input py-1.5 text-sm w-auto disabled:opacity-40">
+                                <option value="">Sponsor check…</option>
+                                <option value="flag">Flag for check</option>
+                                <option value="clear">Clear check</option>
+                              </select>
+                              <select value="" disabled={!selectedPreviewIds.size || bulkBusy}
+                                onChange={e => { const v = e.target.value; if (v === 'synced') bulkMarkSynced(selectedPreviewIds); else if (v === 'needs') bulkMarkNeedsSync(selectedPreviewIds); else if (v === 'unsync') bulkUnsync(selectedPreviewIds); e.target.value = '' }}
+                                className="input py-1.5 text-sm w-auto disabled:opacity-40">
+                                <option value="">Sync…</option>
+                                <option value="synced">Mark as synced</option>
+                                <option value="needs">Mark as needs sync</option>
+                                <option value="unsync">Unsync</option>
+                              </select>
                             </>
                           )}
                           <button
@@ -2377,6 +2412,17 @@ export default function EventPage() {
           <p className="text-xs text-ink-400 px-1">
             Tip: rules added on the brand or series apply to every event under them too. Per-menu rules can be added from a menu's own page (coming alongside this). The AI review on each menu checks these on top of spelling, grammar, and consistency.
           </p>
+        </div>
+      )}
+
+      {/* ── Undo bar for bulk actions ── */}
+      {undoAction && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-20 md:bottom-6 z-50 bg-ink-900 text-white rounded-full shadow-lg pl-4 pr-2 py-2 flex items-center gap-3 text-sm print:hidden">
+          <span className="whitespace-nowrap">{undoAction.label}</span>
+          <button onClick={undoAction.undo} className="font-semibold text-[#FFB300] hover:underline whitespace-nowrap">Undo</button>
+          <button onClick={() => setUndoAction(null)} aria-label="Dismiss" className="text-white/40 hover:text-white p-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+          </button>
         </div>
       )}
 
