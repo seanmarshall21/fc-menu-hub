@@ -34,7 +34,7 @@ export function openPreviewExportWindow(menus, eventName) {
   const title = `${eventName} — menu previews`
   const cards = menus.map(m => `
     <figure class="card">
-      <img src="${esc(m.preview_image_url)}" alt="${esc(m.name)}" />
+      <img src="${esc(m.print_preview_url || m.preview_image_url)}" alt="${esc(m.name)}" />
       <figcaption>${esc(m.name)}</figcaption>
     </figure>
   `).join('')

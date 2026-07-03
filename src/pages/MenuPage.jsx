@@ -1436,11 +1436,15 @@ export default function MenuPage() {
         const activeSize = previewSize || menu.size || 'lg'
         const template = templates[activeSize]
         const hasTemplate = !!template?.background_url
-        // Figma image is the priority view once a menu is synced & current.
-        // Edits since the last sync drop it back to the live app preview.
+        // Print render (from the final print PDF) is the priority once a menu is
+        // complete with a print file. Otherwise the Figma image is the priority
+        // once synced & current; edits since the last sync drop to app preview.
+        const printReady = !!menu.print_preview_url
         const figmaReady = !!menu.preview_image_url
-        const view = previewView || ((figmaReady && !syncNeeded) ? 'figma' : 'app')
+        const view = previewView || (printReady ? 'print' : ((figmaReady && !syncNeeded) ? 'figma' : 'app'))
+        const showPrint = view === 'print' && printReady
         const showFigma = view === 'figma' && figmaReady
+        const showApp = !showPrint && !showFigma
         return (
           <div>
             <SpacingOverridePanel
@@ -1468,22 +1472,30 @@ export default function MenuPage() {
                     </button>
                   ))}
                 </div>
-                {/* Figma ↔ App preview toggle (black active, not the orange accent) */}
-                {figmaReady && (
+                {/* Print ↔ Figma ↔ App preview toggle (black active, not orange) */}
+                {(printReady || figmaReady) && (
                   <div className="inline-flex rounded-lg border border-surface-300 overflow-hidden text-xs">
-                    <button onClick={() => setPreviewView('figma')}
-                      className={`px-2.5 py-1.5 font-medium ${showFigma ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
-                      Figma{syncNeeded ? ' ⚠' : ''}
-                    </button>
+                    {printReady && (
+                      <button onClick={() => setPreviewView('print')}
+                        className={`px-2.5 py-1.5 font-medium ${showPrint ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
+                        Print
+                      </button>
+                    )}
+                    {figmaReady && (
+                      <button onClick={() => setPreviewView('figma')}
+                        className={`px-2.5 py-1.5 font-medium ${printReady ? 'border-l border-surface-300 ' : ''}${showFigma ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
+                        Figma{syncNeeded ? ' ⚠' : ''}
+                      </button>
+                    )}
                     <button onClick={() => setPreviewView('app')}
-                      className={`px-2.5 py-1.5 font-medium border-l border-surface-300 ${!showFigma ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
+                      className={`px-2.5 py-1.5 font-medium border-l border-surface-300 ${showApp ? 'bg-ink-900 text-surface-0' : 'text-ink-500 hover:bg-surface-50'}`}>
                       App preview
                     </button>
                   </div>
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {hasTemplate && !showFigma && (
+                {hasTemplate && showApp && (
                   <button
                     onClick={() => setLightboxOpen(true)}
                     className="btn-secondary btn-sm text-xs gap-1.5"
@@ -1495,7 +1507,7 @@ export default function MenuPage() {
                     Zoom
                   </button>
                 )}
-                {hasTemplate && !showFigma && (
+                {hasTemplate && showApp && (
                   <button
                     onClick={() => exportPng(activeSize)}
                     disabled={exporting}
@@ -1503,6 +1515,12 @@ export default function MenuPage() {
                   >
                     {exporting ? 'Exporting…' : 'Export PNG'}
                   </button>
+                )}
+                {printReady && (
+                  <a href={menu.print_preview_url} target="_blank" rel="noreferrer"
+                    className="btn-secondary btn-sm text-xs">
+                    Print preview ↗
+                  </a>
                 )}
                 {menu.preview_image_url && (
                   <a href={menu.preview_image_url} target="_blank" rel="noreferrer"
@@ -1521,8 +1539,12 @@ export default function MenuPage() {
               </div>
             )}
 
-            {/* Figma render (priority when synced & current) or the live app preview */}
-            {showFigma ? (
+            {/* Print render (final print PDF) > Figma render > live app preview */}
+            {showPrint ? (
+              <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
+                <img src={menu.print_preview_url} alt={`${menu.name} — print preview`} className="w-full block" />
+              </div>
+            ) : showFigma ? (
               <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
                 <img src={menu.preview_image_url} alt={`${menu.name} — Figma preview`} className="w-full block" />
               </div>

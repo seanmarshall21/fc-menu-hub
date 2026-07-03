@@ -916,6 +916,7 @@ alter table menus  add  constraint menus_phase_check  check (phase in ('build','
 alter table events drop constraint if exists events_phase_check;
 alter table events add  constraint events_phase_check check (phase in ('build','proof','edits','approved','exported','complete','archived'));
 alter table menus  add column if not exists print_file_url   text;  -- link to the final print file for this menu
+alter table menus  add column if not exists print_preview_url text;  -- rendered PNG/JPG of the print PDF (page 1); preferred preview once complete
 alter table events add column if not exists print_folder_url text;  -- link to the event's print-files folder
 
 -- ─── Role-based approval rosters + per-menu sign-offs ────────────────────────

@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
+import { menuPreviewSrc } from '@/lib/menuPreview'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
@@ -1370,8 +1371,8 @@ export default function EventPage() {
     return (
       <CardTag key={menu.id} {...cardProps}>
         <div className="relative w-full aspect-[2/3] bg-surface-50 border-b border-surface-100 overflow-hidden">
-          {menu.preview_image_url ? (
-            <img src={menu.preview_image_url} alt={menu.name} className="w-full h-full object-contain" loading="lazy" />
+          {menuPreviewSrc(menu) ? (
+            <img src={menuPreviewSrc(menu)} alt={menu.name} className="w-full h-full object-contain" loading="lazy" />
           ) : activeCount > 0 ? (
             <LazyMount className="absolute inset-0 overflow-hidden pointer-events-none bg-surface-0">
               <TemplateCanvas
@@ -1510,12 +1511,12 @@ export default function EventPage() {
   // "Send previews" — snapshot the chosen menus into a public share row and
   // hand back a standalone /share/:id gallery link (no login, no app nav).
   async function createPreviewShare(idsSet) {
-    const chosen = menus.filter(m => idsSet.has(m.id) && m.preview_image_url)
+    const chosen = menus.filter(m => idsSet.has(m.id) && menuPreviewSrc(m))
     if (!chosen.length) { alert('Select at least one menu that has a preview image.'); return }
     setShareBusy(true)
     const items = chosen.map(m => ({
       name: m.name, category: m.category, size: m.size,
-      image: m.preview_image_url, printFile: m.print_file_url || null,
+      image: menuPreviewSrc(m), printFile: m.print_file_url || null,
     }))
     const { data, error } = await supabase.from('menu_preview_shares')
       .insert({ title: event?.name || 'Menu previews', items, created_by: profile?.id })
@@ -1963,7 +1964,7 @@ export default function EventPage() {
                 <div className="text-xs text-ink-500">
                   {selectMode
                     ? `${selectedPreviewIds.size} of ${previewFiltered.length} selected`
-                    : `${menus.length} menu${menus.length === 1 ? '' : 's'} · ${menus.filter(m => m.preview_image_url).length} with preview images`}
+                    : `${menus.length} menu${menus.length === 1 ? '' : 's'} · ${menus.filter(m => menuPreviewSrc(m)).length} with preview images`}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   {selectMode ? (
@@ -2009,7 +2010,7 @@ export default function EventPage() {
                           )}
                           <button
                             onClick={() => openPreviewExportWindow(
-                              menus.filter(m => selectedPreviewIds.has(m.id) && m.preview_image_url),
+                              menus.filter(m => selectedPreviewIds.has(m.id) && menuPreviewSrc(m)),
                               event?.name || 'Menus',
                             )}
                             disabled={selectedPreviewIds.size === 0}
