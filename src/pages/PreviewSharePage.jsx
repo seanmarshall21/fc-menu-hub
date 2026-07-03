@@ -87,7 +87,10 @@ export default function PreviewSharePage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-surface-50 text-ink-900">
+    // Own scroll container: this public page renders outside Layout, and the
+    // global `html, body, #root { overflow: hidden }` would otherwise clip
+    // everything below the fold.
+    <div className="h-[100dvh] overflow-y-auto bg-surface-50 text-ink-900">
       <header className="px-6 py-5 border-b border-surface-200 flex items-center gap-3 sticky top-0 bg-surface-50/95 backdrop-blur z-10">
         <img src="/logo-tile.svg" alt="" className="w-7 h-7 flex-shrink-0" />
         <div className="min-w-0">
@@ -148,10 +151,22 @@ export default function PreviewSharePage() {
               <button onClick={close} className="p-1.5 hover:bg-white/10 rounded-md inline-flex" aria-label="Close"><IconX className="w-4 h-4" /></button>
             </div>
           </div>
-          <div className="flex-1 flex items-center justify-center gap-1 px-2 min-h-0" onClick={e => e.stopPropagation()}>
-            {items.length > 1 && <button onClick={prev} className="text-white/70 hover:text-white px-2 py-6 flex-shrink-0" aria-label="Previous"><IconChevronLeft className="w-8 h-8" /></button>}
+          <div className="flex-1 relative flex items-center justify-center min-h-0 px-2" onClick={e => e.stopPropagation()}>
             <img src={items[idx].image} alt={items[idx].name} className="max-h-full max-w-full object-contain" />
-            {items.length > 1 && <button onClick={next} className="text-white/70 hover:text-white px-2 py-6 flex-shrink-0" aria-label="Next"><IconChevronRight className="w-8 h-8" /></button>}
+            {items.length > 1 && (
+              <>
+                {/* Absolutely positioned + always-visible circular targets so a
+                    full-bleed image can never cover the tap area. */}
+                <button onClick={prev} aria-label="Previous"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 active:scale-95 transition">
+                  <IconChevronLeft className="w-6 h-6" />
+                </button>
+                <button onClick={next} aria-label="Next"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 active:scale-95 transition">
+                  <IconChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
           </div>
           {share.allow_comments && (
             <div onClick={e => e.stopPropagation()}>
