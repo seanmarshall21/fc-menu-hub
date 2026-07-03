@@ -648,6 +648,9 @@ export default function MenuPage() {
   // Editing locks once a menu is approved or beyond (approved/exported/complete/archived).
   const FINAL_PHASES = ['approved', 'exported', 'complete', 'archived']
   const canEdit = (isAdmin || isInternal) && !FINAL_PHASES.includes(menu.phase)
+  // File links are metadata, not content — editable even when the menu is
+  // locked/approved/complete (which is exactly when you're adding print files).
+  const canManageLinks = isAdmin || isInternal
 
   // Cascading approver permissions (brand → series → event → menu union).
   const role = profile?.role
@@ -889,13 +892,13 @@ export default function MenuPage() {
                 setEditMenuFigmaPrefix(menu.figma_component_prefix || ''); setEditMenuError(null); setShowEditMenu(true)
               }} data-tour="menu-edit-button" className="btn-secondary btn-sm whitespace-nowrap">Edit</button>
             )}
-            {(menu.print_file_url || canEdit) && (
+            {(menu.print_file_url || canManageLinks) && (
               <span className="inline-flex items-center gap-1 flex-shrink-0">
                 <button
                   onClick={async () => {
                     let url = menu.print_file_url
                     if (!url) {
-                      if (!canEdit) return
+                      if (!canManageLinks) return
                       const link = window.prompt('Paste the link to this menu’s final PRINT file:', '')
                       if (!link || !link.trim()) return
                       url = link.trim()
@@ -912,7 +915,7 @@ export default function MenuPage() {
                   </svg>
                   {menu.print_file_url ? 'Print File' : 'Add Print File'}
                 </button>
-                {canEdit && menu.print_file_url && (
+                {canManageLinks && menu.print_file_url && (
                   <button
                     onClick={async () => {
                       const link = window.prompt('Edit this menu’s print file link (clear it to remove):', menu.print_file_url || '')

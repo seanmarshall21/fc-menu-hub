@@ -1486,6 +1486,7 @@ export default function EventPage() {
     const completed = list.filter(m => m.phase === 'complete')
     const rest = list.filter(m => m.phase !== 'complete')
     const restCats = catsPresent.filter(c => rest.some(m => m.category === c))
+    const completedCats = catsPresent.filter(c => completed.some(m => m.category === c))
     return (
       <>
         {completed.length > 0 && (
@@ -1507,7 +1508,20 @@ export default function EventPage() {
               <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-black mb-3" style={{ background: COMPLETE_GRADIENT }}>
                 ✓ Completed<span className="opacity-70 ml-1">· {completed.length}</span>
               </span>
-              <div className={gridClass}>{completed.map(renderCard)}</div>
+              {completedCats.length > 1 ? (
+                <div className="space-y-6">
+                  {completedCats.map(c => (
+                    <div key={c}>
+                      <h4 className="text-[11px] font-semibold text-ink-400 uppercase tracking-wider mb-2">
+                        {CATEGORY_LABELS[c] || c}<span className="ml-1.5 opacity-60">· {completed.filter(m => m.category === c).length}</span>
+                      </h4>
+                      <div className={gridClass}>{completed.filter(m => m.category === c).map(renderCard)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={gridClass}>{completed.map(renderCard)}</div>
+              )}
             </div>
           )}
           {!completedOnly && (restCats.length > 1
