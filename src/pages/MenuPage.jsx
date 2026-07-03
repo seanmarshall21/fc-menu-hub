@@ -38,6 +38,8 @@ import FigmaLogo from '@/components/FigmaLogo'
 import { resolveCurrencySpec } from '@/lib/formatPrice'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { downloadMenuCsv } from '@/lib/downloadMenuCsv'
+import PrintFileModal from '@/components/PrintFileModal'
+import { preloadDropbox, chooseFromDropbox, dropboxConfigured } from '@/lib/dropboxChooser'
 import MenuStylesTab from '@/components/MenuStylesTab'
 import ItemsTableHeader from '@/components/ItemsTableHeader'
 import SegmentedToggle from '@/components/SegmentedToggle'
@@ -218,6 +220,8 @@ export default function MenuPage() {
 
   // Edit menu modal
   const [showEditMenu, setShowEditMenu] = useState(false)
+  // Print-file connect modal (Dropbox picker / paste). null = closed.
+  const [printModal, setPrintModal] = useState(null)
   const [showActivity, setShowActivity] = useState(false)
   const [editMenuName, setEditMenuName] = useState('')
   const [editMenuTitle, setEditMenuTitle] = useState('')
@@ -236,6 +240,14 @@ export default function MenuPage() {
   const [deleteBackupDone, setDeleteBackupDone] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+
+  // Warm up the Dropbox picker SDK so the button responds instantly.
+  useEffect(() => { preloadDropbox() }, [])
+
+  async function savePrintFile(url) {
+    await supabase.from('menus').update({ print_file_url: url }).eq('id', menu.id)
+    setPrintModal(null); loadMenu(); toast(url ? 'Print file linked' : 'Print file cleared')
+  }
 
   const loadMenu = useCallback(async () => {
     const { data: brandData } = await supabase.from('brands').select('id,name,slug,color,notify_user_ids,figma_component_prefix,menu_approver_ids,edit_approver_ids').eq('slug', brandSlug).single()
@@ -861,13 +873,11 @@ export default function MenuPage() {
                   const link = window.prompt('Exported. Optional — paste a link to this menu’s prep file (or leave blank):', '')
                   if (link && link.trim()) patch.prep_file_url = link.trim()
                 }
-                if (next === 'complete' && !menu.print_file_url) {
-                  const link = window.prompt('Complete. Optional — paste a link to this menu’s final print file (or leave blank):', '')
-                  if (link && link.trim()) patch.print_file_url = link.trim()
-                }
                 if (['exported', 'complete', 'archived'].includes(next)) patch.locked = true
                 if (['build', 'proof', 'edits'].includes(next)) patch.locked = false
                 await supabase.from('menus').update(patch).eq('id', menu.id); toast('Saved'); loadMenu()
+                // Prompt for the print file via the Dropbox picker / paste modal.
+                if (next === 'complete' && !menu.print_file_url) setPrintModal({ initialUrl: '' })
               } : null}
             />
             {isLate && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap" title={`Edited after the menus freeze (${new Date(event.menus_freeze_at).toLocaleString()})`}>⏰ Late</span>}
@@ -895,16 +905,9 @@ export default function MenuPage() {
             {(menu.print_file_url || canManageLinks) && (
               <span className="inline-flex items-center gap-1 flex-shrink-0">
                 <button
-                  onClick={async () => {
-                    let url = menu.print_file_url
-                    if (!url) {
-                      if (!canManageLinks) return
-                      const link = window.prompt('Paste the link to this menu’s final PRINT file:', '')
-                      if (!link || !link.trim()) return
-                      url = link.trim()
-                      await supabase.from('menus').update({ print_file_url: url }).eq('id', menu.id); loadMenu()
-                    }
-                    window.open(url, '_blank', 'noopener')
+                  onClick={() => {
+                    if (menu.print_file_url) { window.open(menu.print_file_url, '_blank', 'noopener'); return }
+                    if (canManageLinks) setPrintModal({ initialUrl: '' })
                   }}
                   className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold transition ${menu.print_file_url ? 'text-black shadow-sm hover:brightness-105' : 'border border-[#FFB300] text-[#FFB300] hover:bg-[#FFB300]/10'}`}
                   style={menu.print_file_url ? { background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' } : undefined}
@@ -917,11 +920,7 @@ export default function MenuPage() {
                 </button>
                 {canManageLinks && menu.print_file_url && (
                   <button
-                    onClick={async () => {
-                      const link = window.prompt('Edit this menu’s print file link (clear it to remove):', menu.print_file_url || '')
-                      if (link === null) return
-                      await supabase.from('menus').update({ print_file_url: link.trim() || null }).eq('id', menu.id); loadMenu()
-                    }}
+                    onClick={() => setPrintModal({ initialUrl: menu.print_file_url || '' })}
                     title="Edit the print file link" aria-label="Edit print file link"
                     className="inline-flex items-center justify-center w-7 h-7 rounded-md text-black shadow-sm hover:brightness-105 transition"
                     style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
@@ -966,6 +965,13 @@ export default function MenuPage() {
         </div>
       )}
     >
+      <PrintFileModal
+        open={!!printModal}
+        initialUrl={printModal?.initialUrl || ''}
+        title={printModal?.initialUrl ? 'Edit print file' : 'Connect print file'}
+        onSave={savePrintFile}
+        onClose={() => setPrintModal(null)}
+      />
       {showEditMenu ? (
         <PageBody className="max-w-2xl">
           <h2 className="text-base font-semibold text-ink-900 mb-1">Edit Menu</h2>
@@ -1009,9 +1015,21 @@ export default function MenuPage() {
             </div>
             <div>
               <label className="label">Print file link <span className="text-ink-300 font-normal">(optional)</span></label>
-              <input className="input" type="url" value={editMenuPrintUrl} onChange={e => setEditMenuPrintUrl(e.target.value)}
-                placeholder="https://… link to the final print file" />
-              <p className="mt-1 text-[11px] text-ink-400">Once exported, paste the print file's link here — a “Print file” button appears on this menu.</p>
+              <div className="flex gap-2">
+                <input className="input flex-1" type="url" value={editMenuPrintUrl} onChange={e => setEditMenuPrintUrl(e.target.value)}
+                  placeholder="https://… link to the final print file" />
+                {dropboxConfigured() && (
+                  <button type="button"
+                    onClick={() => chooseFromDropbox({ onSuccess: (link) => setEditMenuPrintUrl(link) })}
+                    className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 rounded-md text-black text-xs font-semibold shadow-sm hover:brightness-105 transition"
+                    style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+                    title="Pick the PDF from Dropbox">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 2 0 6l6 4 6-4-6-4Zm12 0-6 4 6 4 6-4-6-4ZM0 14l6 4 6-4-6-4-6 4Zm18-4-6 4 6 4 6-4-6-4ZM6 19.5l6 4 6-4-6-4-6 4Z" /></svg>
+                    Dropbox
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-ink-400">{dropboxConfigured() ? 'Pick from Dropbox or paste the link.' : "Once exported, paste the print file's link here"} — a “Print file” button appears on this menu.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
