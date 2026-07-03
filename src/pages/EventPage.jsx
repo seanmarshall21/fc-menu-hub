@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
 import { menuPreviewSrc } from '@/lib/menuPreview'
 import OrderFormModal from '@/components/OrderFormModal'
+import OrderLibraryModal from '@/components/OrderLibraryModal'
 import QuantityField from '@/components/QuantityField'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
@@ -772,8 +773,10 @@ export default function EventPage() {
   //   'export' → the full bulk toolbar (status / sponsors / unsync / export)
   const [selectPurpose, setSelectPurpose] = useState('share')
   const [selectedPreviewIds, setSelectedPreviewIds] = useState(() => new Set())
-  // Order-form builder modal: null = closed, else array of chosen menu objects.
+  // Order-form builder modal: null = closed, else { menus, initial, editId }.
   const [orderModal, setOrderModal] = useState(null)
+  // Order-form library: null = closed, else { loading, orders }.
+  const [orderLibrary, setOrderLibrary] = useState(null)
   // "Send previews" → public gallery share link.
   const [shareInfo, setShareInfo] = useState(null)   // { id, url } once created
   const [shareBusy, setShareBusy] = useState(false)
@@ -1561,8 +1564,8 @@ export default function EventPage() {
 
   // "Send order form" — production sets a quantity per menu and a layout, then
   // this snapshots a printable order into the same /share/:id page (kind=order).
-  async function createOrderShare(chosenRaw, { quantities, layout, title, notes, neededBy }) {
-    const chosen = (chosenRaw || []).filter(canSendMenu)
+  async function createOrderShare(ctx, { quantities, layout, title, notes, neededBy }) {
+    const chosen = (ctx?.menus || []).filter(canSendMenu)
     if (!chosen.length) { alert(isProduction ? 'Only completed menus can be sent.' : 'Select at least one menu.'); return }
     setShareBusy(true)
     const qtyOf = (m) => Number(quantities[m.id]) || 0
@@ -1584,14 +1587,51 @@ export default function EventPage() {
       neededBy: neededBy || null,
       eventIcon: { iconName: event?.icon_name || null, color: brand?.color || null, name: event?.name || null },
     }
-    const { data, error } = await supabase.from('menu_preview_shares')
-      .insert({ kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true, created_by: profile?.id })
-      .select('id, is_public, show_print_files, allow_comments, is_live').single()
+    const payload = { kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true }
+    const cols = 'id, is_public, show_print_files, allow_comments, is_live'
+    let data, error
+    if (ctx?.editId) {
+      ({ data, error } = await supabase.from('menu_preview_shares').update(payload).eq('id', ctx.editId).select(cols).single())
+    } else {
+      ({ data, error } = await supabase.from('menu_preview_shares').insert({ ...payload, created_by: profile?.id }).select(cols).single())
+    }
     setShareBusy(false)
-    if (error) { alert('Could not create the order form: ' + error.message); return }
+    if (error) { alert(ctx?.editId ? 'Could not update the order form (you may not have permission to edit one made by someone else): ' + error.message : 'Could not create the order form: ' + error.message); return }
     setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, kind: 'order', is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments, is_live: data.is_live })
     setShareCopied(false)
-    setOrderModal(null); setSelectMode(false); setSelectedPreviewIds(new Set())
+    setOrderModal(null); setOrderLibrary(null); setSelectMode(false); setSelectedPreviewIds(new Set())
+  }
+
+  // Order-form library: existing order forms made for THIS event (by anyone).
+  async function openOrderLibrary() {
+    setOrderLibrary({ loading: true, orders: [] })
+    const { data } = await supabase.from('menu_preview_shares')
+      .select('id, title, items, notes, layout, meta, is_live, created_at, created_by')
+      .eq('kind', 'order')
+      .eq('meta->>eventId', event.id)
+      .order('created_at', { ascending: false })
+    setOrderLibrary({ loading: false, orders: Array.isArray(data) ? data : [] })
+  }
+  function startNewOrder() {
+    setOrderLibrary(null)
+    setSelectedPreviewIds(new Set()); setSelectPurpose('order'); setSelectMode(true)
+  }
+  function editOrder(order) {
+    const snap = Array.isArray(order.items) ? order.items : []
+    const byId = new Map(menus.map(m => [m.id, m]))
+    const chosen = snap.map(it => byId.get(it.menuId)).filter(Boolean)
+    if (!chosen.length) { alert('The menus in this order form are no longer in this event.'); return }
+    const quantities = {}
+    snap.forEach(it => { if (it.menuId && byId.has(it.menuId)) quantities[it.menuId] = String(it.quantity ?? '') })
+    setOrderLibrary(null)
+    setOrderModal({
+      menus: chosen,
+      editId: order.id,
+      initial: {
+        title: order.title || '', notes: order.notes || '',
+        neededBy: order.meta?.neededBy || '', layout: order.layout || 'both', quantities,
+      },
+    })
   }
   async function updateShare(patch) {
     if (!shareInfo) return
@@ -2060,7 +2100,7 @@ export default function EventPage() {
                       )}
                       {selectPurpose === 'order' && (
                         <button
-                          onClick={() => setOrderModal(menus.filter(m => selectedPreviewIds.has(m.id)))}
+                          onClick={() => setOrderModal({ menus: menus.filter(m => selectedPreviewIds.has(m.id)), editId: null, initial: null })}
                           disabled={selectedPreviewIds.size === 0}
                           className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
                           style={{ background: SHARE_GRADIENT }}
@@ -2121,9 +2161,9 @@ export default function EventPage() {
                         Send previews
                       </button>
                       <button
-                        onClick={() => { setSelectMode(true); setSelectPurpose('order') }}
+                        onClick={openOrderLibrary}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
-                        title="Pick menus, set quantities, and build a printable order form"
+                        title="View, edit, or create order forms for this event"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                         Order form
@@ -2340,9 +2380,21 @@ export default function EventPage() {
         </div>
       )}
 
+      {/* ── Order-form library ── */}
+      <OrderLibraryModal
+        open={!!orderLibrary}
+        loading={orderLibrary?.loading}
+        orders={orderLibrary?.orders || []}
+        onNew={startNewOrder}
+        onEdit={editOrder}
+        onClose={() => setOrderLibrary(null)}
+      />
+
       {/* ── Order-form builder modal ── */}
       <OrderFormModal
-        menus={orderModal}
+        menus={orderModal?.menus}
+        initial={orderModal?.initial}
+        editing={!!orderModal?.editId}
         event={event}
         busy={shareBusy}
         onCreate={(opts) => createOrderShare(orderModal, opts)}

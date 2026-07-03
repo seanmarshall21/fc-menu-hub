@@ -1133,6 +1133,15 @@ alter table public.menu_preview_shares add column if not exists layout text;
 alter table public.menu_preview_shares add column if not exists notes  text;
 alter table public.menu_preview_shares add column if not exists meta   jsonb not null default '{}'::jsonb; -- order: { eventId, eventDate, eventLocation, neededBy, eventIcon }
 alter table public.menu_preview_shares add column if not exists is_live boolean not null default false; -- order: reflect current menu quantities (else frozen snapshot)
+
+-- Staff (admin/internal/production) may edit ANY order form — the library lets
+-- you open and revise forms made by others. Preview shares stay owner-only
+-- (the base "update own shares" policy still applies to those).
+drop policy if exists "staff update order shares" on public.menu_preview_shares;
+create policy "staff update order shares" on public.menu_preview_shares
+  for update to authenticated
+  using (kind = 'order' and exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])))
+  with check (kind = 'order');
 alter table public.menu_preview_shares add column if not exists is_live boolean not null default false; -- order: reflect menus' current quantities (via items[].menuId) vs frozen snapshot
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'menu_preview_shares_kind_check') then

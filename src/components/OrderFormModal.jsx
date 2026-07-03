@@ -11,7 +11,7 @@ const LAYOUTS = [
 
 // Build a printable order form from the chosen menus: a quantity per menu + a
 // layout, snapshotted into a public /share/:id page (kind=order).
-export default function OrderFormModal({ menus, event, busy, onCreate, onClose }) {
+export default function OrderFormModal({ menus, event, busy, onCreate, onClose, initial, editing }) {
   const open = Array.isArray(menus) && menus.length > 0
   const [qty, setQty] = useState({})
   const [layout, setLayout] = useState('both')
@@ -21,13 +21,13 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose }
 
   useEffect(() => {
     if (!open) return
-    // Mirror each menu's saved quantity as the starting value.
-    setQty(Object.fromEntries(menus.map(m => [m.id, m.quantity != null ? String(m.quantity) : ''])))
-    setLayout('both')
-    setTitle(event?.name ? `${event.name} — Order` : 'Menu order')
-    setNotes('')
-    setNeededBy('')
-  }, [open, menus, event])
+    // Editing: restore the saved order. New: mirror each menu's saved quantity.
+    setQty(initial?.quantities || Object.fromEntries(menus.map(m => [m.id, m.quantity != null ? String(m.quantity) : ''])))
+    setLayout(initial?.layout || 'both')
+    setTitle(initial?.title || (event?.name ? `${event.name} — Order` : 'Menu order'))
+    setNotes(initial?.notes || '')
+    setNeededBy(initial?.neededBy || '')
+  }, [open, menus, event, initial])
 
   const eventDate = event?.event_date
     ? new Date(event.event_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -40,7 +40,7 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose }
   if (!open) return null
 
   return (
-    <Modal title="Build order form" onClose={onClose}>
+    <Modal title={editing ? 'Edit order form' : 'Build order form'} onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="label">Title</label>
@@ -114,7 +114,7 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose }
             className="btn-sm whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
             style={{ background: SHARE_GRADIENT }}
           >
-            {busy ? 'Creating…' : 'Create order form'}
+            {busy ? 'Saving…' : (editing ? 'Save changes' : 'Create order form')}
           </button>
         </div>
       </div>
