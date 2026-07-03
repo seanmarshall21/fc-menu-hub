@@ -919,6 +919,40 @@ alter table menus  add column if not exists print_file_url   text;  -- link to t
 alter table menus  add column if not exists print_preview_url text;  -- rendered PNG/JPG of the print PDF (page 1); preferred preview once complete
 alter table events add column if not exists print_folder_url text;  -- link to the event's print-files folder
 
+-- Auto-generate the print preview: when a menu becomes complete with a direct
+-- (non-folder) print file, fire the Netlify background function that renders
+-- page 1 → JPEG and stores it (which sets print_preview_url). Uses pg_net.
+-- The secret below matches PREVIEW_HOOK_SECRET in the Netlify env; the applied
+-- migration has the real value (kept out of source).
+create or replace function public.trigger_print_preview() returns trigger
+language plpgsql security definer as $$
+declare need boolean;
+begin
+  if TG_OP = 'INSERT' then
+    need := true;
+  else
+    need := (OLD.phase is distinct from NEW.phase) or (OLD.print_file_url is distinct from NEW.print_file_url);
+  end if;
+  if NEW.phase = 'complete'
+     and NEW.print_file_url is not null and NEW.print_file_url <> ''
+     and NEW.print_file_url not like '%/scl/fo/%'
+     and (need or NEW.print_preview_url is null)
+  then
+    perform net.http_post(
+      url := 'https://fcmenus.netlify.app/.netlify/functions/render-print-preview-background',
+      body := jsonb_build_object('menuId', NEW.id::text, 'printFileUrl', NEW.print_file_url, 'secret', '<PREVIEW_HOOK_SECRET>'),
+      headers := jsonb_build_object('Content-Type', 'application/json'),
+      timeout_milliseconds := 8000
+    );
+  end if;
+  return NEW;
+end;
+$$;
+drop trigger if exists print_preview_on_complete on public.menus;
+create trigger print_preview_on_complete
+  after insert or update of phase, print_file_url on public.menus
+  for each row execute function public.trigger_print_preview();
+
 -- ─── Role-based approval rosters + per-menu sign-offs ────────────────────────
 -- Replaces the brand→series→event cascade. Per event×role (proofing/sponsorship):
 -- a roster of REQUIRED approvers, one flagged is_owner. Events inherit the
