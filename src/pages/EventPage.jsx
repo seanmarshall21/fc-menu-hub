@@ -1526,7 +1526,8 @@ export default function EventPage() {
               style={{ background: COMPLETE_GRADIENT }}
               title={completedOnly ? 'Showing only completed menus — click to show all' : 'Show only the completed, finalized menus'}
             >
-              ✓ {completedOnly ? 'Showing completed' : 'View completed'} · {completed.length}
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              {completedOnly ? 'Showing completed' : 'View completed'} · {completed.length}
               {completedOnly && <span className="font-normal opacity-80">— show all</span>}
             </button>
           </div>
@@ -1535,7 +1536,8 @@ export default function EventPage() {
           {completed.length > 0 && (
             <div>
               <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-black mb-3" style={{ background: COMPLETE_GRADIENT }}>
-                ✓ Completed<span className="opacity-70 ml-1">· {completed.length}</span>
+                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Completed<span className="opacity-70 ml-1">· {completed.length}</span>
               </span>
               {completedCats.length > 1 ? (
                 <div className="space-y-6">
@@ -1985,7 +1987,8 @@ export default function EventPage() {
                         style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
                         title="Create a public gallery link for the selected menus"
                       >
-                        🔗 {shareBusy ? 'Creating…' : `Send previews ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                        {shareBusy ? 'Creating…' : `Send previews ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
                       </button>
                       <button
                         onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
@@ -2002,7 +2005,8 @@ export default function EventPage() {
                         style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
                         title="Pick menus and send a shareable preview-gallery link"
                       >
-                        🔗 Send previews
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                        Send previews
                       </button>
                       <button
                         onClick={() => setSelectMode(true)}
@@ -2193,7 +2197,7 @@ export default function EventPage() {
               <button
                 onClick={() => { try { navigator.clipboard?.writeText(shareInfo.url) } catch (_) {} setShareCopied(true) }}
                 className="btn-primary btn-sm whitespace-nowrap flex-shrink-0"
-              >{shareCopied ? 'Copied ✓' : 'Copy'}</button>
+              >{shareCopied ? 'Copied' : 'Copy'}</button>
             </div>
             <div className="space-y-2.5 border-t border-surface-100 pt-3">
               <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide">Turn on for this link</p>

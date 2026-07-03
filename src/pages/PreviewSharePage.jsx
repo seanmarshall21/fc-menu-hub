@@ -18,6 +18,15 @@ function downloadHref(image, name) {
   return `${image}${sep}download=${encodeURIComponent((name || 'menu') + '.png')}`
 }
 
+// Inline outline icons, matching Menu Hub's icon style (no emoji, no icon lib).
+const svgBase = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, viewBox: '0 0 24 24' }
+const IconDownload = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>)
+const IconChat = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.9 9.9 0 0 1-4-.8L3 21l1.8-4A7.9 7.9 0 0 1 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" /></svg>)
+const IconExternal = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>)
+const IconX = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>)
+const IconChevronLeft = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>)
+const IconChevronRight = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>)
+
 export default function PreviewSharePage() {
   const { shareId } = useParams()
   const [share, setShare] = useState(undefined) // undefined = loading, null = not found/private
@@ -110,13 +119,13 @@ export default function PreviewSharePage() {
                       <p className="text-[10px] text-ink-400 uppercase tracking-wide">{it.category || ''}{it.size ? ` · ${it.size}` : ''}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-[11px]">
-                    <a href={downloadHref(it.image, it.name)} className="text-brand-600 hover:underline">⬇ PNG</a>
+                  <div className="flex items-center gap-2.5 text-[11px]">
+                    <a href={downloadHref(it.image, it.name)} className="text-brand-600 hover:underline inline-flex items-center gap-1"><IconDownload className="w-3.5 h-3.5" /> PNG</a>
                     {share.show_print_files && it.printFile && (
-                      <a href={it.printFile} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">Print file ↗</a>
+                      <a href={it.printFile} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline inline-flex items-center gap-1">Print file <IconExternal className="w-3 h-3" /></a>
                     )}
                     {share.allow_comments && (
-                      <button onClick={() => setIdx(i)} className="ml-auto text-ink-400 hover:text-ink-600">💬 {cCount || ''}</button>
+                      <button onClick={() => setIdx(i)} className="ml-auto text-ink-400 hover:text-ink-600 inline-flex items-center gap-1"><IconChat className="w-3.5 h-3.5" /> {cCount || ''}</button>
                     )}
                   </div>
                 </div>
@@ -132,17 +141,17 @@ export default function PreviewSharePage() {
             <span className="font-medium truncate">{items[idx].name}</span>
             <span className="text-white/60 flex-shrink-0">{idx + 1} / {items.length}</span>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <a href={downloadHref(items[idx].image, items[idx].name)} title="Download PNG" className="p-1.5 hover:bg-white/10 rounded-md" onClick={e => e.stopPropagation()}>⬇</a>
+              <a href={downloadHref(items[idx].image, items[idx].name)} title="Download PNG" className="p-1.5 hover:bg-white/10 rounded-md inline-flex" onClick={e => e.stopPropagation()}><IconDownload className="w-4 h-4" /></a>
               {share.show_print_files && items[idx].printFile && (
-                <a href={items[idx].printFile} target="_blank" rel="noreferrer" title="Open print file" className="px-2 py-1 hover:bg-white/10 rounded-md text-xs">Print file ↗</a>
+                <a href={items[idx].printFile} target="_blank" rel="noreferrer" title="Open print file" className="px-2 py-1 hover:bg-white/10 rounded-md text-xs inline-flex items-center gap-1">Print file <IconExternal className="w-3 h-3" /></a>
               )}
-              <button onClick={close} className="p-1.5 hover:bg-white/10 rounded-md" aria-label="Close">✕</button>
+              <button onClick={close} className="p-1.5 hover:bg-white/10 rounded-md inline-flex" aria-label="Close"><IconX className="w-4 h-4" /></button>
             </div>
           </div>
           <div className="flex-1 flex items-center justify-center gap-1 px-2 min-h-0" onClick={e => e.stopPropagation()}>
-            {items.length > 1 && <button onClick={prev} className="text-white/70 hover:text-white text-3xl leading-none px-3 py-6 flex-shrink-0" aria-label="Previous">‹</button>}
+            {items.length > 1 && <button onClick={prev} className="text-white/70 hover:text-white px-2 py-6 flex-shrink-0" aria-label="Previous"><IconChevronLeft className="w-8 h-8" /></button>}
             <img src={items[idx].image} alt={items[idx].name} className="max-h-full max-w-full object-contain" />
-            {items.length > 1 && <button onClick={next} className="text-white/70 hover:text-white text-3xl leading-none px-3 py-6 flex-shrink-0" aria-label="Next">›</button>}
+            {items.length > 1 && <button onClick={next} className="text-white/70 hover:text-white px-2 py-6 flex-shrink-0" aria-label="Next"><IconChevronRight className="w-8 h-8" /></button>}
           </div>
           {share.allow_comments && (
             <div onClick={e => e.stopPropagation()}>
