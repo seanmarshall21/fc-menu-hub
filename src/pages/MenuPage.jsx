@@ -988,7 +988,11 @@ export default function MenuPage() {
           <p className="text-xs text-ink-400 mb-5">Update the menu name and icon. Tap Save to apply.</p>
           <form onSubmit={async e => {
             e.preventDefault()
-            setEditMenuSaving(true); setEditMenuError(null)
+            setEditMenuError(null)
+            const sizeChanged = editMenuSize !== menu.size
+            const wasFinal = menu.phase === 'complete' || menu.phase === 'exported'
+            if (sizeChanged && wasFinal && !confirm(`Changing the size rebuilds this menu on a different template, so it can no longer be ${menu.phase}. It’ll move back to Edits. Continue?`)) return
+            setEditMenuSaving(true)
             try {
               const { error } = await supabase.from('menus')
                 .update({
@@ -996,6 +1000,7 @@ export default function MenuPage() {
                   print_title: editMenuTitle.trim() || null,
                   print_file_url: editMenuPrintUrl.trim() || null,
                   size: editMenuSize,
+                  ...(sizeChanged && wasFinal ? { phase: 'edits' } : {}),
                   category: editMenuCategory,
                   icon_url: editMenuIconUrl,
                   icon_name: editMenuIconName,

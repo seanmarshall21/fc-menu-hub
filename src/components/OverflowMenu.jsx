@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 // A "⋯ More" button that opens a dropdown of actions. Pass menu rows as
 // children (links/buttons); style them with `className="menu-row"` or the
 // shared class below. Render nothing when there are no children.
-export default function OverflowMenu({ children, label = 'More', align = 'right', triggerLabel, hideChevron = false }) {
+export default function OverflowMenu({ children, label = 'More', align = 'right', triggerLabel, hideChevron = false, triggerClassName, triggerStyle, triggerIcon }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   useEffect(() => {
@@ -17,9 +17,10 @@ export default function OverflowMenu({ children, label = 'More', align = 'right'
   return (
     <span className="relative inline-block" ref={ref}>
       <button type="button" onClick={() => setOpen(o => !o)} title={label} aria-haspopup="menu" aria-expanded={open}
-        className={`btn-secondary btn-sm inline-flex items-center ${triggerLabel ? 'gap-1' : 'px-2'}`}>
+        style={triggerStyle}
+        className={triggerClassName || `btn-secondary btn-sm inline-flex items-center ${triggerLabel ? 'gap-1' : 'px-2'}`}>
         {triggerLabel
-          ? <>{triggerLabel}{!hideChevron && <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}</>
+          ? <>{triggerIcon}{triggerLabel}{!hideChevron && <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}</>
           : <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>}
       </button>
       {open && (

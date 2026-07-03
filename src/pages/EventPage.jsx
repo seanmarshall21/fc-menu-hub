@@ -777,6 +777,8 @@ export default function EventPage() {
   const [orderModal, setOrderModal] = useState(null)
   // Order-form library: null = closed, else { loading, orders }.
   const [orderLibrary, setOrderLibrary] = useState(null)
+  // Edit-folder-links modal: null = closed, else { prep, print } draft.
+  const [folderModal, setFolderModal] = useState(null)
   // "Send previews" → public gallery share link.
   const [shareInfo, setShareInfo] = useState(null)   // { id, url } once created
   const [shareBusy, setShareBusy] = useState(false)
@@ -1213,9 +1215,18 @@ export default function EventPage() {
   // Quick size change from the card chips. Updates menu.size — the next Figma
   // sync rebuilds it on the new-size template (see the plugin's resize logic).
   async function quickSetSize(menu, size) {
-    const { error } = await supabase.from('menus').update({ size }).eq('id', menu.id)
+    if (size === menu.size) return
+    // Changing size means rebuilding on a different template — a finished menu
+    // can't stay complete/exported, so warn and drop it back to Edits.
+    const wasFinal = menu.phase === 'complete' || menu.phase === 'exported'
+    const patch = { size }
+    if (wasFinal) {
+      if (!confirm(`Changing the size rebuilds this menu on a different template, so it can no longer be ${menu.phase}. It’ll move back to Edits. Continue?`)) return
+      patch.phase = 'edits'
+    }
+    const { error } = await supabase.from('menus').update(patch).eq('id', menu.id)
     if (error) { toast('Could not save', { type: 'error' }); alert('Could not change size: ' + error.message); return }
-    toast('Saved'); loadData()
+    toast(wasFinal ? 'Size changed — moved to Edits' : 'Saved'); loadData()
   }
 
   // ── Bulk actions (shared by Menus + Preview tabs) ────────────────────────
@@ -1627,7 +1638,7 @@ export default function EventPage() {
   }
   function startNewOrder() {
     setOrderLibrary(null)
-    setSelectedPreviewIds(new Set()); setSelectPurpose('order'); setSelectMode(true)
+    setTab('preview'); setSelectedPreviewIds(new Set()); setSelectPurpose('order'); setSelectMode(true)
   }
   function editOrder(order) {
     const snap = Array.isArray(order.items) ? order.items : []
@@ -1749,63 +1760,49 @@ export default function EventPage() {
       </>}
       secondaryActions={(<>
         {!isProduction && event.figma_file_url && (
-          <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5" title="Open in the Figma desktop app (falls back to browser)">
-            <FigmaLogo size={12} />
-            Open Figma
+          <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm px-2" title="Open in Figma" aria-label="Open in Figma">
+            <FigmaLogo size={14} />
           </a>
         )}
         {canEdit && (
-          <button onClick={openEditEvent} className="btn-secondary btn-sm whitespace-nowrap">Edit Event</button>
+          <button onClick={openEditEvent} className="btn-secondary btn-sm px-2" title="Edit event" aria-label="Edit event">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          </button>
         )}
-        {(event.print_folder_url || canEdit) && (
-          <span className="inline-flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={async () => {
-                let url = event.print_folder_url
-                if (!url) {
-                  if (!canEdit) return
-                  const link = window.prompt('Paste the Dropbox/Drive link to this event’s PRINT / completed folder:', '')
-                  if (!link || !link.trim()) return
-                  url = link.trim()
-                  await supabase.from('events').update({ print_folder_url: url }).eq('id', event.id)
-                  loadData()
-                }
-                window.open(url, '_blank', 'noopener')
-              }}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition ${event.print_folder_url ? 'text-black shadow-sm hover:brightness-105' : 'border border-[#FFB300] text-[#FFB300] hover:bg-[#FFB300]/10'}`}
-              style={event.print_folder_url ? { background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' } : undefined}
-              title={event.print_folder_url ? 'Open the print / completed folder' : 'Add the print / completed folder link'}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-              </svg>
-              {event.print_folder_url ? 'Print Files' : 'Add Print Files'}
-            </button>
-            {canEdit && event.print_folder_url && (
-              <button
-                onClick={async () => {
-                  const link = window.prompt('Edit the print / completed folder link (clear it to remove):', event.print_folder_url || '')
-                  if (link === null) return // cancelled
-                  await supabase.from('events').update({ print_folder_url: link.trim() || null }).eq('id', event.id)
-                  loadData()
-                }}
-                title="Edit the print folder link"
-                aria-label="Edit print folder link"
-                className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-black shadow-sm hover:brightness-105 transition"
-                style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-            )}
-          </span>
-        )}
-        {!isProduction && event.prep_folder_url && (
-          <OverflowMenu label="Folders">
-            <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>
+
+        {/* Print Files — one dropdown: open prep/print folders, edit links */}
+        {(event.print_folder_url || event.prep_folder_url || canEdit) && (
+          <OverflowMenu
+            label="Print Files"
+            triggerLabel="Print Files"
+            triggerStyle={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+            triggerClassName="btn-sm inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition whitespace-nowrap flex-shrink-0"
+            triggerIcon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>}
+          >
             {event.print_folder_url && <a href={event.print_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print folder ↗</a>}
+            {!isProduction && event.prep_folder_url && <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>}
+            {!event.print_folder_url && !event.prep_folder_url && <span className={`${MENU_ROW} text-ink-400`}>No folders added yet</span>}
+            {canEdit && <button className={MENU_ROW} onClick={() => setFolderModal({ prep: event.prep_folder_url || '', print: event.print_folder_url || '' })}>Edit links…</button>}
           </OverflowMenu>
+        )}
+
+        {/* Main functions: send a preview link / manage order forms */}
+        {menus.length > 0 && (
+          <button
+            onClick={() => { setTab('preview'); setSelectPurpose('share'); setSelectedPreviewIds(new Set()); setSelectMode(true) }}
+            className="btn-sm inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition whitespace-nowrap flex-shrink-0"
+            style={{ background: SHARE_GRADIENT }}
+            title="Pick menus and send a preview link"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+            Send Previews
+          </button>
+        )}
+        {menus.length > 0 && (
+          <button onClick={openOrderLibrary} className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5" title="View, edit, or create order forms">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+            Order
+          </button>
         )}
       </>)}
       below={(
@@ -2424,6 +2421,33 @@ export default function EventPage() {
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
           </button>
         </div>
+      )}
+
+      {/* ── Edit folder links (prep + print) ── */}
+      {folderModal && (
+        <Modal title="Edit folder links" onClose={() => setFolderModal(null)}>
+          <div className="space-y-4">
+            <div>
+              <label className="label">Prep folder link</label>
+              <input value={folderModal.prep} onChange={e => setFolderModal(f => ({ ...f, prep: e.target.value }))} placeholder="https://… (Dropbox / Drive)" className="input w-full text-sm" />
+            </div>
+            <div>
+              <label className="label">Print / completed folder link</label>
+              <input value={folderModal.print} onChange={e => setFolderModal(f => ({ ...f, print: e.target.value }))} placeholder="https://… (Dropbox / Drive)" className="input w-full text-sm" />
+            </div>
+            <p className="text-[11px] text-ink-400">Leave a field blank to remove that link.</p>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setFolderModal(null)} className="btn-secondary btn-sm">Cancel</button>
+              <button
+                onClick={async () => {
+                  await supabase.from('events').update({ prep_folder_url: folderModal.prep.trim() || null, print_folder_url: folderModal.print.trim() || null }).eq('id', event.id)
+                  setFolderModal(null); loadData()
+                }}
+                className="btn-primary btn-sm"
+              >Save</button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* ── Order-form library ── */}
