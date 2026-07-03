@@ -1778,10 +1778,11 @@ export default function EventPage() {
         )}
 
         {/* Print Files — one dropdown: open prep/print folders, edit links */}
-        {!isProduction && (event.print_folder_url || event.prep_folder_url || canEdit) && (
+        {(event.print_folder_url || event.prep_folder_url || canEdit) && (
           <OverflowMenu
             label="Print Files"
             triggerLabel="Print Files"
+            align="left"
             triggerStyle={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
             triggerClassName="btn-sm inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition whitespace-nowrap flex-shrink-0"
             triggerIcon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>}

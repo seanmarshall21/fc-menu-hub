@@ -25,7 +25,7 @@ export default function OverflowMenu({ children, label = 'More', align = 'right'
       </button>
       {open && (
         <span onClick={() => setOpen(false)}
-          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 z-30 bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[180px] py-1`}>
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 z-30 bg-surface-0 border border-surface-200 rounded-lg shadow-lg overflow-hidden min-w-[180px] max-w-[calc(100vw-1.5rem)] py-1`}>
           {children}
         </span>
       )}
