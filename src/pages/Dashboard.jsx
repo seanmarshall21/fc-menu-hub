@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useBrands } from '@/hooks/useBrands'
@@ -14,7 +14,7 @@ import ReadyQueue from '@/components/ReadyQueue'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
-  const { profile, isViewer } = useAuth()
+  const { profile, isViewer, isProduction } = useAuth()
   const { brands } = useBrands()
   const { favorites } = useFavorites()
   const [recentEvents, setRecentEvents] = useState([])
@@ -80,6 +80,8 @@ export default function Dashboard() {
   // them — never the full brand/event dashboard. (After all hooks, so hook
   // order stays stable.)
   if (isViewer) return <ViewerHome />
+  // Production team: land straight on the events list (their only workflow).
+  if (isProduction) return <Navigate to="/events" replace />
 
   return (
     <PageScreen

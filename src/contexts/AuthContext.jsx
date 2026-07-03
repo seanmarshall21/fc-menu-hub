@@ -72,6 +72,9 @@ export function AuthProvider({ children }) {
   // Viewer = read-only reviewer scoped to specific events/menus they're
   // granted. Sees only their assigned content; can leave comments, not edit.
   const isViewer      = profile?.role === 'viewer'
+  // Production = print/production team. Locked down: sees completed menus and
+  // can send preview links + order forms; no editing or other workflow.
+  const isProduction  = profile?.role === 'production'
   const isPending     = profile?.role === 'pending' || (session && !profile && !loading)
   // Elevated style/template access. Admins always get it; trusted internals
   // get it when an admin flips can_edit_styles on their profile.
@@ -103,7 +106,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isViewer, isPending, canEditStyles, can }}>
+    <AuthContext.Provider value={{ session, profile, loading, signIn, signUp, signInWithGoogle, signOut, isAdmin, isInternal, isExternal, isViewer, isProduction, isPending, canEditStyles, can }}>
       {children}
     </AuthContext.Provider>
   )

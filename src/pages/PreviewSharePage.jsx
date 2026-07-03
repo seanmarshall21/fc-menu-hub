@@ -27,6 +27,7 @@ const IconX = ({ className }) => (<svg className={className} {...svgBase}><path 
 const IconChevronLeft = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>)
 const IconChevronRight = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>)
 const IconTrash = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m1 0-.5 12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6.5 7" /></svg>)
+const IconPrint = ({ className }) => (<svg className={className} {...svgBase}><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7Z" /></svg>)
 
 export default function PreviewSharePage() {
   const { shareId } = useParams()
@@ -40,7 +41,7 @@ export default function PreviewSharePage() {
     ;(async () => {
       const { data, error } = await supabase
         .from('menu_preview_shares')
-        .select('title, items, is_public, show_print_files, allow_comments, created_by')
+        .select('title, items, is_public, show_print_files, allow_comments, created_by, kind, layout, notes')
         .eq('id', shareId)
         .maybeSingle()
       if (cancelled) return
@@ -68,6 +69,9 @@ export default function PreviewSharePage() {
   }
 
   const items = (share && Array.isArray(share.items)) ? share.items : []
+  const isOrder = share?.kind === 'order'
+  const orderLayout = share?.layout || 'both'
+  const totalQty = items.reduce((n, it) => n + (Number(it.quantity) || 0), 0)
   const close = useCallback(() => setIdx(null), [])
   const prev = useCallback(() => setIdx(i => (i == null ? i : (i - 1 + items.length) % items.length)), [items.length])
   const next = useCallback(() => setIdx(i => (i == null ? i : (i + 1) % items.length)), [items.length])
@@ -90,8 +94,8 @@ export default function PreviewSharePage() {
     return (
       <div className="min-h-[100dvh] bg-surface-50 flex flex-col items-center justify-center gap-2 text-center px-6">
         <img src="/logo-tile.svg" alt="" className="w-9 h-9 mb-2 opacity-80" />
-        <p className="text-ink-900 font-semibold">This gallery isn’t available</p>
-        <p className="text-ink-400 text-sm max-w-xs">The link may be private (sign in to view) or no longer exists.</p>
+        <p className="text-ink-900 font-semibold">This link isn’t available</p>
+        <p className="text-ink-400 text-sm max-w-xs">It may be private (sign in to view) or no longer exists.</p>
       </div>
     )
   }
@@ -100,20 +104,90 @@ export default function PreviewSharePage() {
     // Own scroll container: this public page renders outside Layout, and the
     // global `html, body, #root { overflow: hidden }` would otherwise clip
     // everything below the fold.
-    <div className="h-[100dvh] overflow-y-auto bg-surface-50 text-ink-900">
-      <header className="px-6 py-5 border-b border-surface-200 flex items-center gap-3 sticky top-0 bg-surface-50/95 backdrop-blur z-10">
+    <div className="h-[100dvh] overflow-y-auto print:h-auto print:overflow-visible bg-surface-50 text-ink-900">
+      <header className="px-6 py-5 border-b border-surface-200 flex items-center gap-3 sticky top-0 bg-surface-50/95 backdrop-blur z-10 print:hidden">
         <img src="/logo-tile.svg" alt="" className="w-7 h-7 flex-shrink-0" />
-        <div className="min-w-0">
-          <h1 className="font-semibold text-ink-900 text-sm truncate">{share.title || 'Menu previews'}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="font-semibold text-ink-900 text-sm truncate">{share.title || (isOrder ? 'Menu order' : 'Menu previews')}</h1>
           <p className="text-xs text-ink-400">
-            {items.length} menu{items.length === 1 ? '' : 's'} · tap any to view full size
-            {share.allow_comments ? ' · leave feedback' : ''}
+            {isOrder
+              ? `${items.length} menu${items.length === 1 ? '' : 's'} · ${totalQty} total`
+              : `${items.length} menu${items.length === 1 ? '' : 's'} · tap any to view full size${share.allow_comments ? ' · leave feedback' : ''}`}
           </p>
         </div>
+        {isOrder && (
+          <button onClick={() => window.print()} className="btn-primary btn-sm inline-flex items-center gap-1.5 flex-shrink-0">
+            <IconPrint className="w-4 h-4" /> Print / Save PDF
+          </button>
+        )}
       </header>
 
       {items.length === 0 ? (
-        <p className="text-center text-ink-400 text-sm py-16">No previews in this gallery.</p>
+        <p className="text-center text-ink-400 text-sm py-16">Nothing in this {isOrder ? 'order' : 'gallery'}.</p>
+      ) : isOrder ? (
+        <div className="p-6 max-w-4xl mx-auto space-y-6">
+          {share.notes && (
+            <div className="text-sm text-ink-700 bg-surface-0 border border-surface-200 rounded-lg px-4 py-3 whitespace-pre-wrap">{share.notes}</div>
+          )}
+
+          {orderLayout !== 'gallery' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-surface-200 rounded-lg overflow-hidden">
+                <thead className="bg-surface-100 text-ink-500 text-xs uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left font-semibold px-3 py-2">Menu</th>
+                    <th className="text-left font-semibold px-3 py-2">Size</th>
+                    {share.show_print_files && <th className="text-left font-semibold px-3 py-2 print:hidden">Print file</th>}
+                    <th className="text-right font-semibold px-3 py-2">Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-100">
+                  {items.map((it, i) => (
+                    <tr key={i}>
+                      <td className="px-3 py-2">
+                        <span className="font-medium text-ink-900">{it.name}</span>
+                        {it.category && <span className="text-ink-400 text-xs ml-2 capitalize">{it.category}</span>}
+                      </td>
+                      <td className="px-3 py-2 text-ink-500 uppercase">{it.size || ''}</td>
+                      {share.show_print_files && (
+                        <td className="px-3 py-2 print:hidden">
+                          {it.printFile
+                            ? <a href={it.printFile} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline inline-flex items-center gap-1">Open <IconExternal className="w-3 h-3" /></a>
+                            : <span className="text-ink-300">—</span>}
+                        </td>
+                      )}
+                      <td className="px-3 py-2 text-right font-semibold text-ink-900">{Number(it.quantity) || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="text-right text-sm font-semibold text-ink-900 mt-2">Total: {totalQty}</div>
+            </div>
+          )}
+
+          {orderLayout !== 'list' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {items.map((it, i) => (
+                <div key={i} className="card overflow-hidden flex flex-col">
+                  <button onClick={() => setIdx(i)} className="relative w-full aspect-[2/3] bg-surface-0 overflow-hidden text-left hover:opacity-95">
+                    {it.image
+                      ? <img src={it.image} alt={it.name} loading="lazy" className="w-full h-full object-contain" />
+                      : <div className="w-full h-full flex items-center justify-center text-ink-300 text-xs">No preview</div>}
+                    <span className="absolute top-1.5 right-1.5 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow"
+                      style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}>×{Number(it.quantity) || 0}</span>
+                  </button>
+                  <div className="px-3 py-2">
+                    <p className="text-xs font-medium text-ink-900 truncate">{it.name}</p>
+                    <p className="text-[10px] text-ink-400 uppercase tracking-wide">{it.category || ''}{it.size ? ` · ${it.size}` : ''} · Qty {Number(it.quantity) || 0}</p>
+                    {share.show_print_files && it.printFile && (
+                      <a href={it.printFile} target="_blank" rel="noreferrer" className="text-[11px] text-brand-600 hover:underline inline-flex items-center gap-1 mt-1 print:hidden">Print file <IconExternal className="w-3 h-3" /></a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {items.map((it, i) => {

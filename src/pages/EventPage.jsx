@@ -4,6 +4,7 @@ import Papa from 'papaparse'
 import { supabase } from '@/lib/supabase'
 import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
 import { menuPreviewSrc } from '@/lib/menuPreview'
+import OrderFormModal from '@/components/OrderFormModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
@@ -753,7 +754,7 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, currentSeriesId, curre
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function EventPage() {
   const { brandSlug, seriesSlug, eventSlug } = useParams()
-  const { isAdmin, isInternal, canEditStyles, profile } = useAuth()
+  const { isAdmin, isInternal, isProduction, canEditStyles, profile } = useAuth()
   const navigate = useNavigate()
   const canEdit = isAdmin || isInternal
 
@@ -764,11 +765,14 @@ export default function EventPage() {
   // preview card grows a checkbox + the toolbar shows Selected count
   // and Export.
   const [selectMode, setSelectMode] = useState(false)
-  // When entered via "Send previews", the toolbar stays share-only (Quick
-  // select + Select all + Send previews); the bulk export/status controls are
-  // hidden. "Select / Export" enters the full toolbar (shareMode = false).
-  const [shareMode, setShareMode] = useState(false)
+  // Select-mode purpose drives which toolbar shows:
+  //   'share'  → Quick select + Select all + Send previews
+  //   'order'  → Quick select + Select all + Create order form
+  //   'export' → the full bulk toolbar (status / sponsors / unsync / export)
+  const [selectPurpose, setSelectPurpose] = useState('share')
   const [selectedPreviewIds, setSelectedPreviewIds] = useState(() => new Set())
+  // Order-form builder modal: null = closed, else array of chosen menu objects.
+  const [orderModal, setOrderModal] = useState(null)
   // "Send previews" → public gallery share link.
   const [shareInfo, setShareInfo] = useState(null)   // { id, url } once created
   const [shareBusy, setShareBusy] = useState(false)
@@ -817,6 +821,8 @@ export default function EventPage() {
   // Initial tab can be deep-linked via ?tab= (e.g. from a menu's "Event
   // sponsors" shortcut). Falls back to Menus for unknown values.
   const [tab, setTab]           = useState(() => {
+    // Production only ever sees completed menus + send actions.
+    if (isProduction) return 'preview'
     const t = new URLSearchParams(window.location.search).get('tab')
     return ['menus', 'preview', 'sponsors', 'aireview', 'signoff', 'rules', 'templates', 'styles'].includes(t) ? t : 'menus'
   })
@@ -1523,9 +1529,29 @@ export default function EventPage() {
       .select('id, is_public, show_print_files, allow_comments').single()
     setShareBusy(false)
     if (error) { alert('Could not create the share link: ' + error.message); return }
-    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments })
+    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, kind: 'preview', is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments })
     setShareCopied(false)
-    setSelectMode(false); setShareMode(false); setSelectedPreviewIds(new Set())
+    setSelectMode(false); setSelectedPreviewIds(new Set())
+  }
+
+  // "Send order form" — production sets a quantity per menu and a layout, then
+  // this snapshots a printable order into the same /share/:id page (kind=order).
+  async function createOrderShare(chosen, { quantities, layout, title, notes }) {
+    if (!chosen.length) { alert('Select at least one menu.'); return }
+    setShareBusy(true)
+    const items = chosen.map(m => ({
+      name: m.name, category: m.category, size: m.size,
+      image: menuPreviewSrc(m), printFile: m.print_file_url || null,
+      quantity: Number(quantities[m.id]) || 0,
+    }))
+    const { data, error } = await supabase.from('menu_preview_shares')
+      .insert({ kind: 'order', layout, notes: notes?.trim() || null, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true, created_by: profile?.id })
+      .select('id, is_public, show_print_files, allow_comments').single()
+    setShareBusy(false)
+    if (error) { alert('Could not create the order form: ' + error.message); return }
+    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, kind: 'order', is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments })
+    setShareCopied(false)
+    setOrderModal(null); setSelectMode(false); setSelectedPreviewIds(new Set())
   }
   async function updateShare(patch) {
     if (!shareInfo) return
@@ -1691,7 +1717,9 @@ export default function EventPage() {
       </>)}
       below={(
         <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {[
+          {(isProduction ? [
+            { id: 'preview', label: 'Completed menus' },
+          ] : [
             { id: 'menus',     label: `Menus (${menus.length})` },
             { id: 'preview',   label: 'Preview all' },
             { id: 'sponsors',  label: `Sponsors (${sponsors.length})` },
@@ -1719,7 +1747,7 @@ export default function EventPage() {
                 Review Rules
               </span>
             ) },
-          ].map(t => (
+          ]).map(t => (
             <button
               key={t.id}
               data-tour={`event-tab-${t.id}`}
@@ -1978,7 +2006,7 @@ export default function EventPage() {
                       >
                         {selectedPreviewIds.size === previewFiltered.length ? 'Clear' : 'Select all'}
                       </button>
-                      {shareMode ? (
+                      {selectPurpose === 'share' && (
                         <button
                           onClick={() => createPreviewShare(selectedPreviewIds)}
                           disabled={selectedPreviewIds.size === 0 || shareBusy}
@@ -1989,7 +2017,20 @@ export default function EventPage() {
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
                           {shareBusy ? 'Creating…' : `Send previews ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
                         </button>
-                      ) : (
+                      )}
+                      {selectPurpose === 'order' && (
+                        <button
+                          onClick={() => setOrderModal(menus.filter(m => selectedPreviewIds.has(m.id)))}
+                          disabled={selectedPreviewIds.size === 0}
+                          className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
+                          style={{ background: SHARE_GRADIENT }}
+                          title="Set quantities and build a printable order form"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                          {`Order form ${selectedPreviewIds.size > 0 ? selectedPreviewIds.size : ''}`}
+                        </button>
+                      )}
+                      {selectPurpose === 'export' && (
                         <>
                           {canEdit && (
                             <>
@@ -2022,7 +2063,7 @@ export default function EventPage() {
                         </>
                       )}
                       <button
-                        onClick={() => { setSelectMode(false); setShareMode(false); setSelectedPreviewIds(new Set()) }}
+                        onClick={() => { setSelectMode(false); setSelectedPreviewIds(new Set()) }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                       >
                         Done
@@ -2031,7 +2072,7 @@ export default function EventPage() {
                   ) : (
                     <>
                       <button
-                        onClick={() => { setSelectMode(true); setShareMode(true) }}
+                        onClick={() => { setSelectMode(true); setSelectPurpose('share') }}
                         className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold shadow-sm hover:brightness-105 transition"
                         style={{ background: SHARE_GRADIENT }}
                         title="Pick menus and send a shareable preview-gallery link"
@@ -2040,14 +2081,24 @@ export default function EventPage() {
                         Send previews
                       </button>
                       <button
-                        onClick={() => { setSelectMode(true); setShareMode(false) }}
+                        onClick={() => { setSelectMode(true); setSelectPurpose('order') }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
+                        title="Pick menus, set quantities, and build a printable order form"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
-                        </svg>
-                        Select / Export
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                        Order form
                       </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => { setSelectMode(true); setSelectPurpose('export') }}
+                          className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
+                          </svg>
+                          Select / Export
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -2249,13 +2300,23 @@ export default function EventPage() {
         </div>
       )}
 
-      {/* ── Send previews (share link) modal ── */}
+      {/* ── Order-form builder modal ── */}
+      <OrderFormModal
+        menus={orderModal}
+        event={event}
+        busy={shareBusy}
+        onCreate={(opts) => createOrderShare(orderModal, opts)}
+        onClose={() => setOrderModal(null)}
+      />
+
+      {/* ── Share/order link modal ── */}
       {shareInfo && (
-        <Modal title="Preview gallery link" onClose={() => setShareInfo(null)}>
+        <Modal title={shareInfo.kind === 'order' ? 'Order form link' : 'Preview gallery link'} onClose={() => setShareInfo(null)}>
           <div className="space-y-4">
             <p className="text-sm text-ink-600">
-              A standalone gallery of the selected menus — no Menu Hub login, nothing else from the app.
-              Anyone with this link can flip through the previews and download the PNGs.
+              {shareInfo.kind === 'order'
+                ? 'A standalone, printable order form of the selected menus with quantities — no Menu Hub login. Anyone with this link can view and print it.'
+                : 'A standalone gallery of the selected menus — no Menu Hub login, nothing else from the app. Anyone with this link can flip through the previews and download the PNGs.'}
               {!shareInfo.is_public && ' (Private: a Menu Hub account is required to open it.)'}
             </p>
             <div className="flex items-center gap-2">
@@ -2271,18 +2332,20 @@ export default function EventPage() {
                 <input type="checkbox" className="mt-0.5" checked={shareInfo.show_print_files} onChange={e => updateShare({ show_print_files: e.target.checked })} />
                 <span>Show a <strong>Print file</strong> link on each menu (where one is set)</span>
               </label>
-              <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
-                <input type="checkbox" className="mt-0.5" checked={shareInfo.allow_comments} onChange={e => updateShare({ allow_comments: e.target.checked })} />
-                <span>Let viewers leave <strong>feedback</strong> (comments) — turns it into a review link</span>
-              </label>
+              {shareInfo.kind !== 'order' && (
+                <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
+                  <input type="checkbox" className="mt-0.5" checked={shareInfo.allow_comments} onChange={e => updateShare({ allow_comments: e.target.checked })} />
+                  <span>Let viewers leave <strong>feedback</strong> (comments) — turns it into a review link</span>
+                </label>
+              )}
               <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
                 <input type="checkbox" className="mt-0.5" checked={!shareInfo.is_public} onChange={e => updateShare({ is_public: !e.target.checked })} />
                 <span><strong>Private</strong> — require a Menu Hub account to view</span>
               </label>
-              <p className="text-[11px] text-ink-400">Downloading the preview PNG is always available. Changes apply instantly to the same link.</p>
+              <p className="text-[11px] text-ink-400">Changes apply instantly to the same link.</p>
             </div>
             <div className="flex items-center justify-between pt-1">
-              <a href={shareInfo.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Open gallery ↗</a>
+              <a href={shareInfo.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">{shareInfo.kind === 'order' ? 'Open order form ↗' : 'Open gallery ↗'}</a>
               <button onClick={() => setShareInfo(null)} className="btn-secondary btn-sm">Done</button>
             </div>
           </div>

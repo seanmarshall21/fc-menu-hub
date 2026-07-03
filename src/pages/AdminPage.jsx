@@ -9,13 +9,14 @@ import { useToast } from '@/contexts/ToastContext'
 import DepartmentsAdmin from '@/components/DepartmentsAdmin'
 import { useDepartments } from '@/hooks/useDepartments'
 
-const ROLES = ['admin', 'internal', 'external']
-const ROLE_LABELS = { admin: 'Admin', internal: 'Internal', external: 'External', pending: 'Pending' }
+const ROLES = ['admin', 'internal', 'external', 'production']
+const ROLE_LABELS = { admin: 'Admin', internal: 'Internal', external: 'External', production: 'Production', pending: 'Pending' }
 const ROLE_CLASSES = {
-  admin:    'text-violet-700 bg-violet-50',
-  internal: 'text-brand-700 bg-brand-50',
-  external: 'text-ink-600 bg-surface-100',
-  pending:  'text-amber-700 bg-amber-50',
+  admin:      'text-violet-700 bg-violet-50',
+  internal:   'text-brand-700 bg-brand-50',
+  external:   'text-ink-600 bg-surface-100',
+  production: 'text-emerald-700 bg-emerald-50',
+  pending:    'text-amber-700 bg-amber-50',
 }
 
 async function callAdminFn(action, params) {

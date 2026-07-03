@@ -1113,6 +1113,16 @@ create table if not exists public.menu_preview_shares (
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now()
 );
+-- Order-form variant: kind='order' snapshots quantities in items[].quantity and
+-- renders a printable order via `layout` ('gallery' | 'list' | 'both').
+alter table public.menu_preview_shares add column if not exists kind   text not null default 'preview';
+alter table public.menu_preview_shares add column if not exists layout text;
+alter table public.menu_preview_shares add column if not exists notes  text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'menu_preview_shares_kind_check') then
+    alter table public.menu_preview_shares add constraint menu_preview_shares_kind_check check (kind in ('preview','order'));
+  end if;
+end $$;
 alter table public.menu_preview_shares enable row level security;
 drop policy if exists "read public shares" on public.menu_preview_shares;
 create policy "read public shares" on public.menu_preview_shares for select using (is_public = true);
