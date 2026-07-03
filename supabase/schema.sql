@@ -1131,7 +1131,8 @@ create table if not exists public.menu_preview_shares (
 alter table public.menu_preview_shares add column if not exists kind   text not null default 'preview';
 alter table public.menu_preview_shares add column if not exists layout text;
 alter table public.menu_preview_shares add column if not exists notes  text;
-alter table public.menu_preview_shares add column if not exists meta   jsonb not null default '{}'::jsonb; -- order: { eventDate, eventLocation, neededBy }
+alter table public.menu_preview_shares add column if not exists meta   jsonb not null default '{}'::jsonb; -- order: { eventId, eventDate, eventLocation, neededBy, eventIcon }
+alter table public.menu_preview_shares add column if not exists is_live boolean not null default false; -- order: reflect current menu quantities (else frozen snapshot)
 alter table public.menu_preview_shares add column if not exists is_live boolean not null default false; -- order: reflect menus' current quantities (via items[].menuId) vs frozen snapshot
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'menu_preview_shares_kind_check') then
