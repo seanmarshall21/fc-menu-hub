@@ -830,7 +830,7 @@ export default function EventPage() {
   // sponsors" shortcut). Falls back to Menus for unknown values.
   const [tab, setTab]           = useState(() => {
     // Production only ever sees completed menus + send actions.
-    if (isProduction) return 'preview'
+    if (isProduction) return 'menus'
     const t = new URLSearchParams(window.location.search).get('tab')
     return ['menus', 'preview', 'sponsors', 'aireview', 'signoff', 'rules', 'templates', 'styles'].includes(t) ? t : 'menus'
   })
@@ -1349,6 +1349,7 @@ export default function EventPage() {
           <span>·</span>
           <span className="whitespace-nowrap">{items.length} items</span>
           {!menuSelectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
+          {!isProduction && (
           <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
             <AiReviewFlag state={aiReviewState(menu)} />
             <SponsorFlag needsCheck={needsSponsorCheck} />
@@ -1362,6 +1363,7 @@ export default function EventPage() {
             )}
             <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
           </span>
+          )}
         </div>
       </CardTag>
     )
@@ -1640,6 +1642,11 @@ export default function EventPage() {
     setOrderLibrary(null)
     setTab('preview'); setSelectedPreviewIds(new Set()); setSelectPurpose('order'); setSelectMode(true)
   }
+  async function deleteOrder(order) {
+    const { error } = await supabase.from('menu_preview_shares').delete().eq('id', order.id)
+    if (error) { alert('Could not delete: ' + error.message); return }
+    setOrderLibrary(lib => lib ? { ...lib, orders: lib.orders.filter(o => o.id !== order.id) } : lib)
+  }
   function editOrder(order) {
     const snap = Array.isArray(order.items) ? order.items : []
     const byId = new Map(menus.map(m => [m.id, m]))
@@ -1771,7 +1778,7 @@ export default function EventPage() {
         )}
 
         {/* Print Files — one dropdown: open prep/print folders, edit links */}
-        {(event.print_folder_url || event.prep_folder_url || canEdit) && (
+        {!isProduction && (event.print_folder_url || event.prep_folder_url || canEdit) && (
           <OverflowMenu
             label="Print Files"
             triggerLabel="Print Files"
@@ -1808,7 +1815,8 @@ export default function EventPage() {
       below={(
         <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {(isProduction ? [
-            { id: 'preview', label: 'Menus' },
+            { id: 'menus',   label: 'Menus' },
+            { id: 'preview', label: 'Preview all' },
           ] : [
             { id: 'menus',     label: `Menus (${menus.length})` },
             { id: 'preview',   label: 'Preview all' },
@@ -1900,11 +1908,13 @@ export default function EventPage() {
       {/* ── MENUS TAB ── */}
       {tab === 'menus' && (
         <>
+          {!isProduction && (
           <EventReadiness menus={menus} eventId={event.id} seriesId={series?.id} onSelect={(state) => {
             if (state === 'ready') { navigate('/ready'); return }
             const phaseMap = { in_progress: ['build', 'proof', 'edits'], awaiting_sponsors: ['approved'], exported: ['exported'], complete: ['complete'], archived: ['archived'] }
             if (phaseMap[state]) { setStatusFilter(phaseMap[state]); setFiltersOpen(true) }
           }} />
+          )}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-ink-700">Menus</h2>
             {/* Toolbar — Filter · Select · Add, grouped together */}
@@ -2182,36 +2192,19 @@ export default function EventPage() {
                       </button>
                     </>
                   ) : (
-                    <>
+                    // Send Previews / Order live in the page header now. Only the
+                    // bulk-edit entry stays here (internal/admin).
+                    canEdit && (
                       <button
-                        onClick={() => { setSelectMode(true); setSelectPurpose('share') }}
-                        className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold shadow-sm hover:brightness-105 transition"
-                        style={{ background: SHARE_GRADIENT }}
-                        title="Pick menus and send a shareable preview-gallery link"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
-                        Send previews
-                      </button>
-                      <button
-                        onClick={openOrderLibrary}
+                        onClick={() => { setSelectMode(true); setSelectPurpose('export') }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
-                        title="View, edit, or create order forms for this event"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                        Order form
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
+                        </svg>
+                        Select / Export
                       </button>
-                      {canEdit && (
-                        <button
-                          onClick={() => { setSelectMode(true); setSelectPurpose('export') }}
-                          className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0 gap-1.5 inline-flex items-center"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h2m8-4v2a2 2 0 01-2 2h-2m-8-12V6a2 2 0 012-2h2m8 4V6a2 2 0 00-2-2h-2" />
-                          </svg>
-                          Select / Export
-                        </button>
-                      )}
-                    </>
+                    )
                   )}
                 </div>
               </div>
@@ -2457,6 +2450,7 @@ export default function EventPage() {
         orders={orderLibrary?.orders || []}
         onNew={startNewOrder}
         onEdit={editOrder}
+        onDelete={deleteOrder}
         onClose={() => setOrderLibrary(null)}
       />
 

@@ -5,7 +5,7 @@ const SHARE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00
 
 // Library of order forms already made for this event (by anyone). View/send an
 // existing one, edit it, or start a new one.
-export default function OrderLibraryModal({ open, loading, orders, onNew, onEdit, onClose }) {
+export default function OrderLibraryModal({ open, loading, orders, onNew, onEdit, onDelete, onClose }) {
   const [copiedId, setCopiedId] = useState(null)
   if (!open) return null
 
@@ -44,6 +44,13 @@ export default function OrderLibraryModal({ open, loading, orders, onNew, onEdit
                   className="btn-secondary btn-sm whitespace-nowrap"
                 >{copiedId === o.id ? 'Copied' : 'Copy link'}</button>
                 <button onClick={() => onEdit(o)} className="btn-secondary btn-sm">Edit</button>
+                <button
+                  onClick={() => { if (confirm('Delete this order form? The link will stop working.')) onDelete(o) }}
+                  className="btn-secondary btn-sm text-red-600 hover:bg-red-50"
+                  title="Delete order form" aria-label="Delete order form"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m1 0-.5 12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6.5 7" /></svg>
+                </button>
               </div>
             </div>
           ))}
