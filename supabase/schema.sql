@@ -917,6 +917,19 @@ alter table events drop constraint if exists events_phase_check;
 alter table events add  constraint events_phase_check check (phase in ('build','proof','edits','approved','exported','complete','archived'));
 alter table menus  add column if not exists print_file_url   text;  -- link to the final print file for this menu
 alter table menus  add column if not exists print_preview_url text;  -- rendered PNG/JPG of the print PDF (page 1); preferred preview once complete
+alter table menus  add column if not exists quantity         integer; -- print quantity, editable any time (mirrored into order forms)
+
+-- Set a menu's quantity without granting broad UPDATE on menus (production has
+-- no menus-update policy). Admin/internal/production only.
+create or replace function public.set_menu_quantity(p_menu_id uuid, p_quantity integer)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])) then
+    raise exception 'not authorized';
+  end if;
+  update public.menus set quantity = p_quantity where id = p_menu_id;
+end $$;
+grant execute on function public.set_menu_quantity(uuid, integer) to authenticated;
 alter table events add column if not exists print_folder_url text;  -- link to the event's print-files folder
 
 -- Auto-generate the print preview: when a menu becomes complete with a direct
@@ -1118,6 +1131,7 @@ create table if not exists public.menu_preview_shares (
 alter table public.menu_preview_shares add column if not exists kind   text not null default 'preview';
 alter table public.menu_preview_shares add column if not exists layout text;
 alter table public.menu_preview_shares add column if not exists notes  text;
+alter table public.menu_preview_shares add column if not exists meta   jsonb not null default '{}'::jsonb; -- order: { eventDate, eventLocation, neededBy }
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'menu_preview_shares_kind_check') then
     alter table public.menu_preview_shares add constraint menu_preview_shares_kind_check check (kind in ('preview','order'));

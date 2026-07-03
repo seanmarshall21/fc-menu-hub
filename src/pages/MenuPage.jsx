@@ -39,6 +39,7 @@ import { resolveCurrencySpec } from '@/lib/formatPrice'
 import { useFocusRefresh } from '@/hooks/useFocusRefresh'
 import { downloadMenuCsv } from '@/lib/downloadMenuCsv'
 import PrintFileModal from '@/components/PrintFileModal'
+import QuantityField from '@/components/QuantityField'
 import { preloadDropbox, chooseFromDropbox, dropboxConfigured } from '@/lib/dropboxChooser'
 import MenuStylesTab from '@/components/MenuStylesTab'
 import ItemsTableHeader from '@/components/ItemsTableHeader'
@@ -151,7 +152,7 @@ function AddItemRow({ menuId, sections, defaultSection, onSaved, nextSortOrder }
 export default function MenuPage() {
   const { brandSlug, seriesSlug, eventSlug, menuSlug } = useParams()
   const navigate = useNavigate()
-  const { isAdmin, isInternal, isViewer, canEditStyles, profile } = useAuth()
+  const { isAdmin, isInternal, isViewer, isProduction, canEditStyles, profile } = useAuth()
 
   const [brand, setBrand]   = useState(null)
   const [series, setSeries] = useState(null)
@@ -663,6 +664,9 @@ export default function MenuPage() {
   // File links are metadata, not content — editable even when the menu is
   // locked/approved/complete (which is exactly when you're adding print files).
   const canManageLinks = isAdmin || isInternal
+  // Print quantity is an ops value — settable any time (even complete) by
+  // internal and production.
+  const canSetQuantity = isAdmin || isInternal || isProduction
 
   // Cascading approver permissions (brand → series → event → menu union).
   const role = profile?.role
@@ -901,6 +905,12 @@ export default function MenuPage() {
                 setEditMenuIconName(menu.icon_name || null); setEditMenuRequiresSponsorApproval(!!menu.requires_sponsor_approval)
                 setEditMenuFigmaPrefix(menu.figma_component_prefix || ''); setEditMenuError(null); setShowEditMenu(true)
               }} data-tour="menu-edit-button" className="btn-secondary btn-sm whitespace-nowrap">Edit</button>
+            )}
+            {canSetQuantity && (
+              <span className="inline-flex items-center gap-1.5 flex-shrink-0" title="Print quantity for this menu — mirrored into order forms">
+                <span className="text-xs font-semibold text-ink-500">Qty</span>
+                <QuantityField menuId={menu.id} value={menu.quantity} onSaved={loadMenu} className="w-20" />
+              </span>
             )}
             {(menu.print_file_url || canManageLinks) && (
               <span className="inline-flex items-center gap-1 flex-shrink-0">

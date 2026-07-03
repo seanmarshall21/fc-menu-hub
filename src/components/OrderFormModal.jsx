@@ -17,14 +17,21 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose }
   const [layout, setLayout] = useState('both')
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
+  const [neededBy, setNeededBy] = useState('')
 
   useEffect(() => {
     if (!open) return
-    setQty(Object.fromEntries(menus.map(m => [m.id, '1'])))
+    // Mirror each menu's saved quantity as the starting value.
+    setQty(Object.fromEntries(menus.map(m => [m.id, m.quantity != null ? String(m.quantity) : ''])))
     setLayout('both')
     setTitle(event?.name ? `${event.name} — Order` : 'Menu order')
     setNotes('')
+    setNeededBy('')
   }, [open, menus, event])
+
+  const eventDate = event?.event_date
+    ? new Date(event.event_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : null
 
   const total = useMemo(
     () => (menus || []).reduce((n, m) => n + (Number(qty[m.id]) || 0), 0),
@@ -38,6 +45,14 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose }
         <div>
           <label className="label">Title</label>
           <input value={title} onChange={e => setTitle(e.target.value)} className="input w-full text-sm" />
+          {(eventDate || event?.venue) && (
+            <p className="mt-1 text-[11px] text-ink-400">{eventDate}{eventDate && event?.venue ? ' · ' : ''}{event?.venue || ''} — included on the order form.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="label">Order needed by <span className="text-ink-300 font-normal">(optional)</span></label>
+          <input type="date" value={neededBy} onChange={e => setNeededBy(e.target.value)} className="input w-full text-sm" />
         </div>
 
         <div>
@@ -94,7 +109,7 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose }
         <div className="flex items-center justify-end gap-2 pt-1">
           <button onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
           <button
-            onClick={() => onCreate({ quantities: qty, layout, title, notes })}
+            onClick={() => onCreate({ quantities: qty, layout, title, notes, neededBy })}
             disabled={busy}
             className="btn-sm whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
             style={{ background: SHARE_GRADIENT }}

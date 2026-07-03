@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
 import { menuPreviewSrc } from '@/lib/menuPreview'
 import OrderFormModal from '@/components/OrderFormModal'
+import QuantityField from '@/components/QuantityField'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import PageScreen, { PageBody } from '@/components/PageScreen'
@@ -1432,6 +1433,17 @@ export default function EventPage() {
               <span>{CATEGORY_LABELS[menu.category] || menu.category} · {items.length} items</span>
               {!selectMode && <SizeChip size={menu.size} onChange={canEdit ? (s) => quickSetSize(menu, s) : undefined} />}
             </div>
+            {!selectMode && canSetQuantity && (
+              <div className="mt-1.5 flex items-center gap-1.5" onClick={e => { e.preventDefault(); e.stopPropagation() }}>
+                <span className="text-[11px] font-semibold text-ink-400">Qty</span>
+                <QuantityField
+                  menuId={menu.id}
+                  value={menu.quantity}
+                  onSaved={(q) => setMenus(prev => prev.map(m => m.id === menu.id ? { ...m, quantity: q } : m))}
+                  className="w-16 !py-0.5 !text-xs"
+                />
+              </div>
+            )}
           </div>
           {/* Quick review: approvers get an inline approve/feedback chip;
               everyone else sees the static badge. Hidden in bulk-select mode. */}
@@ -1505,6 +1517,7 @@ export default function EventPage() {
   // Production can view every menu (see what's in progress) but may only send
   // out completed ones. Everyone else can send anything they select.
   const canSendMenu = (m) => !isProduction || m?.phase === 'complete'
+  const canSetQuantity = isAdmin || isInternal || isProduction
 
   // Quick-select for select mode (Send previews / Order / Export): tap a status
   // or type to add/remove that whole group at once instead of ticking tiles.
@@ -1548,17 +1561,28 @@ export default function EventPage() {
 
   // "Send order form" — production sets a quantity per menu and a layout, then
   // this snapshots a printable order into the same /share/:id page (kind=order).
-  async function createOrderShare(chosenRaw, { quantities, layout, title, notes }) {
+  async function createOrderShare(chosenRaw, { quantities, layout, title, notes, neededBy }) {
     const chosen = (chosenRaw || []).filter(canSendMenu)
     if (!chosen.length) { alert(isProduction ? 'Only completed menus can be sent.' : 'Select at least one menu.'); return }
     setShareBusy(true)
+    const qtyOf = (m) => Number(quantities[m.id]) || 0
     const items = chosen.map(m => ({
       name: m.name, category: m.category, size: m.size,
       image: menuPreviewSrc(m), printFile: m.print_file_url || null,
-      quantity: Number(quantities[m.id]) || 0,
+      quantity: qtyOf(m),
     }))
+    // Mirror the entered quantities back onto each menu (source of truth).
+    await Promise.all(chosen
+      .filter(m => qtyOf(m) !== (m.quantity ?? 0))
+      .map(m => supabase.rpc('set_menu_quantity', { p_menu_id: m.id, p_quantity: qtyOf(m) })))
+    setMenus(prev => prev.map(m => quantities[m.id] != null ? { ...m, quantity: qtyOf(m) } : m))
+    const meta = {
+      eventDate: event?.event_date || null,
+      eventLocation: event?.venue || null,
+      neededBy: neededBy || null,
+    }
     const { data, error } = await supabase.from('menu_preview_shares')
-      .insert({ kind: 'order', layout, notes: notes?.trim() || null, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true, created_by: profile?.id })
+      .insert({ kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true, created_by: profile?.id })
       .select('id, is_public, show_print_files, allow_comments').single()
     setShareBusy(false)
     if (error) { alert('Could not create the order form: ' + error.message); return }

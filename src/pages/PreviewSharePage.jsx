@@ -35,13 +35,14 @@ export default function PreviewSharePage() {
   const [idx, setIdx] = useState(null)          // lightbox index, or null
   const [comments, setComments] = useState([])
   const [meId, setMeId] = useState(null)        // current user (owner can moderate feedback)
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' }) // order list sorting
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const { data, error } = await supabase
         .from('menu_preview_shares')
-        .select('title, items, is_public, show_print_files, allow_comments, created_by, kind, layout, notes')
+        .select('title, items, is_public, show_print_files, allow_comments, created_by, kind, layout, notes, meta')
         .eq('id', shareId)
         .maybeSingle()
       if (cancelled) return
@@ -71,7 +72,24 @@ export default function PreviewSharePage() {
   const items = (share && Array.isArray(share.items)) ? share.items : []
   const isOrder = share?.kind === 'order'
   const orderLayout = share?.layout || 'both'
+  const meta = share?.meta || {}
   const totalQty = items.reduce((n, it) => n + (Number(it.quantity) || 0), 0)
+  // Total quantity per size (SM/MD/LG…), for the order-form summary.
+  const sizeTotals = items.reduce((acc, it) => {
+    const s = (it.size || '—').toString().toUpperCase()
+    acc[s] = (acc[s] || 0) + (Number(it.quantity) || 0)
+    return acc
+  }, {})
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null
+  // Sortable copy of the items for the order list table.
+  const sortedItems = [...items].sort((a, b) => {
+    const dir = sort.dir === 'asc' ? 1 : -1
+    if (sort.key === 'qty') return ((Number(a.quantity) || 0) - (Number(b.quantity) || 0)) * dir
+    if (sort.key === 'size') return String(a.size || '').localeCompare(String(b.size || '')) * dir || String(a.name || '').localeCompare(String(b.name || ''))
+    return String(a.name || '').localeCompare(String(b.name || '')) * dir
+  })
+  const toggleSort = (key) => setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  const sortArrow = (key) => sort.key === key ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''
   const close = useCallback(() => setIdx(null), [])
   const prev = useCallback(() => setIdx(i => (i == null ? i : (i - 1 + items.length) % items.length)), [items.length])
   const next = useCallback(() => setIdx(i => (i == null ? i : (i + 1) % items.length)), [items.length])
@@ -126,6 +144,24 @@ export default function PreviewSharePage() {
         <p className="text-center text-ink-400 text-sm py-16">Nothing in this {isOrder ? 'order' : 'gallery'}.</p>
       ) : isOrder ? (
         <div className="p-6 max-w-4xl mx-auto space-y-6">
+          {/* Order summary — event info + totals */}
+          <div className="bg-surface-0 border border-surface-200 rounded-lg px-4 py-3 space-y-3">
+            {(fmtDate(meta.eventDate) || meta.eventLocation || fmtDate(meta.neededBy)) && (
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-700">
+                {fmtDate(meta.eventDate) && <span><span className="text-ink-400">Event date:</span> {fmtDate(meta.eventDate)}</span>}
+                {meta.eventLocation && <span><span className="text-ink-400">Location:</span> {meta.eventLocation}</span>}
+                {fmtDate(meta.neededBy) && <span className="font-semibold text-ink-900"><span className="text-ink-400 font-normal">Needed by:</span> {fmtDate(meta.neededBy)}</span>}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-surface-100 font-semibold text-ink-700">{items.length} menu{items.length === 1 ? '' : 's'}</span>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-black font-semibold" style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}>{totalQty} total</span>
+              {Object.entries(sizeTotals).sort().map(([s, q]) => (
+                <span key={s} className="inline-flex items-center px-2.5 py-1 rounded-md bg-surface-100 text-ink-600"><span className="font-semibold mr-1">{s}</span> {q}</span>
+              ))}
+            </div>
+          </div>
+
           {share.notes && (
             <div className="text-sm text-ink-700 bg-surface-0 border border-surface-200 rounded-lg px-4 py-3 whitespace-pre-wrap">{share.notes}</div>
           )}
@@ -135,14 +171,20 @@ export default function PreviewSharePage() {
               <table className="w-full text-sm border border-surface-200 rounded-lg overflow-hidden">
                 <thead className="bg-surface-100 text-ink-500 text-xs uppercase tracking-wide">
                   <tr>
-                    <th className="text-left font-semibold px-3 py-2">Menu</th>
-                    <th className="text-left font-semibold px-3 py-2">Size</th>
+                    <th className="text-left font-semibold px-3 py-2">
+                      <button onClick={() => toggleSort('name')} className="inline-flex items-center hover:text-ink-800 print:pointer-events-none">Menu{sortArrow('name')}</button>
+                    </th>
+                    <th className="text-left font-semibold px-3 py-2">
+                      <button onClick={() => toggleSort('size')} className="inline-flex items-center hover:text-ink-800 print:pointer-events-none">Size{sortArrow('size')}</button>
+                    </th>
                     {share.show_print_files && <th className="text-left font-semibold px-3 py-2 print:hidden">Print file</th>}
-                    <th className="text-right font-semibold px-3 py-2">Qty</th>
+                    <th className="text-right font-semibold px-3 py-2">
+                      <button onClick={() => toggleSort('qty')} className="inline-flex items-center hover:text-ink-800 print:pointer-events-none">Qty{sortArrow('qty')}</button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-100">
-                  {items.map((it, i) => (
+                  {sortedItems.map((it, i) => (
                     <tr key={i}>
                       <td className="px-3 py-2">
                         <span className="font-medium text-ink-900">{it.name}</span>
