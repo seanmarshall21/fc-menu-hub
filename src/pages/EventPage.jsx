@@ -1349,7 +1349,8 @@ export default function EventPage() {
     const syncNeeded  = everSynced && menu.updated_at && new Date(menu.updated_at) > new Date(menu.last_synced_at)
     const needsSponsorCheck = !!menu.sponsors_updated_at &&
       (!menu.sponsors_checked_at || new Date(menu.sponsors_updated_at) > new Date(menu.sponsors_checked_at))
-    const isSelectable = selectMode // any menu can be selected for bulk actions
+    // Production can only pick completed menus to send; everyone else, any menu.
+    const isSelectable = selectMode && canSendMenu(menu)
     const isSelected = selectedPreviewIds.has(menu.id)
     const CardTag = selectMode ? 'div' : Link
     // Completed menus get a bold gold ring so the finished tiles jump out.
@@ -1398,7 +1399,7 @@ export default function EventPage() {
               <span>Add active items to preview</span>
             </div>
           )}
-          {selectMode && (
+          {selectMode && isSelectable && (
             <div className="absolute top-2 left-2 z-10">
               <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-white text-sm shadow ${
                 isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white/80 border-white'
@@ -1496,14 +1497,20 @@ export default function EventPage() {
   const anyPreviewFilter = previewTypeFilter.length || previewStatusFilter.length || previewSyncFilter.length
   const previewCatsPresent = menuCategoriesPresent.filter(c => previewFiltered.some(m => m.category === c))
 
-  // Quick-select for select mode (Send previews / Export): tap a status or type
-  // to add/remove that whole group at once instead of ticking tiles. Scoped to
-  // the currently-filtered preview set so active filters still narrow the pool.
+  // Production can view every menu (see what's in progress) but may only send
+  // out completed ones. Everyone else can send anything they select.
+  const canSendMenu = (m) => !isProduction || m?.phase === 'complete'
+
+  // Quick-select for select mode (Send previews / Order / Export): tap a status
+  // or type to add/remove that whole group at once instead of ticking tiles.
+  // Scoped to the filtered preview set; for production, only sendable
+  // (completed) menus are grouped.
   const quickStatusOpts = MENU_PHASES
-    .filter(p => previewFiltered.some(m => m.phase === p))
-    .map(p => ({ key: 'status:' + p, label: PHASE_LABELS[p], ids: previewFiltered.filter(m => m.phase === p).map(m => m.id) }))
+    .filter(p => (!isProduction || p === 'complete') && previewFiltered.some(m => m.phase === p))
+    .map(p => ({ key: 'status:' + p, label: PHASE_LABELS[p], ids: previewFiltered.filter(m => m.phase === p && canSendMenu(m)).map(m => m.id) }))
   const quickTypeOpts = previewCatsPresent
-    .map(c => ({ key: 'type:' + c, label: CATEGORY_LABELS[c] || c, ids: previewFiltered.filter(m => m.category === c).map(m => m.id) }))
+    .map(c => ({ key: 'type:' + c, label: CATEGORY_LABELS[c] || c, ids: previewFiltered.filter(m => m.category === c && canSendMenu(m)).map(m => m.id) }))
+    .filter(o => o.ids.length > 0)
   const groupFullySelected = (ids) => ids.length > 0 && ids.every(id => selectedPreviewIds.has(id))
   function toggleQuickGroup(ids) {
     setSelectedPreviewIds(prev => {
@@ -1517,8 +1524,8 @@ export default function EventPage() {
   // "Send previews" — snapshot the chosen menus into a public share row and
   // hand back a standalone /share/:id gallery link (no login, no app nav).
   async function createPreviewShare(idsSet) {
-    const chosen = menus.filter(m => idsSet.has(m.id) && menuPreviewSrc(m))
-    if (!chosen.length) { alert('Select at least one menu that has a preview image.'); return }
+    const chosen = menus.filter(m => idsSet.has(m.id) && menuPreviewSrc(m) && canSendMenu(m))
+    if (!chosen.length) { alert(isProduction ? 'Only completed menus can be sent.' : 'Select at least one menu that has a preview image.'); return }
     setShareBusy(true)
     const items = chosen.map(m => ({
       name: m.name, category: m.category, size: m.size,
@@ -1536,8 +1543,9 @@ export default function EventPage() {
 
   // "Send order form" — production sets a quantity per menu and a layout, then
   // this snapshots a printable order into the same /share/:id page (kind=order).
-  async function createOrderShare(chosen, { quantities, layout, title, notes }) {
-    if (!chosen.length) { alert('Select at least one menu.'); return }
+  async function createOrderShare(chosenRaw, { quantities, layout, title, notes }) {
+    const chosen = (chosenRaw || []).filter(canSendMenu)
+    if (!chosen.length) { alert(isProduction ? 'Only completed menus can be sent.' : 'Select at least one menu.'); return }
     setShareBusy(true)
     const items = chosen.map(m => ({
       name: m.name, category: m.category, size: m.size,
@@ -1718,7 +1726,7 @@ export default function EventPage() {
       below={(
         <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
           {(isProduction ? [
-            { id: 'preview', label: 'Completed menus' },
+            { id: 'preview', label: 'Menus' },
           ] : [
             { id: 'menus',     label: `Menus (${menus.length})` },
             { id: 'preview',   label: 'Preview all' },
@@ -1991,7 +1999,7 @@ export default function EventPage() {
               <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div className="text-xs text-ink-500">
                   {selectMode
-                    ? `${selectedPreviewIds.size} of ${previewFiltered.length} selected`
+                    ? `${selectedPreviewIds.size} of ${previewFiltered.filter(canSendMenu).length} selected${isProduction ? ' · only completed menus can be sent' : ''}`
                     : `${menus.length} menu${menus.length === 1 ? '' : 's'} · ${menus.filter(m => menuPreviewSrc(m)).length} with preview images`}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -1999,12 +2007,12 @@ export default function EventPage() {
                     <>
                       <button
                         onClick={() => {
-                          const allIds = previewFiltered.map(m => m.id)
+                          const allIds = previewFiltered.filter(canSendMenu).map(m => m.id)
                           setSelectedPreviewIds(prev => prev.size === allIds.length ? new Set() : new Set(allIds))
                         }}
                         className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                       >
-                        {selectedPreviewIds.size === previewFiltered.length ? 'Clear' : 'Select all'}
+                        {selectedPreviewIds.size > 0 && selectedPreviewIds.size === previewFiltered.filter(canSendMenu).length ? 'Clear' : 'Select all'}
                       </button>
                       {selectPurpose === 'share' && (
                         <button
