@@ -1568,28 +1568,48 @@ export default function EventPage() {
           <button onClick={openEditEvent} className="btn-secondary btn-sm whitespace-nowrap">Edit Event</button>
         )}
         {(event.print_folder_url || canEdit) && (
-          <button
-            onClick={async () => {
-              let url = event.print_folder_url
-              if (!url) {
-                if (!canEdit) return
-                const link = window.prompt('Paste the Dropbox/Drive link to this event’s PRINT / completed folder:', '')
-                if (!link || !link.trim()) return
-                url = link.trim()
-                await supabase.from('events').update({ print_folder_url: url }).eq('id', event.id)
-                loadData()
-              }
-              window.open(url, '_blank', 'noopener')
-            }}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition"
-            style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
-            title={event.print_folder_url ? 'Open the print / completed folder' : 'Add the print / completed folder link'}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-            </svg>
-            {event.print_folder_url ? 'Print Files' : 'Add Print Files'}
-          </button>
+          <span className="inline-flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={async () => {
+                let url = event.print_folder_url
+                if (!url) {
+                  if (!canEdit) return
+                  const link = window.prompt('Paste the Dropbox/Drive link to this event’s PRINT / completed folder:', '')
+                  if (!link || !link.trim()) return
+                  url = link.trim()
+                  await supabase.from('events').update({ print_folder_url: url }).eq('id', event.id)
+                  loadData()
+                }
+                window.open(url, '_blank', 'noopener')
+              }}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition"
+              style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+              title={event.print_folder_url ? 'Open the print / completed folder' : 'Add the print / completed folder link'}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+              </svg>
+              {event.print_folder_url ? 'Print Files' : 'Add Print Files'}
+            </button>
+            {canEdit && event.print_folder_url && (
+              <button
+                onClick={async () => {
+                  const link = window.prompt('Edit the print / completed folder link (clear it to remove):', event.print_folder_url || '')
+                  if (link === null) return // cancelled
+                  await supabase.from('events').update({ print_folder_url: link.trim() || null }).eq('id', event.id)
+                  loadData()
+                }}
+                title="Edit the print folder link"
+                aria-label="Edit print folder link"
+                className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-black shadow-sm hover:brightness-105 transition"
+                style={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+            )}
+          </span>
         )}
         {event.prep_folder_url && (
           <OverflowMenu label="Folders">
