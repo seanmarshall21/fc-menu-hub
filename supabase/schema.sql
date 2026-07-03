@@ -134,7 +134,7 @@ create table if not exists user_profiles (
   full_name       text,
   avatar_url      text,
   role            text default 'external'
-                  check (role in ('admin', 'internal', 'external')),
+                  check (role in ('admin', 'internal', 'external', 'viewer', 'production', 'pending')),
   brand_access    uuid[] default '{}',  -- brand IDs this user can access (empty = all for admin)
   -- Elevated permission for trusted internal users who manage the design
   -- system (styles, templates) alongside admins.
