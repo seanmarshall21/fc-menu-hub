@@ -1408,17 +1408,22 @@ export default function EventPage() {
               </div>
             </div>
           )}
-          <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-white/70 backdrop-blur-sm rounded-full px-1.5 py-1">
-            <AiReviewFlag state={aiReviewState(menu)} />
-            <SponsorFlag needsCheck={needsSponsorCheck} />
-            {pendingCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
-                    title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}>
-                {pendingCount}
-              </span>
-            )}
-            <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
-          </div>
+          {/* Internal workflow flags — hidden for production (they can't act on
+              AI review / sponsors / edits / sync; the phase badge below is
+              their progress indicator). */}
+          {!isProduction && (
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-white/70 backdrop-blur-sm rounded-full px-1.5 py-1">
+              <AiReviewFlag state={aiReviewState(menu)} />
+              <SponsorFlag needsCheck={needsSponsorCheck} />
+              {pendingCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold shadow"
+                      title={`${pendingCount} pending edit${pendingCount === 1 ? '' : 's'}`}>
+                  {pendingCount}
+                </span>
+              )}
+              <SyncChip everSynced={everSynced} syncNeeded={syncNeeded} lastSyncedAt={menu.last_synced_at} />
+            </div>
+          )}
         </div>
         <div className="px-4 py-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -1663,7 +1668,7 @@ export default function EventPage() {
         />
       </>}
       secondaryActions={(<>
-        {event.figma_file_url && (
+        {!isProduction && event.figma_file_url && (
           <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm gap-1.5" title="Open in the Figma desktop app (falls back to browser)">
             <FigmaLogo size={12} />
             Open Figma
@@ -1716,7 +1721,7 @@ export default function EventPage() {
             )}
           </span>
         )}
-        {event.prep_folder_url && (
+        {!isProduction && event.prep_folder_url && (
           <OverflowMenu label="Folders">
             <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>
             {event.print_folder_url && <a href={event.print_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print folder ↗</a>}
