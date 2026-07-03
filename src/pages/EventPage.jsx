@@ -1567,6 +1567,7 @@ export default function EventPage() {
     setShareBusy(true)
     const qtyOf = (m) => Number(quantities[m.id]) || 0
     const items = chosen.map(m => ({
+      menuId: m.id,
       name: m.name, category: m.category, size: m.size,
       image: menuPreviewSrc(m), printFile: m.print_file_url || null,
       quantity: qtyOf(m),
@@ -1583,10 +1584,10 @@ export default function EventPage() {
     }
     const { data, error } = await supabase.from('menu_preview_shares')
       .insert({ kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true, created_by: profile?.id })
-      .select('id, is_public, show_print_files, allow_comments').single()
+      .select('id, is_public, show_print_files, allow_comments, is_live').single()
     setShareBusy(false)
     if (error) { alert('Could not create the order form: ' + error.message); return }
-    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, kind: 'order', is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments })
+    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, kind: 'order', is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments, is_live: data.is_live })
     setShareCopied(false)
     setOrderModal(null); setSelectMode(false); setSelectedPreviewIds(new Set())
   }
@@ -2373,6 +2374,12 @@ export default function EventPage() {
                 <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={shareInfo.allow_comments} onChange={e => updateShare({ allow_comments: e.target.checked })} />
                   <span>Let viewers leave <strong>feedback</strong> (comments) — turns it into a review link</span>
+                </label>
+              )}
+              {shareInfo.kind === 'order' && (
+                <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">
+                  <input type="checkbox" className="mt-0.5" checked={!!shareInfo.is_live} onChange={e => updateShare({ is_live: e.target.checked })} />
+                  <span><strong>Keep live</strong> — always show the menus’ current quantities. Off = frozen snapshot of what you sent.</span>
                 </label>
               )}
               <label className="flex items-start gap-2 text-sm text-ink-700 cursor-pointer">

@@ -36,13 +36,14 @@ export default function PreviewSharePage() {
   const [comments, setComments] = useState([])
   const [meId, setMeId] = useState(null)        // current user (owner can moderate feedback)
   const [sort, setSort] = useState({ key: 'name', dir: 'asc' }) // order list sorting
+  const [liveItems, setLiveItems] = useState(null) // live-order: current menu values by menuId
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const { data, error } = await supabase
         .from('menu_preview_shares')
-        .select('title, items, is_public, show_print_files, allow_comments, created_by, kind, layout, notes, meta')
+        .select('title, items, is_public, show_print_files, allow_comments, created_by, kind, layout, notes, meta, is_live')
         .eq('id', shareId)
         .maybeSingle()
       if (cancelled) return
@@ -73,16 +74,18 @@ export default function PreviewSharePage() {
   const isOrder = share?.kind === 'order'
   const orderLayout = share?.layout || 'both'
   const meta = share?.meta || {}
-  const totalQty = items.reduce((n, it) => n + (Number(it.quantity) || 0), 0)
+  // Live orders render current menu values; everything else uses the snapshot.
+  const displayItems = (isOrder && share?.is_live && liveItems) ? liveItems : items
+  const totalQty = displayItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0)
   // Total quantity per size (SM/MD/LG…), for the order-form summary.
-  const sizeTotals = items.reduce((acc, it) => {
+  const sizeTotals = displayItems.reduce((acc, it) => {
     const s = (it.size || '—').toString().toUpperCase()
     acc[s] = (acc[s] || 0) + (Number(it.quantity) || 0)
     return acc
   }, {})
   const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null
   // Sortable copy of the items for the order list table.
-  const sortedItems = [...items].sort((a, b) => {
+  const sortedItems = [...displayItems].sort((a, b) => {
     const dir = sort.dir === 'asc' ? 1 : -1
     if (sort.key === 'qty') return ((Number(a.quantity) || 0) - (Number(b.quantity) || 0)) * dir
     if (sort.key === 'size') return String(a.size || '').localeCompare(String(b.size || '')) * dir || String(a.name || '').localeCompare(String(b.name || ''))
@@ -104,6 +107,35 @@ export default function PreviewSharePage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [idx, close, prev, next])
+
+  // Live order form: pull each menu's current values by id and merge over the
+  // frozen snapshot (preserving order). A deleted menu falls back to its
+  // snapshot. Menus are publicly readable, so this works without login.
+  useEffect(() => {
+    if (!share || share.kind !== 'order' || !share.is_live) { setLiveItems(null); return }
+    const snap = Array.isArray(share.items) ? share.items : []
+    const ids = snap.map(it => it.menuId).filter(Boolean)
+    if (!ids.length) { setLiveItems(null); return }
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase.from('menus')
+        .select('id, name, category, size, quantity, print_preview_url, preview_image_url, print_file_url')
+        .in('id', ids)
+      if (cancelled) return
+      const byId = new Map((data || []).map(m => [m.id, m]))
+      setLiveItems(snap.map(it => {
+        const m = it.menuId && byId.get(it.menuId)
+        if (!m) return it
+        return {
+          ...it, name: m.name, category: m.category, size: m.size,
+          quantity: m.quantity ?? 0,
+          image: m.print_preview_url || m.preview_image_url || it.image || null,
+          printFile: m.print_file_url || null,
+        }
+      }))
+    })()
+    return () => { cancelled = true }
+  }, [share])
 
   if (share === undefined) {
     return <div className="min-h-[100dvh] bg-surface-50 flex items-center justify-center text-ink-400 text-sm">Loading…</div>
@@ -209,7 +241,7 @@ export default function PreviewSharePage() {
 
           {orderLayout !== 'list' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {items.map((it, i) => (
+              {displayItems.map((it, i) => (
                 <div key={i} className="card overflow-hidden flex flex-col">
                   <button onClick={() => setIdx(i)} className="relative w-full aspect-[2/3] bg-surface-0 overflow-hidden text-left hover:opacity-95">
                     {it.image
@@ -264,22 +296,22 @@ export default function PreviewSharePage() {
         </div>
       )}
 
-      {idx != null && items[idx] && (
+      {idx != null && displayItems[idx] && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={close}>
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white/90 text-sm" onClick={e => e.stopPropagation()}>
-            <span className="font-medium truncate">{items[idx].name}</span>
-            <span className="text-white/60 flex-shrink-0">{idx + 1} / {items.length}</span>
+            <span className="font-medium truncate">{displayItems[idx].name}</span>
+            <span className="text-white/60 flex-shrink-0">{idx + 1} / {displayItems.length}</span>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <a href={downloadHref(items[idx].image, items[idx].name)} title="Download PNG" className="p-1.5 hover:bg-white/10 rounded-md inline-flex" onClick={e => e.stopPropagation()}><IconDownload className="w-4 h-4" /></a>
-              {share.show_print_files && items[idx].printFile && (
-                <a href={items[idx].printFile} target="_blank" rel="noreferrer" title="Open print file" className="px-2 py-1 hover:bg-white/10 rounded-md text-xs inline-flex items-center gap-1">Print file <IconExternal className="w-3 h-3" /></a>
+              <a href={downloadHref(displayItems[idx].image, displayItems[idx].name)} title="Download PNG" className="p-1.5 hover:bg-white/10 rounded-md inline-flex" onClick={e => e.stopPropagation()}><IconDownload className="w-4 h-4" /></a>
+              {share.show_print_files && displayItems[idx].printFile && (
+                <a href={displayItems[idx].printFile} target="_blank" rel="noreferrer" title="Open print file" className="px-2 py-1 hover:bg-white/10 rounded-md text-xs inline-flex items-center gap-1">Print file <IconExternal className="w-3 h-3" /></a>
               )}
               <button onClick={close} className="p-1.5 hover:bg-white/10 rounded-md inline-flex" aria-label="Close"><IconX className="w-4 h-4" /></button>
             </div>
           </div>
           <div className="flex-1 relative flex items-center justify-center min-h-0 px-2" onClick={e => e.stopPropagation()}>
-            <img src={items[idx].image} alt={items[idx].name} className="max-h-full max-w-full object-contain" />
-            {items.length > 1 && (
+            <img src={displayItems[idx].image} alt={displayItems[idx].name} className="max-h-full max-w-full object-contain" />
+            {displayItems.length > 1 && (
               <>
                 {/* Absolutely positioned + always-visible circular targets so a
                     full-bleed image can never cover the tap area. */}
