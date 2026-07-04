@@ -11,13 +11,14 @@ const LAYOUTS = [
 
 // Build a printable order form from the chosen menus: a quantity per menu + a
 // layout, snapshotted into a public /share/:id page (kind=order).
-export default function OrderFormModal({ menus, event, busy, onCreate, onClose, initial, editing }) {
+export default function OrderFormModal({ menus, event, menuLogo, busy, onCreate, onClose, initial, editing }) {
   const open = Array.isArray(menus) && menus.length > 0
   const [qty, setQty] = useState({})
   const [layout, setLayout] = useState('both')
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [neededBy, setNeededBy] = useState('')
+  const [iconChoice, setIconChoice] = useState('menu')
 
   useEffect(() => {
     if (!open) return
@@ -27,7 +28,8 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose, 
     setTitle(initial?.title || (event?.name ? `${event.name} — Order` : 'Menu order'))
     setNotes(initial?.notes || '')
     setNeededBy(initial?.neededBy || '')
-  }, [open, menus, event, initial])
+    setIconChoice(initial?.iconChoice || (menuLogo ? 'menu' : 'event'))
+  }, [open, menus, event, initial, menuLogo])
 
   const eventDate = event?.event_date
     ? new Date(event.event_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -54,6 +56,21 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose, 
           <label className="label">Order needed by <span className="text-ink-300 font-normal">(optional)</span></label>
           <input type="date" value={neededBy} onChange={e => setNeededBy(e.target.value)} className="input w-full text-sm" />
         </div>
+
+        {menuLogo && (
+          <div>
+            <label className="label">Header image</label>
+            <div className="flex items-center gap-2">
+              {[{ v: 'menu', label: 'Menu logo' }, { v: 'event', label: 'Event icon' }].map(o => (
+                <button key={o.v} onClick={() => setIconChoice(o.v)} type="button"
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${iconChoice === o.v ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-surface-300 text-ink-500 hover:bg-surface-50'}`}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-ink-400">The logo/icon shown at the top of the shared order page.</p>
+          </div>
+        )}
 
         <div>
           <label className="label">Layout</label>
@@ -109,7 +126,7 @@ export default function OrderFormModal({ menus, event, busy, onCreate, onClose, 
         <div className="flex items-center justify-end gap-2 pt-1">
           <button onClick={onClose} className="btn-secondary btn-sm">Cancel</button>
           <button
-            onClick={() => onCreate({ quantities: qty, layout, title, notes, neededBy })}
+            onClick={() => onCreate({ quantities: qty, layout, title, notes, neededBy, iconChoice })}
             disabled={busy}
             className="btn-sm whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-black text-xs font-semibold disabled:opacity-50 hover:brightness-105 transition"
             style={{ background: SHARE_GRADIENT }}

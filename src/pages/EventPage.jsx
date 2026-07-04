@@ -1578,8 +1578,16 @@ export default function EventPage() {
       name: m.name, category: m.category, size: m.size,
       image: menuPreviewSrc(m), printFile: m.print_file_url || null,
     }))
+    const meta = {
+      eventId: event?.id || null,
+      eventDate: event?.event_date || null,
+      eventLocation: event?.venue || null,
+      menuLogo: series?.header_logo_url || event?.header_logo_url || null,
+      iconChoice: 'menu',
+      eventIcon: { iconUrl: event?.icon_url || null, iconName: event?.icon_name || null, color: brand?.color || null, name: event?.name || null },
+    }
     const { data, error } = await supabase.from('menu_preview_shares')
-      .insert({ title: event?.name || 'Menu previews', items, created_by: profile?.id })
+      .insert({ title: event?.name || 'Menu previews', items, meta, created_by: profile?.id })
       .select('id, is_public, show_print_files, allow_comments').single()
     setShareBusy(false)
     if (error) { alert('Could not create the share link: ' + error.message); return }
@@ -1590,7 +1598,7 @@ export default function EventPage() {
 
   // "Send order form" — production sets a quantity per menu and a layout, then
   // this snapshots a printable order into the same /share/:id page (kind=order).
-  async function createOrderShare(ctx, { quantities, layout, title, notes, neededBy }) {
+  async function createOrderShare(ctx, { quantities, layout, title, notes, neededBy, iconChoice }) {
     const chosen = (ctx?.menus || []).filter(canSendMenu)
     if (!chosen.length) { alert(isProduction ? 'Only completed menus can be sent.' : 'Select at least one menu.'); return }
     setShareBusy(true)
@@ -1612,7 +1620,9 @@ export default function EventPage() {
       eventLocation: event?.venue || null,
       neededBy: neededBy || null,
       printFolder: event?.print_folder_url || null,
-      eventIcon: { iconUrl: event?.icon_url || null, iconName: event?.icon_name || null, headerLogo: event?.header_logo_url || null, color: brand?.color || null, name: event?.name || null },
+      menuLogo: series?.header_logo_url || event?.header_logo_url || null,
+      iconChoice: iconChoice || 'menu',
+      eventIcon: { iconUrl: event?.icon_url || null, iconName: event?.icon_name || null, color: brand?.color || null, name: event?.name || null },
     }
     const payload = { kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true }
     const cols = 'id, is_public, show_print_files, allow_comments, is_live'
@@ -1661,7 +1671,8 @@ export default function EventPage() {
       editId: order.id,
       initial: {
         title: order.title || '', notes: order.notes || '',
-        neededBy: order.meta?.neededBy || '', layout: order.layout || 'both', quantities,
+        neededBy: order.meta?.neededBy || '', layout: order.layout || 'both',
+        iconChoice: order.meta?.iconChoice || 'menu', quantities,
       },
     })
   }
@@ -2462,6 +2473,7 @@ export default function EventPage() {
         initial={orderModal?.initial}
         editing={!!orderModal?.editId}
         event={event}
+        menuLogo={series?.header_logo_url || event?.header_logo_url || null}
         busy={shareBusy}
         onCreate={(opts) => createOrderShare(orderModal, opts)}
         onClose={() => setOrderModal(null)}

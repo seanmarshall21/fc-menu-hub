@@ -93,6 +93,8 @@ export default function PreviewSharePage() {
   const isOrder = share?.kind === 'order'
   const orderLayout = share?.layout || 'both'
   const meta = share?.meta || {}
+  // Header brand mark: the series "menu logo" SVG (default) or the event icon.
+  const useMenuLogo = meta.iconChoice !== 'event' && !!meta.menuLogo
   // Live orders render current menu values; everything else uses the snapshot.
   const displayItems = (isOrder && share?.is_live && liveItems) ? liveItems : items
   const totalQty = displayItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0)
@@ -221,13 +223,19 @@ export default function PreviewSharePage() {
         <div className="p-6 max-w-4xl mx-auto space-y-5">
           {/* Event logo + title (prints at the top of the sheet) */}
           <div className="flex items-center gap-3">
-            <EntityIcon
-              iconName={meta.eventIcon?.iconName}
-              iconUrl={meta.eventIcon?.iconUrl}
-              fallbackText={meta.eventIcon?.name || share.title || 'Order'}
-              fallbackColor={meta.eventIcon?.color || '#FFB300'}
-              size={44} rounded="lg"
-            />
+            {useMenuLogo ? (
+              <div className="h-12 flex items-center px-3 rounded-lg bg-white border border-surface-200 flex-shrink-0">
+                <img src={meta.menuLogo} alt="" className="h-8 w-auto max-w-[220px] object-contain" />
+              </div>
+            ) : (
+              <EntityIcon
+                iconName={meta.eventIcon?.iconName}
+                iconUrl={meta.eventIcon?.iconUrl}
+                fallbackText={meta.eventIcon?.name || share.title || 'Order'}
+                fallbackColor={meta.eventIcon?.color || '#FFB300'}
+                size={44} rounded="lg"
+              />
+            )}
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-ink-900 leading-tight truncate">{share.title || 'Menu order'}</h1>
               {(fmtDate(meta.eventDate) || meta.eventLocation) && (
@@ -388,7 +396,25 @@ export default function PreviewSharePage() {
           )}
         </div>
       ) : (
-        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="p-6">
+          {(useMenuLogo || meta.eventIcon?.iconUrl || meta.eventIcon?.iconName) && (
+            <div className="flex items-center gap-3 mb-5">
+              {useMenuLogo ? (
+                <div className="h-11 flex items-center px-3 rounded-lg bg-white border border-surface-200 flex-shrink-0">
+                  <img src={meta.menuLogo} alt="" className="h-7 w-auto max-w-[200px] object-contain" />
+                </div>
+              ) : (
+                <EntityIcon iconUrl={meta.eventIcon?.iconUrl} iconName={meta.eventIcon?.iconName} fallbackText={meta.eventIcon?.name || share.title} fallbackColor={meta.eventIcon?.color || '#FFB300'} size={40} rounded="lg" />
+              )}
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold text-ink-900 leading-tight truncate">{share.title || 'Menu previews'}</h1>
+                {(fmtDate(meta.eventDate) || meta.eventLocation) && (
+                  <p className="text-xs text-ink-400 truncate">{[fmtDate(meta.eventDate), meta.eventLocation].filter(Boolean).join(' · ')}</p>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {items.map((it, i) => {
             const cCount = share.allow_comments ? comments.filter(c => c.menu_index === i).length : 0
             return (
@@ -418,6 +444,7 @@ export default function PreviewSharePage() {
               </div>
             )
           })}
+          </div>
         </div>
       )}
 
