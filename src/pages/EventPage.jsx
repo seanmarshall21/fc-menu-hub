@@ -1612,7 +1612,7 @@ export default function EventPage() {
       eventLocation: event?.venue || null,
       neededBy: neededBy || null,
       printFolder: event?.print_folder_url || null,
-      eventIcon: { iconName: event?.icon_name || null, color: brand?.color || null, name: event?.name || null },
+      eventIcon: { iconUrl: event?.icon_url || null, iconName: event?.icon_name || null, headerLogo: event?.header_logo_url || null, color: brand?.color || null, name: event?.name || null },
     }
     const payload = { kind: 'order', layout, notes: notes?.trim() || null, meta, title: title?.trim() || (event?.name ? `${event.name} — Order` : 'Menu order'), items, show_print_files: true }
     const cols = 'id, is_public, show_print_files, allow_comments, is_live'

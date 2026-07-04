@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import EntityIcon from '@/components/EntityIcon'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -43,6 +43,10 @@ const IconPrint = ({ className }) => (<svg className={className} {...svgBase}><p
 
 export default function PreviewSharePage() {
   const { shareId } = useParams()
+  const navigate = useNavigate()
+  // Show a back control only when we arrived from elsewhere in the app (an
+  // external viewer opening the link directly has no history to go back to).
+  const canGoBack = typeof window !== 'undefined' && window.history.length > 1
   const [share, setShare] = useState(undefined) // undefined = loading, null = not found/private
   const [idx, setIdx] = useState(null)          // lightbox index, or null
   const [comments, setComments] = useState([])
@@ -121,6 +125,7 @@ export default function PreviewSharePage() {
     const dir = sort.dir === 'asc' ? 1 : -1
     if (sort.key === 'qty') return ((Number(a.quantity) || 0) - (Number(b.quantity) || 0)) * dir
     if (sort.key === 'size') return String(a.size || '').localeCompare(String(b.size || '')) * dir || String(a.name || '').localeCompare(String(b.name || ''))
+    if (sort.key === 'type') return String(a.category || '').localeCompare(String(b.category || '')) * dir || String(a.name || '').localeCompare(String(b.name || ''))
     return String(a.name || '').localeCompare(String(b.name || '')) * dir
   })
   const toggleSort = (key) => setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
@@ -188,6 +193,11 @@ export default function PreviewSharePage() {
     // everything below the fold.
     <div className="h-[100dvh] overflow-y-auto print:h-auto print:overflow-visible bg-surface-50 text-ink-900">
       <header className="px-6 py-5 border-b border-surface-200 flex items-center gap-3 sticky top-0 bg-surface-50/95 backdrop-blur z-10 print:hidden">
+        {canGoBack && (
+          <button onClick={() => navigate(-1)} aria-label="Back" title="Back" className="flex-shrink-0 -ml-1 p-1 text-ink-400 hover:text-ink-700">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+        )}
         <img src="/logo-tile.svg" alt="" className="w-7 h-7 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <h1 className="font-semibold text-ink-900 text-sm truncate">{share.title || (isOrder ? 'Menu order' : 'Menu previews')}</h1>
@@ -312,6 +322,9 @@ export default function PreviewSharePage() {
                       <button onClick={() => toggleSort('name')} className="inline-flex items-center hover:text-ink-800 print:pointer-events-none">Menu{sortArrow('name')}</button>
                     </th>
                     <th className="text-left font-semibold px-3 py-2">
+                      <button onClick={() => toggleSort('type')} className="inline-flex items-center hover:text-ink-800 print:pointer-events-none">Type{sortArrow('type')}</button>
+                    </th>
+                    <th className="text-left font-semibold px-3 py-2">
                       <button onClick={() => toggleSort('size')} className="inline-flex items-center hover:text-ink-800 print:pointer-events-none">Size{sortArrow('size')}</button>
                     </th>
                     {share.show_print_files && <th className="text-left font-semibold px-3 py-2 print:hidden">Print file</th>}
@@ -323,10 +336,8 @@ export default function PreviewSharePage() {
                 <tbody className="divide-y divide-surface-100">
                   {sortedItems.map((it, i) => (
                     <tr key={i}>
-                      <td className="px-3 py-2">
-                        <span className="font-medium text-ink-900">{it.name}</span>
-                        {it.category && <span className="text-ink-400 text-xs ml-2 capitalize">{it.category}</span>}
-                      </td>
+                      <td className="px-3 py-2 font-medium text-ink-900">{it.name}</td>
+                      <td className="px-3 py-2 text-ink-500">{cap(it.category || '')}</td>
                       <td className="px-3 py-2 text-ink-500 uppercase">{it.size || ''}</td>
                       {share.show_print_files && (
                         <td className="px-3 py-2 print:hidden">
