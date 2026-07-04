@@ -1155,6 +1155,32 @@ create policy "staff update order shares" on public.menu_preview_shares
   for update to authenticated
   using (kind = 'order' and exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])))
   with check (kind = 'order');
+
+-- Staff can delete any share (order or preview) from the libraries.
+drop policy if exists "staff delete shares" on public.menu_preview_shares;
+create policy "staff delete shares" on public.menu_preview_shares for delete to authenticated
+  using (exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])));
+
+-- Share recipients (name + email), kept OFF the public share row so anon
+-- viewers of the link can't read email addresses. Staff-only RLS; the
+-- send-share-email edge function reads them with the service role and emails
+-- the /share/:id link via Resend (from no-reply@crssd.com; RESEND_API_KEY
+-- secret). is_public link is unchanged — recipients are for delivery/tracking.
+create table if not exists public.menu_share_recipients (
+  id uuid primary key default gen_random_uuid(),
+  share_id uuid not null references public.menu_preview_shares(id) on delete cascade,
+  name text, email text not null, sent_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists menu_share_recipients_share_idx on public.menu_share_recipients(share_id);
+alter table public.menu_share_recipients enable row level security;
+drop policy if exists "staff read recipients" on public.menu_share_recipients;
+create policy "staff read recipients" on public.menu_share_recipients for select to authenticated
+  using (exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])));
+drop policy if exists "staff write recipients" on public.menu_share_recipients;
+create policy "staff write recipients" on public.menu_share_recipients for all to authenticated
+  using (exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])))
+  with check (exists (select 1 from public.user_profiles where id = auth.uid() and role = any (array['admin','internal','production'])));
 drop policy if exists "staff delete order shares" on public.menu_preview_shares;
 create policy "staff delete order shares" on public.menu_preview_shares
   for delete to authenticated

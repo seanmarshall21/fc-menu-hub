@@ -5,7 +5,7 @@ const SHARE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00
 
 // Library of order forms already made for this event (by anyone). View/send an
 // existing one, edit it, or start a new one.
-export default function OrderLibraryModal({ open, loading, orders, onNew, onEdit, onDelete, onClose }) {
+export default function OrderLibraryModal({ open, loading, orders, onNew, onEdit, onManage, onDelete, onClose }) {
   const [copiedId, setCopiedId] = useState(null)
   if (!open) return null
 
@@ -49,6 +49,11 @@ export default function OrderLibraryModal({ open, loading, orders, onNew, onEdit
                     ? <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                     : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>}
                 </button>
+                {onManage && (
+                  <button onClick={() => onManage(o)} className="btn-secondary btn-sm px-2" title="Recipients + options" aria-label="Manage">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-1a4 4 0 00-4-4h-1m-6 5H2v-1a4 4 0 014-4h3m4-4a3 3 0 11-6 0 3 3 0 016 0zm7 1a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" /></svg>
+                  </button>
+                )}
                 <button onClick={() => onEdit(o)} className="btn-secondary btn-sm px-2" title="Edit" aria-label="Edit order form">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                 </button>

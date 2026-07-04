@@ -6,6 +6,8 @@ import { openPreviewExportWindow } from '@/lib/openPreviewExportWindow'
 import { menuPreviewSrc } from '@/lib/menuPreview'
 import OrderFormModal from '@/components/OrderFormModal'
 import OrderLibraryModal from '@/components/OrderLibraryModal'
+import PreviewLibraryModal from '@/components/PreviewLibraryModal'
+import RecipientsPanel from '@/components/RecipientsPanel'
 import QuantityField from '@/components/QuantityField'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
@@ -777,6 +779,8 @@ export default function EventPage() {
   const [orderModal, setOrderModal] = useState(null)
   // Order-form library: null = closed, else { loading, orders }.
   const [orderLibrary, setOrderLibrary] = useState(null)
+  // Send Previews library: null = closed, else { loading, shares }.
+  const [previewLibrary, setPreviewLibrary] = useState(null)
   // Edit-folder-links modal: null = closed, else { prep, print } draft.
   const [folderModal, setFolderModal] = useState(null)
   // "Send previews" → public gallery share link.
@@ -1658,6 +1662,32 @@ export default function EventPage() {
     if (error) { alert('Could not delete: ' + error.message); return }
     setOrderLibrary(lib => lib ? { ...lib, orders: lib.orders.filter(o => o.id !== order.id) } : lib)
   }
+  // Re-open the link/recipients modal for an existing share (order or preview).
+  async function manageShare(shareRow) {
+    const { data } = await supabase.from('menu_preview_shares')
+      .select('id, kind, is_public, show_print_files, allow_comments, is_live').eq('id', shareRow.id).single()
+    if (!data) return
+    setOrderLibrary(null); setPreviewLibrary(null)
+    setShareInfo({ id: data.id, url: `${window.location.origin}/share/${data.id}`, kind: data.kind, is_public: data.is_public, show_print_files: data.show_print_files, allow_comments: data.allow_comments, is_live: data.is_live })
+    setShareCopied(false)
+  }
+  // Send Previews library (existing preview links for this event).
+  async function openPreviewLibrary() {
+    setPreviewLibrary({ loading: true, shares: [] })
+    const { data } = await supabase.from('menu_preview_shares')
+      .select('id, title, items, created_at, created_by')
+      .eq('kind', 'preview').eq('meta->>eventId', event.id).order('created_at', { ascending: false })
+    setPreviewLibrary({ loading: false, shares: Array.isArray(data) ? data : [] })
+  }
+  function startNewPreview() {
+    setPreviewLibrary(null)
+    setTab('preview'); setSelectedPreviewIds(new Set()); setSelectPurpose('share'); setSelectMode(true)
+  }
+  async function deletePreview(share) {
+    const { error } = await supabase.from('menu_preview_shares').delete().eq('id', share.id)
+    if (error) { alert('Could not delete: ' + error.message); return }
+    setPreviewLibrary(lib => lib ? { ...lib, shares: lib.shares.filter(s => s.id !== share.id) } : lib)
+  }
   function editOrder(order) {
     const snap = Array.isArray(order.items) ? order.items : []
     const byId = new Map(menus.map(m => [m.id, m]))
@@ -1809,10 +1839,10 @@ export default function EventPage() {
         {/* Main functions: send a preview link / manage order forms */}
         {menus.length > 0 && (
           <button
-            onClick={() => { setTab('preview'); setSelectPurpose('share'); setSelectedPreviewIds(new Set()); setSelectMode(true) }}
+            onClick={openPreviewLibrary}
             className="btn-sm inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition whitespace-nowrap flex-shrink-0"
             style={{ background: SHARE_GRADIENT }}
-            title="Pick menus and send a preview link"
+            title="View, send, or create preview links"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
             Send Previews
@@ -2463,8 +2493,20 @@ export default function EventPage() {
         orders={orderLibrary?.orders || []}
         onNew={startNewOrder}
         onEdit={editOrder}
+        onManage={manageShare}
         onDelete={deleteOrder}
         onClose={() => setOrderLibrary(null)}
+      />
+
+      {/* ── Send Previews library ── */}
+      <PreviewLibraryModal
+        open={!!previewLibrary}
+        loading={previewLibrary?.loading}
+        shares={previewLibrary?.shares || []}
+        onNew={startNewPreview}
+        onManage={manageShare}
+        onDelete={deletePreview}
+        onClose={() => setPreviewLibrary(null)}
       />
 
       {/* ── Order-form builder modal ── */}
@@ -2520,6 +2562,7 @@ export default function EventPage() {
               </label>
               <p className="text-[11px] text-ink-400">Changes apply instantly to the same link.</p>
             </div>
+            <RecipientsPanel shareId={shareInfo.id} kind={shareInfo.kind} />
             <div className="flex items-center justify-between pt-1">
               <a href={shareInfo.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">{shareInfo.kind === 'order' ? 'Open order form ↗' : 'Open gallery ↗'}</a>
               <button onClick={() => setShareInfo(null)} className="btn-secondary btn-sm">Done</button>
