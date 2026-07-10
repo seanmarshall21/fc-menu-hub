@@ -23,6 +23,19 @@ function downloadHref(image, name) {
 const SHARE_GRADIENT = 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)'
 // Physical print dimensions per size (width × height).
 const SIZE_SPECS = { SM: '23.5" × 23.5"', MD: '23.5" × 35.25"', LG: '23.5" × 47.5"' }
+
+// Load JSZip from CDN on demand (keeps it out of the bundle). No CSP here.
+function loadJSZip() {
+  return new Promise((resolve, reject) => {
+    if (window.JSZip) return resolve(window.JSZip)
+    const s = document.createElement('script')
+    s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
+    s.onload = () => resolve(window.JSZip)
+    s.onerror = () => reject(new Error('Could not load the zip library.'))
+    document.head.appendChild(s)
+  })
+}
+const safeName = (s) => (s || '').replace(/[^\w\- ]+/g, '').trim()
 const Stat = ({ label, value }) => (
   <div className="rounded-md bg-surface-100 px-3 py-2">
     <p className="text-lg font-bold text-ink-900 leading-none">{value}</p>
@@ -53,6 +66,7 @@ export default function PreviewSharePage() {
   const [meId, setMeId] = useState(null)        // current user (owner can moderate feedback)
   const [sort, setSort] = useState({ key: 'name', dir: 'asc' }) // order list sorting
   const [liveItems, setLiveItems] = useState(null) // live-order: current menu values by menuId
+  const [zipping, setZipping] = useState(null)     // { done, total } while building the zip
   const [orderTab, setOrderTab] = useState('list') // 'list' | 'gallery' (layout='both')
   const [showSummary, setShowSummary] = useState(true)
   const [summaryOpen, setSummaryOpen] = useState(false) // expanded breakdown
@@ -136,6 +150,42 @@ export default function PreviewSharePage() {
   const prev = useCallback(() => setIdx(i => (i == null ? i : (i - 1 + items.length) % items.length)), [items.length])
   const next = useCallback(() => setIdx(i => (i == null ? i : (i + 1) % items.length)), [items.length])
 
+  // Download every preview PNG as one .zip (one reliable download vs. dozens of
+  // blocked individual ones, esp. on iOS).
+  async function downloadAll() {
+    const imgs = items.filter(it => it.image)
+    if (!imgs.length || zipping) return
+    setZipping({ done: 0, total: imgs.length })
+    try {
+      const JSZip = await loadJSZip()
+      const zip = new JSZip()
+      const used = {}
+      for (let i = 0; i < imgs.length; i++) {
+        const it = imgs[i]
+        try {
+          const blob = await (await fetch(it.image)).blob()
+          const ext = blob.type === 'image/jpeg' ? 'jpg' : 'png'
+          let base = safeName(it.name) || `menu-${i + 1}`
+          let fn = `${base}.${ext}`
+          if (used[fn]) { used[fn]++; fn = `${base} (${used[fn]}).${ext}` } else used[fn] = 1
+          zip.file(fn, blob)
+        } catch (_) { /* skip an image that fails to fetch */ }
+        setZipping({ done: i + 1, total: imgs.length })
+      }
+      const out = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(out)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${safeName(share?.title) || 'menus'}.zip`
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 8000)
+    } catch (e) {
+      alert(String(e?.message || 'Could not build the download.'))
+    } finally {
+      setZipping(null)
+    }
+  }
+
   useEffect(() => {
     if (idx == null) return
     function onKey(e) {
@@ -209,6 +259,12 @@ export default function PreviewSharePage() {
               : `${items.length} menu${items.length === 1 ? '' : 's'} · tap any to view full size${share.allow_comments ? ' · leave feedback' : ''}`}
           </p>
         </div>
+        {!isOrder && items.some(it => it.image) && (
+          <button onClick={downloadAll} disabled={!!zipping} className="btn-secondary btn-sm inline-flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap disabled:opacity-60">
+            <IconDownload className="w-4 h-4" />
+            {zipping ? `Zipping ${zipping.done}/${zipping.total}…` : 'Download all'}
+          </button>
+        )}
         <ThemeToggle className="flex-shrink-0" />
         {isOrder && (
           <button onClick={() => window.print()} className="btn-primary btn-sm inline-flex items-center gap-1.5 flex-shrink-0">
