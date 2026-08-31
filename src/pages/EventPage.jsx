@@ -912,6 +912,9 @@ export default function EventPage() {
   const [csvImporting, setCsvImporting]       = useState(false)
   const [csvImportError, setCsvImportError]   = useState(null)
   const [csvImportDone, setCsvImportDone]     = useState(false)
+  const [csvExistingSlugs, setCsvExistingSlugs] = useState(() => new Set()) // slugs already in this event
+  const [csvDupePolicy, setCsvDupePolicy]     = useState('skip')  // 'skip' | 'copy'
+  const [csvImportSummary, setCsvImportSummary] = useState(null)  // {created, skipped:[], failed:[]}
 
   // New sponsor modal
   const [showNewSponsor, setShowNewSponsor]   = useState(false)
@@ -1145,32 +1148,52 @@ export default function EventPage() {
     setShowImportCsvs(true)
     setCsvImportDone(false)
     setCsvImportError(null)
+    setCsvImportSummary(null)
+    // Pre-flight: pull the slugs already in this event so the modal can flag
+    // collisions before import instead of failing an insert mid-batch.
+    const { data: existing } = await supabase
+      .from('menus')
+      .select('slug')
+      .eq('event_id', event.id)
+    setCsvExistingSlugs(new Set((existing || []).map(m => m.slug)))
     if (csvInputRef.current) csvInputRef.current.value = ''
   }
 
   async function handleImportAll() {
     setCsvImporting(true)
     setCsvImportError(null)
-    try {
-      for (const entry of csvBatch) {
-        if (!entry.items.length || entry.error) continue
-        const { data: newMenu, error: menuErr } = await supabase
-          .from('menus')
-          .insert({ name: entry.name.trim(), slug: entry.slug.trim(), event_id: event.id, category: entry.category, phase: 'build' })
-          .select('id')
-          .single()
-        if (menuErr) throw new Error(`Failed to create "${entry.name}": ${menuErr.message}`)
-        const insertRows = entry.items.map((row, i) => ({ menu_id: newMenu.id, sort_order: i, ...row }))
-        const { error: itemsErr } = await supabase.from('menu_items').insert(insertRows)
-        if (itemsErr) throw new Error(`Failed to import items for "${entry.name}": ${itemsErr.message}`)
+    // Track every slug that's spoken for — those already in the event plus any
+    // we create this run — so 'copy' mode can suffix to a free slug and 'skip'
+    // mode also catches two files that slugify to the same thing.
+    const used = new Set(csvExistingSlugs)
+    const summary = { created: 0, skipped: [], failed: [] }
+    // One bad row must never abort the batch: collect per-row outcomes instead.
+    for (const entry of csvBatch) {
+      if (!entry.items.length || entry.error) continue
+      let slug = entry.slug.trim()
+      if (used.has(slug)) {
+        if (csvDupePolicy === 'skip') { summary.skipped.push(entry.name); continue }
+        // 'copy' → find the first free -n suffix
+        let n = 2
+        while (used.has(`${slug}-${n}`)) n++
+        slug = `${slug}-${n}`
       }
-      setCsvImportDone(true)
-      loadData()
-    } catch (err) {
-      setCsvImportError(err.message)
-    } finally {
-      setCsvImporting(false)
+      const { data: newMenu, error: menuErr } = await supabase
+        .from('menus')
+        .insert({ name: entry.name.trim(), slug, event_id: event.id, category: entry.category, phase: 'build' })
+        .select('id')
+        .single()
+      if (menuErr) { summary.failed.push({ name: entry.name, msg: menuErr.message }); continue }
+      used.add(slug)
+      const insertRows = entry.items.map((row, i) => ({ menu_id: newMenu.id, sort_order: i, ...row }))
+      const { error: itemsErr } = await supabase.from('menu_items').insert(insertRows)
+      if (itemsErr) { summary.failed.push({ name: entry.name, msg: `items: ${itemsErr.message}` }); continue }
+      summary.created++
     }
+    setCsvImportSummary(summary)
+    setCsvImportDone(true)
+    setCsvImporting(false)
+    loadData()
   }
 
   if (showPageLoader) return <PizzaLoader />
@@ -2730,23 +2753,71 @@ export default function EventPage() {
         >
           <div className="space-y-4">
             {csvImportDone ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-emerald-700 font-medium mb-1">✓ Import complete</p>
-                <p className="text-xs text-ink-400">
-                  {csvBatch.filter(e => e.items.length > 0 && !e.error).length} menu(s) created successfully.
-                </p>
-                <button
-                  className="btn-primary btn-sm mt-4"
-                  onClick={() => { setShowImportCsvs(false); setCsvBatch([]); setCsvImportDone(false) }}
-                >
-                  Done
-                </button>
+              <div className="py-4 space-y-3">
+                <p className="text-sm text-emerald-700 font-medium text-center">✓ Import complete</p>
+                <div className="text-xs space-y-1.5 max-w-xs mx-auto">
+                  <div className="flex items-center justify-between">
+                    <span className="text-ink-400">Created</span>
+                    <span className="font-medium text-emerald-700">{csvImportSummary?.created ?? 0}</span>
+                  </div>
+                  {csvImportSummary?.skipped?.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded px-2.5 py-2">
+                      <div className="flex items-center justify-between text-amber-800">
+                        <span>Skipped (already in event)</span>
+                        <span className="font-medium">{csvImportSummary.skipped.length}</span>
+                      </div>
+                      <p className="text-amber-700/80 mt-1 leading-snug">{csvImportSummary.skipped.join(', ')}</p>
+                    </div>
+                  )}
+                  {csvImportSummary?.failed?.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded px-2.5 py-2">
+                      <div className="flex items-center justify-between text-red-700">
+                        <span>Failed</span>
+                        <span className="font-medium">{csvImportSummary.failed.length}</span>
+                      </div>
+                      <ul className="text-red-600 mt-1 space-y-0.5 leading-snug">
+                        {csvImportSummary.failed.map((f, k) => <li key={k}>{f.name}: {f.msg}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                <div className="text-center">
+                  <button
+                    className="btn-primary btn-sm mt-2 whitespace-nowrap"
+                    onClick={() => { setShowImportCsvs(false); setCsvBatch([]); setCsvImportDone(false); setCsvImportSummary(null) }}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             ) : (
               <>
                 <p className="text-xs text-ink-500">
                   Each file becomes one menu. Edit the name, slug, or category before importing.
                 </p>
+                {csvBatch.some(e => e.items.length > 0 && !e.error && csvExistingSlugs.has(e.slug)) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs space-y-2">
+                    <p className="text-amber-800">
+                      Some menus already exist in this event (matching slug). Choose what to do with those:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCsvDupePolicy('skip')}
+                        className={`btn-sm whitespace-nowrap ${csvDupePolicy === 'skip' ? 'btn-primary' : 'btn-secondary'}`}
+                      >
+                        Skip duplicates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCsvDupePolicy('copy')}
+                        className={`btn-sm whitespace-nowrap ${csvDupePolicy === 'copy' ? 'btn-primary' : 'btn-secondary'}`}
+                      >
+                        Import as new copy
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                   {csvBatch.map((entry, i) => {
                     // Compute section summary for validation display
@@ -2825,6 +2896,17 @@ export default function EventPage() {
                                 <span>{missingTitle} row(s) missing a title — will be skipped</span>
                               </div>
                             )}
+                            {entry.items.length > 0 && csvExistingSlugs.has(entry.slug) && (
+                              <div className="flex items-start gap-1.5 text-amber-800 bg-amber-50 rounded px-2 py-1 mt-1">
+                                <span>⚠</span>
+                                <span>
+                                  A menu with slug <span className="font-mono">{entry.slug}</span> already exists in this event —{' '}
+                                  {csvDupePolicy === 'skip'
+                                    ? 'this one will be skipped. Edit the slug to import it anyway.'
+                                    : 'will import as a new copy with a numbered slug.'}
+                                </span>
+                              </div>
+                            )}
                             {entry.items.length === 0 && (
                               <div className="text-red-600">No valid rows found — check that Section and Title columns have data.</div>
                             )}
@@ -2852,7 +2934,7 @@ export default function EventPage() {
                   >
                     {csvImporting
                       ? 'Importing…'
-                      : `Import ${csvBatch.filter(e => e.items.length > 0 && !e.error).length} menu(s)`}
+                      : `Import ${csvBatch.filter(e => e.items.length > 0 && !e.error && !(csvDupePolicy === 'skip' && csvExistingSlugs.has(e.slug))).length} menu(s)`}
                   </button>
                 </div>
               </>
