@@ -1307,6 +1307,27 @@ export default function EventPage() {
   const bulkMarkSynced    = (ids) => applyBulkWithUndo(ids, 'Marked synced', { last_synced_at: nowIso() }, ['last_synced_at'])
   const bulkMarkNeedsSync = (ids) => applyBulkWithUndo(ids, 'Marked needs sync', { updated_at: nowIso() }, ['updated_at'])
   const bulkUnsync        = (ids) => applyBulkWithUndo(ids, 'Unsynced', { last_synced_at: null, last_synced_frame_id: null, last_sync_digest: null }, ['last_synced_at', 'last_synced_frame_id', 'last_sync_digest'])
+  // Permanent, cascading delete — admin only (mirrors the per-card delete and
+  // the menus RLS). No undo (rows are gone), so confirm with the count.
+  async function bulkDeleteMenus(idsSet) {
+    const ids = [...idsSet]
+    if (!ids.length) return
+    if (!confirm(`Delete ${ids.length} menu${ids.length === 1 ? '' : 's'}? This permanently removes ${ids.length === 1 ? 'it' : 'them'} and all their items, sponsors, and extra sizes. This cannot be undone.`)) return
+    setBulkBusy(true)
+    try {
+      const { error } = await supabase.from('menus').delete().in('id', ids)
+      if (error) throw error
+      setSelectedMenuIds(new Set())
+      setMenuSelectMode(false)
+      toast(`Deleted ${ids.length} menu${ids.length === 1 ? '' : 's'}`)
+      await loadData()
+    } catch (e) {
+      toast('Could not delete', { type: 'error' })
+      alert('Could not delete: ' + (e.message || String(e)))
+    } finally {
+      setBulkBusy(false)
+    }
+  }
 
   // One menu card for the Menus tab — extracted so we can render it inside
   // category groups or a filtered grid without duplicating the markup.
@@ -2077,6 +2098,17 @@ export default function EventPage() {
                       <option value="needs">Mark as needs sync</option>
                       <option value="unsync">Unsync</option>
                     </select>
+                    {isAdmin && (
+                      <button
+                        onClick={() => bulkDeleteMenus(selectedMenuIds)}
+                        disabled={!selectedMenuIds.size || bulkBusy}
+                        className="btn-sm whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1.5 px-3 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-40 font-medium">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+                        </svg>
+                        Delete
+                      </button>
+                    )}
                     <button onClick={() => { setMenuSelectMode(false); setSelectedMenuIds(new Set()) }}
                       className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">Done</button>
                   </div>
