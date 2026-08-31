@@ -514,7 +514,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const adj = layoutAdjust || {}
   const contentAdjustStyle = adjustStyle(adj.content_scale, 0, 'center center')
   const headerAdjustStyle  = adjustStyle(adj.header_scale,  adj.header_offset, 'top center')
-  const bodyAdjustStyle    = adjustStyle(adj.body_scale,    0,                 'top center')
+  const bodyAdjustStyle    = adjustStyle(adj.body_scale,    adj.body_offset,   'top center')
   const footerAdjustStyle  = adjustStyle(adj.footer_scale,  adj.footer_offset, 'bottom center')
 
   const activeItems = (items || []).filter(i => i.status === 'active')

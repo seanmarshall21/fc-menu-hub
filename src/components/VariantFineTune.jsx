@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
 
 const DEFAULTS = {
   content_scale: 1, header_scale: 1, body_scale: 1, footer_scale: 1,
-  header_offset: 0, footer_offset: 0,
+  header_offset: 0, body_offset: 0, footer_offset: 0,
 }
 
 const SCALES = [
@@ -22,6 +22,7 @@ const SCALES = [
 ]
 const OFFSETS = [
   ['header_offset', 'Move top', -400, 400],
+  ['body_offset', 'Move middle', -400, 400],
   ['footer_offset', 'Move footer', -400, 400],
 ]
 
