@@ -1283,6 +1283,8 @@ create table if not exists public.menu_variants (
   unique(menu_id, size)                          -- a menu can't hold the same size twice
 );
 create index if not exists idx_menu_variants_menu on public.menu_variants(menu_id);
+-- Per-variant quick fit adjustments (scale sections / nudge top+footer).
+alter table public.menu_variants add column if not exists layout_adjust jsonb;
 
 alter table public.size_defs     enable row level security;
 alter table public.menu_variants enable row level security;

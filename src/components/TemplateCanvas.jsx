@@ -442,9 +442,19 @@ function SponsorStrip({ sponsors, color, maxHeight = 100, gap = 48 }) {
 
 // ── Main export ──────────────────────────────────────────────────────────────
 
+// Build a transform style from a per-variant fit adjustment. Returns {} when
+// there's nothing to apply, so an unadjusted size renders byte-identically.
+function adjustStyle(scale, offsetY, origin) {
+  const parts = []
+  if (typeof scale === 'number' && scale !== 1) parts.push(`scale(${scale})`)
+  if (typeof offsetY === 'number' && offsetY !== 0) parts.push(`translateY(${offsetY}px)`)
+  if (!parts.length) return {}
+  return { transform: parts.join(' '), transformOrigin: origin }
+}
+
 const TemplateCanvas = forwardRef(function TemplateCanvas({
   template, series, event, size, menu, items, eventSponsors, menuSponsorIds, zoom = 1,
-  sizeConfig: sizeConfigProp,
+  sizeConfig: sizeConfigProp, layoutAdjust,
 }, innerRef) {
   const containerRef = useRef(null)
   const padBoxRef    = useRef(null)
@@ -498,6 +508,14 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
   const backgroundStyle = template?.background_url
     ? { backgroundImage: `url(${template.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center top' }
     : { backgroundColor: template?.background_color || '#ffffff' }
+
+  // Per-variant quick fit adjustments (scale sections / nudge top+footer). All
+  // no-ops when unset, so an unadjusted size is unchanged.
+  const adj = layoutAdjust || {}
+  const contentAdjustStyle = adjustStyle(adj.content_scale, 0, 'center center')
+  const headerAdjustStyle  = adjustStyle(adj.header_scale,  adj.header_offset, 'top center')
+  const bodyAdjustStyle    = adjustStyle(adj.body_scale,    0,                 'top center')
+  const footerAdjustStyle  = adjustStyle(adj.footer_scale,  adj.footer_offset, 'bottom center')
 
   const activeItems = (items || []).filter(i => i.status === 'active')
   const sectionGroups = buildSectionGroups(activeItems)
@@ -609,17 +627,21 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           position: 'absolute',
           top: padT, right: padR, bottom: padB, left: padL,
           display: 'flex', flexDirection: 'column',
+          ...contentAdjustStyle,
         }}>
-          {/* Header logo — alignment follows menu_title.align so they stay coordinated */}
-          {headerLogoUrl && (
-            <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: alignToFlex(spec.menu_title.align) }} />
-          )}
-          {headerLogoUrl && <div style={{ height: gapBlock.logo_to_title }} />}
+          {/* Header (logo + title) — wrapped so a variant can scale/nudge it */}
+          <div style={{ display: 'flex', flexDirection: 'column', ...headerAdjustStyle }}>
+            {/* Header logo — alignment follows menu_title.align so they stay coordinated */}
+            {headerLogoUrl && (
+              <img src={headerLogoUrl} alt="" style={{ maxHeight: spec.logo_max_height, alignSelf: alignToFlex(spec.menu_title.align) }} />
+            )}
+            {headerLogoUrl && <div style={{ height: gapBlock.logo_to_title }} />}
 
-          {/* Menu title — print_title overrides the app-side name when set */}
-          {(menu?.print_title || menu?.name) && (
-            <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.print_title || menu.name}</div>
-          )}
+            {/* Menu title — print_title overrides the app-side name when set */}
+            {(menu?.print_title || menu?.name) && (
+              <div style={{ ...roleStyle(spec.menu_title, fonts), color: colors.title }}>{menu.print_title || menu.name}</div>
+            )}
+          </div>
           <div style={{ height: gapBlock.title_to_items }} />
 
           {/* Sections — fill remaining space; 1 or 2 columns based on template.columns */}
@@ -630,6 +652,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
               gap: gapBlock.section_gap === 'auto' ? 60 : gapBlock.section_gap,
               alignItems: 'stretch',
               minHeight: 0,
+              ...bodyAdjustStyle,
             }}>
               {[0, 1].map(colIdx => {
                 const colGroups = sectionGroups.filter((_, i) => i % 2 === colIdx)
@@ -654,6 +677,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
               justifyContent: sectionsJustify,
               gap: sectionsGapPx,
               minHeight: 0,
+              ...bodyAdjustStyle,
             }}>
               {sectionGroups.map(group => (
                 <SectionBlock key={group.key} group={group} spec={spec} fonts={fonts} colors={colors} gapBlock={effectiveGapBlock} currency={currency} />
@@ -663,6 +687,9 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
 
           <div style={{ height: gapBlock.items_to_footer }} />
 
+          {/* Footer group (sponsors + diet/tax + graphic) — wrapped so a
+              variant can scale it down or nudge it as one unit */}
+          <div style={{ display: 'flex', flexDirection: 'column', ...footerAdjustStyle }}>
           {/* Sponsors */}
           {activeSponsors.length > 0 && (
             <div style={{ marginBottom: footerUrl || showDietKey || showTaxText || customFooter ? 60 : 0 }}>
@@ -704,6 +731,7 @@ const TemplateCanvas = forwardRef(function TemplateCanvas({
           {footerUrl && (
             <img src={footerUrl} alt="" style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: 80, alignSelf: 'stretch' }} />
           )}
+          </div>
         </div>
       </div>
       </div>

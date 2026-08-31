@@ -14,6 +14,7 @@ import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import MenuSizesPanel from '@/components/MenuSizesPanel'
+import VariantFineTune from '@/components/VariantFineTune'
 import { useSizeDefs } from '@/lib/sizes'
 import LayoutFitBadge from '@/components/LayoutFitBadge'
 import VisualCheckButton from '@/components/VisualCheckButton'
@@ -187,6 +188,7 @@ export default function MenuPage() {
   const [batchBusy, setBatchBusy] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
   const [variants, setVariants]   = useState([]) // extra sizes (menu_variants rows)
+  const [liveAdjust, setLiveAdjust] = useState({}) // size → live fine-tune draft (instant preview)
   const { configs: sizeConfigs, defs: sizeDefs } = useSizeDefs()
   const [refreshingPreview, setRefreshingPreview] = useState(false)
   const toast = useToast()
@@ -1507,6 +1509,8 @@ export default function MenuPage() {
           : activeSize
         const template = templates[templateSize]
         const activeSizeConfig = sizeConfigs[activeSize] || SIZE_CONFIGS[activeSize] || SIZE_CONFIGS.lg
+        // Live fine-tune draft wins over the saved value for instant preview.
+        const activeAdjust = activeVariant ? (liveAdjust[activeSize] || activeVariant.layout_adjust || null) : null
         const hasTemplate = !!template?.background_url
         // Print/Figma priority uses the active size's artifacts: variants carry
         // their own, the primary uses the menu's.
@@ -1649,6 +1653,13 @@ export default function MenuPage() {
                   depsKey={`${activeSize}|${menuSponsorIds?.length || 0}|${items.length}`}
                 />
               </div>
+              {activeVariant && canEdit && (
+                <VariantFineTune
+                  variant={activeVariant}
+                  onLive={(sz, obj) => setLiveAdjust(prev => ({ ...prev, [sz]: obj }))}
+                  onSaved={loadMenu}
+                />
+              )}
               <div className="rounded-xl overflow-hidden border border-surface-200 shadow-sm bg-surface-50">
                 <TemplateCanvas
                   ref={canvasRef}
@@ -1657,6 +1668,7 @@ export default function MenuPage() {
                   event={event}
                   size={activeSize}
                   sizeConfig={activeSizeConfig}
+                  layoutAdjust={activeAdjust}
                   menu={menu}
                   items={items}
                   eventSponsors={previewSponsors}
@@ -1870,6 +1882,7 @@ export default function MenuPage() {
           : activeSize
         const template = templates[lbTemplateSize]
         const lbSizeConfig = sizeConfigs[activeSize] || SIZE_CONFIGS[activeSize] || SIZE_CONFIGS.lg
+        const lbAdjust = lbVariant ? (liveAdjust[activeSize] || lbVariant.layout_adjust || null) : null
         return (
           <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             {/* Header sits above the scroller in its own stacking context so
@@ -1907,6 +1920,7 @@ export default function MenuPage() {
                   event={event}
                   size={activeSize}
                   sizeConfig={lbSizeConfig}
+                  layoutAdjust={lbAdjust}
                   menu={menu}
                   items={items}
                   eventSponsors={previewSponsors}
