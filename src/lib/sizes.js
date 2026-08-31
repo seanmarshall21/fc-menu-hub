@@ -52,6 +52,13 @@ export const DEFAULT_SIZE_CONFIGS = buildSizeConfigs(DEFAULT_SIZE_DEFS)
 let _cache = null
 let _inflight = null
 
+// Clear the cache so the next loadSizeDefs() refetches — call after editing
+// size_defs in the admin so new sizes show up on the next page mount.
+export function invalidateSizeDefs() {
+  _cache = null
+  _inflight = null
+}
+
 export async function loadSizeDefs() {
   if (_cache) return _cache
   if (_inflight) return _inflight

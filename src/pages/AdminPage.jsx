@@ -7,6 +7,7 @@ import Modal from '@/components/Modal'
 import { DEPARTMENTS } from '@/lib/departments'
 import { useToast } from '@/contexts/ToastContext'
 import DepartmentsAdmin from '@/components/DepartmentsAdmin'
+import SizesAdmin from '@/components/SizesAdmin'
 import { useDepartments } from '@/hooks/useDepartments'
 
 const ROLES = ['admin', 'internal', 'external', 'production']
@@ -283,7 +284,7 @@ export default function AdminPage() {
       ) : null}
       below={(
         <div className="flex gap-1">
-          {[['users', 'Users'], ['departments', 'Departments']].map(([k, l]) => (
+          {[['users', 'Users'], ['departments', 'Departments'], ['sizes', 'Sizes']].map(([k, l]) => (
             <button key={k} onClick={() => setAdminTab(k)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${adminTab === k ? 'border-brand-500 text-brand-600' : 'border-transparent text-ink-500 hover:text-ink-700'}`}>{l}</button>
           ))}
@@ -291,7 +292,7 @@ export default function AdminPage() {
       )}
     >
       <PageBody>
-      {adminTab === 'departments' ? <DepartmentsAdmin /> : (<>
+      {adminTab === 'departments' ? <DepartmentsAdmin /> : adminTab === 'sizes' ? <SizesAdmin /> : (<>
       <p className="text-sm text-ink-400 mb-6">Invite, edit, and manage access for all Menu Hub users.</p>
 
       {error && (

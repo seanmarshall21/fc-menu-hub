@@ -1319,3 +1319,12 @@ drop policy if exists "internal_delete_menu_variants" on public.menu_variants;
 create policy "internal_delete_menu_variants" on public.menu_variants for delete using (
   exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
 );
+
+-- event_templates.size used to be a hardcoded CHECK (sm/md/lg). Replace it with
+-- an FK to size_defs so new data-driven sizes can have their own templates.
+alter table public.event_templates drop constraint if exists event_templates_size_check;
+do $$ begin
+  alter table public.event_templates
+    add constraint event_templates_size_fkey
+    foreign key (size) references public.size_defs(id);
+exception when duplicate_object then null; end $$;
