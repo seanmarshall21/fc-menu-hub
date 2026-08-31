@@ -31,6 +31,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import Modal from '@/components/Modal'
 import { format } from 'date-fns'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
+import { useSizeDefs } from '@/lib/sizes'
 import EventStylesTab from '@/components/EventStylesTab'
 import FavoriteButton from '@/components/FavoriteButton'
 import EntityIconPicker from '@/components/EntityIconPicker'
@@ -283,6 +284,7 @@ function SponsorRow({ sponsor, canEdit, onSave, onDelete, onMoveUp, onMoveDown, 
 
 // ── Templates Tab ─────────────────────────────────────────────────────────────
 function TemplatesTab({ event, templates, canEdit, onSaved }) {
+  const { defs: sizeDefs, configs: sizeConfigs } = useSizeDefs()
   // Shared style config (read from first existing template, or defaults)
   const existing = Object.values(templates)[0] || {}
   const [colorSection,   setColorSection]   = useState(existing.color_section   || '#1a1a1a')
@@ -304,9 +306,9 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
   const [styleSuccess,   setStyleSuccess]   = useState(false)
 
   // Per-size upload state
-  const [uploading, setUploading] = useState({}) // { sm: bool, md: bool, lg: bool }
+  const [uploading, setUploading] = useState({}) // keyed by size id
   const [uploadError, setUploadError] = useState({})
-  const fileRefs = { sm: useRef(null), md: useRef(null), lg: useRef(null) }
+  const fileRefs = useRef({}) // size id → <input> element (data-driven, any number of sizes)
 
   async function handleUpload(size, file) {
     if (!file) return
@@ -374,8 +376,9 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
         padding_bottom:    Number(padBottom),
         padding_left:      Number(padLeft),
       }
-      // Apply to all existing template sizes + create for any missing sizes
-      const sizes = ['sm', 'md', 'lg']
+      // Apply the shared style to every active size (creates a template row per
+      // size so template-mode works for new sizes too).
+      const sizes = sizeDefs.map(d => d.id)
       await Promise.all(sizes.map(async size => {
         const row = { event_id: event.id, size, ...payload }
         if (templates[size]?.background_url) {
@@ -407,7 +410,9 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
           SM = 23.5"×23.5", MD = 23.5"×35.25", LG = 23.5"×47.5" (all with 0.25" bleed).
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {Object.entries(SIZE_CONFIGS).map(([size, cfg]) => {
+          {sizeDefs.map((d) => {
+            const size = d.id
+            const cfg = sizeConfigs[size] || SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
             const tmpl = templates[size]
             const isUploading = uploading[size]
             const err = uploadError[size]
@@ -444,14 +449,14 @@ function TemplatesTab({ event, templates, canEdit, onSaved }) {
                 {canEdit && (
                   <>
                     <input
-                      ref={fileRefs[size]}
+                      ref={el => { fileRefs.current[size] = el }}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       className="hidden"
                       onChange={e => handleUpload(size, e.target.files?.[0])}
                     />
                     <button
-                      onClick={() => fileRefs[size].current?.click()}
+                      onClick={() => fileRefs.current[size]?.click()}
                       disabled={isUploading}
                       className="btn-primary w-full gap-2 justify-center"
                     >

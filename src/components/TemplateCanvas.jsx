@@ -444,12 +444,15 @@ function SponsorStrip({ sponsors, color, maxHeight = 100, gap = 48 }) {
 
 const TemplateCanvas = forwardRef(function TemplateCanvas({
   template, series, event, size, menu, items, eventSponsors, menuSponsorIds, zoom = 1,
+  sizeConfig: sizeConfigProp,
 }, innerRef) {
   const containerRef = useRef(null)
   const padBoxRef    = useRef(null)
   const [fitScale, setFitScale] = useState(1)
   const [measuredItemGap, setMeasuredItemGap] = useState(null)
-  const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
+  // Prefer a caller-supplied config (data-driven size_defs, incl. new sizes);
+  // fall back to the built-in sm/md/lg so existing callers are unaffected.
+  const sizeConfig = sizeConfigProp || SIZE_CONFIGS[size] || SIZE_CONFIGS.lg
   const scale = fitScale * (zoom || 1)
 
   useEffect(() => {

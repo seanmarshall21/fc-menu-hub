@@ -13,6 +13,8 @@ import CsvExport from '@/components/CsvExport'
 import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
+import MenuSizesPanel from '@/components/MenuSizesPanel'
+import { useSizeDefs } from '@/lib/sizes'
 import LayoutFitBadge from '@/components/LayoutFitBadge'
 import VisualCheckButton from '@/components/VisualCheckButton'
 import SyncBadge from '@/components/SyncBadge'
@@ -184,6 +186,8 @@ export default function MenuPage() {
   const [selectedItemIds, setSelectedItemIds] = useState(new Set())
   const [batchBusy, setBatchBusy] = useState(false)
   const [templates, setTemplates] = useState({}) // keyed by size: { sm, md, lg }
+  const [variants, setVariants]   = useState([]) // extra sizes (menu_variants rows)
+  const { configs: sizeConfigs, defs: sizeDefs } = useSizeDefs()
   const [refreshingPreview, setRefreshingPreview] = useState(false)
   const toast = useToast()
   const [previewSize, setPreviewSize] = useState(null) // null = inherit menu.size; user pick overrides
@@ -352,6 +356,13 @@ export default function MenuPage() {
         const tmplMap = {}
         ;(templateRows || []).forEach(t => { tmplMap[t.size] = t })
         setTemplates(tmplMap)
+        // Extra sizes for this menu (menu_variants). Empty for legacy menus.
+        const { data: variantRows } = await supabase
+          .from('menu_variants')
+          .select('*')
+          .eq('menu_id', menuData.id)
+          .order('created_at', { ascending: true })
+        setVariants(variantRows || [])
         // Default preview size to menu's own size
         setPreviewSize(prev => prev || menuData.size || 'lg')
       }
@@ -1068,10 +1079,11 @@ export default function MenuPage() {
               <div>
                 <label className="label">Size</label>
                 <select className="input" value={editMenuSize} onChange={e => setEditMenuSize(e.target.value)}>
-                  <option value="sm">Small  — 23.5" × 23.5"</option>
-                  <option value="md">Medium — 23.5" × 35.25"</option>
-                  <option value="lg">Large  — 23.5" × 47.5"</option>
+                  {sizeDefs.map(d => (
+                    <option key={d.id} value={d.id}>{d.name || d.label} — {d.width_in}" × {d.height_in}"</option>
+                  ))}
                 </select>
+                <p className="mt-1 text-[11px] text-ink-400">The primary size. Add more sizes for this menu in the Preview tab → Sizes &amp; variations.</p>
               </div>
               <div>
                 <label className="label">Category</label>
@@ -1485,19 +1497,37 @@ export default function MenuPage() {
       {/* Preview tab */}
       {tab === 'preview' && (() => {
         const activeSize = previewSize || menu.size || 'lg'
-        const template = templates[activeSize]
+        // The sizes this menu is produced in: primary first, then its variants.
+        const menuSizes = [menu.size || 'lg', ...variants.map(v => v.size)]
+        const activeVariant = variants.find(v => v.size === activeSize)
+        // Proportional variants borrow the source size's template and just
+        // render it at their own dimensions; everything else uses its own size.
+        const templateSize = (activeVariant && activeVariant.layout_mode === 'proportional')
+          ? (activeVariant.source_size || menu.size || 'lg')
+          : activeSize
+        const template = templates[templateSize]
+        const activeSizeConfig = sizeConfigs[activeSize] || SIZE_CONFIGS[activeSize] || SIZE_CONFIGS.lg
         const hasTemplate = !!template?.background_url
-        // Print render (from the final print PDF) is the priority once a menu is
-        // complete with a print file. Otherwise the Figma image is the priority
-        // once synced & current; edits since the last sync drop to app preview.
-        const printReady = !!menu.print_preview_url
-        const figmaReady = !!menu.preview_image_url
+        // Print/Figma priority uses the active size's artifacts: variants carry
+        // their own, the primary uses the menu's.
+        const printPreviewUrl = activeVariant ? activeVariant.print_preview_url : menu.print_preview_url
+        const printReady = !!printPreviewUrl
+        // Figma render images are primary-only until the plugin populates
+        // per-variant frames; variants show the in-app preview.
+        const figmaReady = !activeVariant && !!menu.preview_image_url
         const view = previewView || (printReady ? 'print' : ((figmaReady && !syncNeeded) ? 'figma' : 'app'))
         const showPrint = view === 'print' && printReady
         const showFigma = view === 'figma' && figmaReady
         const showApp = !showPrint && !showFigma
         return (
           <div>
+            <MenuSizesPanel
+              menu={menu}
+              variants={variants}
+              templates={templates}
+              canEdit={canEdit}
+              onChanged={loadMenu}
+            />
             <SpacingOverridePanel
               menu={menu}
               size={activeSize}
@@ -1507,12 +1537,14 @@ export default function MenuPage() {
             {/* Size switcher + Figma sync badge */}
             <div className="flex items-center justify-between mb-5 gap-4 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1">
-                  {Object.entries(SIZE_CONFIGS).map(([key, cfg]) => (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {menuSizes.map((key) => {
+                    const cfg = sizeConfigs[key] || SIZE_CONFIGS[key] || SIZE_CONFIGS.lg
+                    return (
                     <button
                       key={key}
                       onClick={() => setPreviewSize(key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                         activeSize === key
                           ? 'bg-brand-500 text-white'
                           : 'bg-surface-100 text-ink-500 hover:bg-surface-200'
@@ -1521,7 +1553,7 @@ export default function MenuPage() {
                       {cfg.label}
                       <span className="ml-1 opacity-60 font-normal">{cfg.print}</span>
                     </button>
-                  ))}
+                  )})}
                 </div>
                 {/* Print ↔ Figma ↔ App preview toggle (black active, not orange) */}
                 {(printReady || figmaReady) && (
@@ -1624,6 +1656,7 @@ export default function MenuPage() {
                   series={series}
                   event={event}
                   size={activeSize}
+                  sizeConfig={activeSizeConfig}
                   menu={menu}
                   items={items}
                   eventSponsors={previewSponsors}
@@ -1831,7 +1864,12 @@ export default function MenuPage() {
       {/* Zoom lightbox */}
       {lightboxOpen && (() => {
         const activeSize = previewSize || menu.size || 'lg'
-        const template = templates[activeSize]
+        const lbVariant = variants.find(v => v.size === activeSize)
+        const lbTemplateSize = (lbVariant && lbVariant.layout_mode === 'proportional')
+          ? (lbVariant.source_size || menu.size || 'lg')
+          : activeSize
+        const template = templates[lbTemplateSize]
+        const lbSizeConfig = sizeConfigs[activeSize] || SIZE_CONFIGS[activeSize] || SIZE_CONFIGS.lg
         return (
           <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             {/* Header sits above the scroller in its own stacking context so
@@ -1868,6 +1906,7 @@ export default function MenuPage() {
                   series={series}
                   event={event}
                   size={activeSize}
+                  sizeConfig={lbSizeConfig}
                   menu={menu}
                   items={items}
                   eventSponsors={previewSponsors}

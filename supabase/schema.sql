@@ -1227,3 +1227,95 @@ drop policy if exists "owner delete share comments" on public.menu_preview_share
 create policy "owner delete share comments" on public.menu_preview_share_comments for delete to authenticated using (
   exists (select 1 from public.menu_preview_shares s
     where s.id = menu_preview_share_comments.share_id and s.created_by = auth.uid()));
+
+-- ─── Multi-size menus (additive; nothing existing changes) ───────────────────
+-- A menu keeps its single `menus.size` as the PRIMARY size and behaves exactly
+-- as before. Extra sizes live in `menu_variants` (one row each). Content (items
+-- /sponsors) stays single and shared — every size renders the same content
+-- through its own layout. A menu with zero variant rows is a pre-existing menu.
+--
+-- `size_defs` makes the size list data-driven so new physical sizes are a row,
+-- not a code change. It is seeded to match today's sm/md/lg so nothing shifts.
+
+create table if not exists public.size_defs (
+  id           text primary key,               -- token, e.g. 'lg', 'flyer-letter'
+  label        text not null,                  -- short display label, e.g. 'LG'
+  name         text,                           -- long name, e.g. '8.5 × 11 Flyer'
+  width_in     numeric not null,               -- physical width  (inches)
+  height_in    numeric not null,               -- physical height (inches)
+  figma_tokens text[] not null default '{}',   -- substrings the plugin matches in a frame name
+  sort_order   int not null default 0,
+  active       boolean not null default true,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+-- Seed the three existing sizes (idempotent) with the exact tokens the plugin
+-- already detects, plus the 8.5×11 flyer as the first genuinely new size.
+insert into public.size_defs (id, label, name, width_in, height_in, figma_tokens, sort_order) values
+  ('sm', 'SM', 'Small',  23.5, 23.5,  array['small','_sm','_2x2'], 10),
+  ('md', 'MD', 'Medium', 23.5, 35.25, array['med','_md','_2x3'],   20),
+  ('lg', 'LG', 'Large',  23.5, 47.5,  array['large','_lg','_2x4'], 30)
+on conflict (id) do nothing;
+insert into public.size_defs (id, label, name, width_in, height_in, figma_tokens, sort_order) values
+  ('flyer-letter', 'FLYER', '8.5 × 11 Flyer', 8.5, 11, array['flyer','letter','_8x11','8-5x11'], 40)
+on conflict (id) do nothing;
+
+create table if not exists public.menu_variants (
+  id                uuid primary key default gen_random_uuid(),
+  menu_id           uuid not null references public.menus(id) on delete cascade,
+  size              text not null references public.size_defs(id),
+  -- 'template'     → this size has its own event_templates layout spec
+  -- 'proportional' → scale the source size's layout to this size's dimensions
+  layout_mode       text not null default 'template'
+                    check (layout_mode in ('template','proportional')),
+  source_size       text,                       -- for proportional: which size to scale from (default = menu's primary)
+  -- Figma sync state for THIS size (mirrors menus.last_synced_at/last_sync_digest)
+  last_synced_at    timestamptz,
+  last_sync_digest  text,
+  last_synced_frame_id text,
+  -- Final print artifact for THIS size
+  is_final          boolean not null default false,
+  final_file_url    text,
+  print_preview_url text,                        -- rendered preview of this size's print file
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique(menu_id, size)                          -- a menu can't hold the same size twice
+);
+create index if not exists idx_menu_variants_menu on public.menu_variants(menu_id);
+
+alter table public.size_defs     enable row level security;
+alter table public.menu_variants enable row level security;
+
+-- size_defs: readable by everyone (used app-wide + public previews); admin/internal write.
+drop policy if exists "public_read_size_defs" on public.size_defs;
+create policy "public_read_size_defs" on public.size_defs for select using (true);
+drop policy if exists "staff_write_size_defs" on public.size_defs;
+create policy "staff_write_size_defs" on public.size_defs for all using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+
+-- menu_variants: mirror menus — public read; internal/admin insert+update; admin all (incl. delete).
+drop policy if exists "admins_all" on public.menu_variants;
+create policy "admins_all" on public.menu_variants for all using (
+  exists (select 1 from user_profiles where id = auth.uid() and role = 'admin')
+);
+drop policy if exists "public_read_menu_variants" on public.menu_variants;
+create policy "public_read_menu_variants" on public.menu_variants for select using (true);
+drop policy if exists "internal_insert_menu_variants" on public.menu_variants;
+create policy "internal_insert_menu_variants" on public.menu_variants for insert with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+drop policy if exists "internal_update_menu_variants" on public.menu_variants;
+create policy "internal_update_menu_variants" on public.menu_variants for update using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+) with check (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
+-- Internal/production can delete a variant they manage (mirrors staff share deletes).
+drop policy if exists "internal_delete_menu_variants" on public.menu_variants;
+create policy "internal_delete_menu_variants" on public.menu_variants for delete using (
+  exists (select 1 from user_profiles where id = auth.uid() and role in ('admin','internal'))
+);
