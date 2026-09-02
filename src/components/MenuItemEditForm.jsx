@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
-const STATUS_LABELS  = { active: 'Active', not_added: 'Not Added', draft: 'Draft' }
+const STATUS_LABELS  = { active: 'Active', not_added: 'Not Added', draft: 'Hidden' }
 const LAYOUT_OPTIONS = [
   { value: 'main', label: 'Main — title, description, dietary, price' },
   { value: 'alt',  label: 'Alt — title and price only' },

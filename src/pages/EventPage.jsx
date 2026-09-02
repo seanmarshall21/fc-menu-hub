@@ -101,9 +101,11 @@ function parseCsvRow(row, currency) {
     price1:      normalizePrice(row['Price']),
     size2:       (row['Size 2'] || '').trim() || null,
     price2:      normalizePrice(row['Price 2']),
-    status:      (status === 'active' || status === 'added') ? 'active'
-                 : (status === 'not added' || status === 'not_added') ? 'not_added'
-                 : 'draft',
+    // Default to active — a blank/unknown Status must never hide an item.
+    // Only an explicit "not added" or "hidden/not visible" holds it back.
+    status:      (status === 'not added' || status === 'not_added') ? 'not_added'
+                 : (status === 'hidden' || status === 'not visible' || status === 'draft') ? 'draft'
+                 : 'active',
     notes:       (row['Notes'] || '').trim() || null,
   }
 }

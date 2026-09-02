@@ -1298,7 +1298,7 @@ export default function MenuPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] text-ink-400 mr-1">Set status:</span>
                 <button onClick={() => batchSetStatus('active')}    disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Active</button>
-                <button onClick={() => batchSetStatus('draft')}     disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Draft</button>
+                <button onClick={() => batchSetStatus('draft')}     disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Hidden</button>
                 <button onClick={() => batchSetStatus('not_added')} disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Not&nbsp;Added</button>
                 {canApproveEdits && (
                   <button onClick={batchApproveEdits} disabled={batchBusy} className="btn-secondary btn-sm whitespace-nowrap">Approve edits</button>
