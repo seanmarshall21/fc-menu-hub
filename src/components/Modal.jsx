@@ -1,7 +1,17 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
-export default function Modal({ title, onClose, children }) {
+// Width presets. Full literals so Tailwind keeps them. On mobile every modal is
+// full-width (w-full) up to its cap, so these only widen on larger screens.
+const SIZES = {
+  sm: 'max-w-md',    // confirms, short forms (default)
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',   // multi-field forms
+  xl: 'max-w-4xl',   // long / two-column forms (Edit Event, Import)
+  '2xl': 'max-w-6xl',
+}
+
+export default function Modal({ title, onClose, children, size = 'sm' }) {
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -19,7 +29,7 @@ export default function Modal({ title, onClose, children }) {
       }}
     >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-surface-0 rounded-xl shadow-xl w-full max-w-md max-h-full overflow-y-auto z-10">
+      <div className={`relative bg-surface-0 rounded-xl shadow-xl w-full ${SIZES[size] || SIZES.sm} max-h-full overflow-y-auto z-10`}>
         <div className="sticky top-0 bg-surface-0 px-6 pt-5 pb-3 border-b border-surface-100 flex items-center justify-between z-10">
           <h2 className="text-base font-semibold text-ink-900">{title}</h2>
           <button onClick={onClose} className="btn-ghost btn-sm p-1.5 -mr-1" aria-label="Close">

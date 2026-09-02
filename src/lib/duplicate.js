@@ -86,9 +86,12 @@ export async function duplicateMenuTo(sourceMenuId, { name, targetEventId, setAl
       return {
         ...rest,
         menu_id: created.id,
-        edit_status: setAllDraft
-          ? 'draft'
-          : (it.edit_status === 'pending_approval' ? 'active' : it.edit_status),
+        // A fresh copy carries no pending-review state. edit_status only allows
+        // clean/pending_approval/approved/rejected — reset to 'clean'.
+        edit_status: 'clean',
+        // The "set copies to Draft" option hides them via the visibility
+        // `status` column (draft = hidden), NOT the review edit_status.
+        status: setAllDraft ? 'draft' : rest.status,
       }
     })
     const { error: itemsErr } = await supabase.from('menu_items').insert(cloned)

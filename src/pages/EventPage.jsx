@@ -715,7 +715,7 @@ function DuplicateMenuModal({ sourceMenu, currentEventId, currentSeriesId, curre
   const crossEvent = target.eventId && target.eventId !== sourceMenu.event_id
 
   return (
-    <Modal title="Duplicate menu" onClose={onClose}>
+    <Modal title="Duplicate menu" size="lg" onClose={onClose}>
       <form onSubmit={handleDuplicate} className="space-y-4">
         <div className="text-xs text-ink-500">
           Cloning <strong className="text-ink-900">{sourceMenu.name}</strong>
@@ -2635,8 +2635,8 @@ export default function EventPage() {
 
       {/* ── Edit Event Modal ── */}
       {showEditEvent && (
-        <Modal title="Edit Event" onClose={() => setShowEditEvent(false)}>
-          <form onSubmit={handleSaveEvent} className="space-y-4">
+        <Modal title="Edit Event" size="xl" onClose={() => setShowEditEvent(false)}>
+          <form onSubmit={handleSaveEvent} className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
             <div>
               <label className="label">Event Name</label>
               <input className="input" value={editName}
@@ -2649,7 +2649,7 @@ export default function EventPage() {
                 onChange={e => setEditSlug(slugify(e.target.value))} required />
               <p className="text-xs text-ink-400 mt-1">Changing the slug will update the URL.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 md:col-span-2">
               <div>
                 <label className="label">Date</label>
                 <input type="date" className="input" value={editDate}
@@ -2700,7 +2700,7 @@ export default function EventPage() {
                 onChange={e => setEditFigmaPage(e.target.value)}
                 placeholder="e.g. CF Spring 26" />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="label">Figma component prefix <span className="text-ink-400 font-normal">(optional override)</span></label>
               <input
                 type="text"
@@ -2714,7 +2714,7 @@ export default function EventPage() {
                 Leave blank to inherit. Override only when this event uses a different master-component set than the rest of the series (e.g. a one-off festival with bespoke templates).
               </p>
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="label">Icon</label>
               <EntityIconPicker
                 iconUrl={editIconUrl}
@@ -2726,8 +2726,8 @@ export default function EventPage() {
                 fallbackColor={brand?.color}
               />
             </div>
-            {editError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editError}</p>}
-            <div className="flex items-center justify-end gap-3 pt-1">
+            {editError && <p className="md:col-span-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editError}</p>}
+            <div className="md:col-span-2 flex items-center justify-end gap-3 pt-1">
               <button type="button" onClick={() => setShowEditEvent(false)} className="btn-secondary btn-sm">Cancel</button>
               <button type="submit" className="btn-primary btn-sm" disabled={editSaving}>{editSaving ? 'Saving…' : 'Save Changes'}</button>
             </div>
@@ -2740,7 +2740,7 @@ export default function EventPage() {
         <BulkAddItemModal menus={menus} onClose={() => setShowBulkAdd(false)} onDone={loadData} />
       )}
       {showNewMenu && (
-        <Modal title="New Menu" onClose={() => setShowNewMenu(false)}>
+        <Modal title="New Menu" size="lg" onClose={() => setShowNewMenu(false)}>
           <form onSubmit={handleCreateMenu} className="space-y-4">
             <div>
               <label className="label">Menu Name</label>
@@ -2788,6 +2788,7 @@ export default function EventPage() {
       {showImportCsvs && (
         <Modal
           title="Import Menus from CSV"
+          size="xl"
           onClose={() => { setShowImportCsvs(false); setCsvBatch([]); setCsvImportDone(false); setCsvImportError(null) }}
         >
           <div className="space-y-4">

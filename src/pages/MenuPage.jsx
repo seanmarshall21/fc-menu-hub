@@ -663,7 +663,7 @@ export default function MenuPage() {
     while (existing.has(name)) name = `${base} copy ${n++}`
     // Insert clones (without a precise sort_order yet), then renumber the whole
     // list so the copy lands immediately after the source section.
-    const clones = src.map(({ id, created_at, ...rest }) => ({ ...rest, menu_id: menu.id, section: name }))
+    const clones = src.map(({ id, created_at, ...rest }) => ({ ...rest, menu_id: menu.id, section: name, edit_status: 'clean' }))
     const { data: inserted, error } = await supabase.from('menu_items').insert(clones).select('id')
     if (error || !inserted) { toast('Could not duplicate', { type: 'error' }); return }
     const order = []
