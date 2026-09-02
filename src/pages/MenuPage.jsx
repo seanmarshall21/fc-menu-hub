@@ -14,6 +14,7 @@ import EditLog from '@/components/EditLog'
 import MenuPreview, { buildSectionGroups } from '@/components/MenuPreview'
 import TemplateCanvas, { SIZE_CONFIGS } from '@/components/TemplateCanvas'
 import MenuSizesPanel from '@/components/MenuSizesPanel'
+import SectionActionsMenu from '@/components/SectionActionsMenu'
 import VariantFineTune from '@/components/VariantFineTune'
 import { useSizeDefs } from '@/lib/sizes'
 import LayoutFitBadge from '@/components/LayoutFitBadge'
@@ -62,6 +63,7 @@ import { CSS } from '@dnd-kit/utilities'
 import html2canvas from 'html2canvas'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
+const STATUS_LABELS = { active: 'Active', not_added: 'Not added', draft: 'Hidden' }
 const LAYOUT_OPTIONS = [
   { value: 'main', label: 'Main' },
   { value: 'alt',  label: 'Alt' },
@@ -141,7 +143,7 @@ function AddItemRow({ menuId, sections, defaultSection, onSaved, nextSortOrder }
             value={form.status}
             onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
           >
-            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>)}
           </select>
           <button type="submit" disabled={saving} className="btn-primary btn-sm">{saving ? '…' : 'Add'}</button>
           <button type="button" onClick={onSaved} className="btn-secondary btn-sm">Cancel</button>
@@ -220,6 +222,8 @@ export default function MenuPage() {
   useEffect(() => { if (tab !== 'items') setSelectedItemIds(new Set()) }, [tab])
   const [showImport, setShowImport] = useState(false)
   const [addingToSection, setAddingToSection] = useState(null) // section name | '__new__' | null
+  const [renamingKey, setRenamingKey] = useState(null)   // group.key being renamed inline
+  const [renameValue, setRenameValue] = useState('')     // draft section name during rename
   const [exporting, setExporting] = useState(false)
   const canvasRef = useRef(null)
 
@@ -633,6 +637,55 @@ export default function MenuPage() {
         group.items.map(item => supabase.from('menu_items').update({ sort_order: order++ }).eq('id', item.id))
       )
     )
+    loadMenu()
+  }
+
+  // ── Rename a section: repoint every item in it to the new name ──
+  async function renameSection(oldName, newName) {
+    const nn = (newName || '').trim()
+    setRenamingKey(null)
+    if (nn === (oldName || '')) return
+    const ids = items.filter(i => (i.section || '') === (oldName || '')).map(i => i.id)
+    if (!ids.length) return
+    const { error } = await supabase.from('menu_items').update({ section: nn || null }).in('id', ids)
+    if (error) { toast('Could not rename', { type: 'error' }); return }
+    toast('Section renamed')
+    loadMenu()
+  }
+
+  // ── Duplicate a section: clone its items into a new section right after it ──
+  async function duplicateSection(group) {
+    const src = group.items
+    if (!src.length) return
+    const existing = new Set(items.map(i => i.section || ''))
+    const base = group.section || 'Section'
+    let name = `${base} copy`, n = 2
+    while (existing.has(name)) name = `${base} copy ${n++}`
+    // Insert clones (without a precise sort_order yet), then renumber the whole
+    // list so the copy lands immediately after the source section.
+    const clones = src.map(({ id, created_at, ...rest }) => ({ ...rest, menu_id: menu.id, section: name }))
+    const { data: inserted, error } = await supabase.from('menu_items').insert(clones).select('id')
+    if (error || !inserted) { toast('Could not duplicate', { type: 'error' }); return }
+    const order = []
+    for (const g of sectionGroups) {
+      for (const it of g.items) order.push(it.id)
+      if (g.key === group.key) for (const row of inserted) order.push(row.id)
+    }
+    await Promise.all(order.map((id, i) => supabase.from('menu_items').update({ sort_order: i }).eq('id', id)))
+    toast('Section duplicated')
+    loadMenu()
+  }
+
+  // ── Delete a section and all its items (irreversible) ──
+  async function deleteSection(group) {
+    const ids = group.items.map(i => i.id)
+    const label = group.section || 'Unsectioned'
+    if (!confirm(`Delete the "${label}" section and its ${ids.length} item${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return
+    if (ids.length) {
+      const { error } = await supabase.from('menu_items').delete().in('id', ids)
+      if (error) { toast('Could not delete', { type: 'error' }); return }
+    }
+    toast('Section deleted')
     loadMenu()
   }
 
@@ -1342,25 +1395,40 @@ export default function MenuPage() {
               : 0
             return (
             <div key={group.key}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">
-                  {group.section || 'Unsectioned'}
-                </h2>
-                {canEdit && sectionGroups.length > 1 && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => moveSectionGroup(groupIdx, 'up')}
-                      disabled={groupIdx === 0}
-                      className="text-xs text-ink-300 hover:text-brand-500 disabled:opacity-20 disabled:cursor-default px-1 py-0.5 rounded"
-                      title="Move section up"
-                    >↑ section</button>
-                    <button
-                      onClick={() => moveSectionGroup(groupIdx, 'down')}
-                      disabled={groupIdx === sectionGroups.length - 1}
-                      className="text-xs text-ink-300 hover:text-brand-500 disabled:opacity-20 disabled:cursor-default px-1 py-0.5 rounded"
-                      title="Move section down"
-                    >↓ section</button>
-                  </div>
+              <div className="flex items-center justify-between mb-3 gap-2">
+                {renamingKey === group.key ? (
+                  <form
+                    onSubmit={e => { e.preventDefault(); renameSection(group.section || '', renameValue) }}
+                    className="flex items-center gap-2 flex-1 min-w-0"
+                  >
+                    <input
+                      className="input input-sm text-xs uppercase tracking-wider flex-1 min-w-0"
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      autoFocus
+                      onKeyDown={e => { if (e.key === 'Escape') setRenamingKey(null) }}
+                    />
+                    <button type="submit" className="btn-primary btn-sm whitespace-nowrap flex-shrink-0">Save</button>
+                    <button type="button" onClick={() => setRenamingKey(null)} className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">Cancel</button>
+                  </form>
+                ) : (
+                  <>
+                    <h2 className="text-xs font-semibold text-ink-400 uppercase tracking-wider min-w-0 truncate">
+                      {group.section || 'Unsectioned'}
+                    </h2>
+                    {canEdit && (
+                      <SectionActionsMenu
+                        onAddItem={() => setAddingToSection(group.key)}
+                        onRename={() => { setRenameValue(group.section || ''); setRenamingKey(group.key) }}
+                        onDuplicate={() => duplicateSection(group)}
+                        onDelete={() => deleteSection(group)}
+                        onMoveUp={() => moveSectionGroup(groupIdx, 'up')}
+                        onMoveDown={() => moveSectionGroup(groupIdx, 'down')}
+                        canMoveUp={groupIdx > 0}
+                        canMoveDown={groupIdx < sectionGroups.length - 1}
+                      />
+                    )}
+                  </>
                 )}
               </div>
               {/* Mobile: stacked cards (tap to edit in modal) */}
@@ -1480,16 +1548,28 @@ export default function MenuPage() {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setAddingToSection('__new__')}
-                  data-tour="menu-add-item-button"
-                  className="text-xs text-brand-500 hover:text-brand-700 font-medium flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add new item
-                </button>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <button
+                    onClick={() => setAddingToSection('__new__')}
+                    data-tour="menu-add-item-button"
+                    className="text-xs text-brand-500 hover:text-brand-700 font-medium flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add new item
+                  </button>
+                  <button
+                    onClick={() => setAddingToSection('__new__')}
+                    className="text-xs text-ink-400 hover:text-brand-700 font-medium flex items-center gap-1.5 whitespace-nowrap"
+                    title="Type a new name in the Section field to start a new section"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
+                    </svg>
+                    Add new section
+                  </button>
+                </div>
               )}
             </div>
           )}

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatPrice } from '@/lib/formatPrice'
 import MenuItemEditForm from './MenuItemEditForm'
 
-const STATUS_LABELS  = { active: 'Active', not_added: 'Not Added', draft: 'Draft' }
+const STATUS_LABELS  = { active: 'Active', not_added: 'Not Added', draft: 'Hidden' }
 const STATUS_CLASSES = {
   active:    'text-emerald-700 bg-emerald-50',
   not_added: 'text-ink-400 bg-surface-100',
