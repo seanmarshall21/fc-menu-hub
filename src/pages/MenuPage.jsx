@@ -689,6 +689,19 @@ export default function MenuPage() {
     loadMenu()
   }
 
+  // ── Change the menu's primary size in one click (from the fit badge or the
+  // sizes panel) — no Edit-modal detour. Preview follows the new size. ──
+  async function changePrimarySize(newSize) {
+    if (!newSize || newSize === menu.size) return
+    const wasFinal = menu.phase === 'complete' || menu.phase === 'exported'
+    const patch = { size: newSize, ...(wasFinal ? { phase: 'edits' } : {}) }
+    const { error } = await supabase.from('menus').update(patch).eq('id', menu.id)
+    if (error) { toast('Could not change size', { type: 'error' }); return }
+    setPreviewSize(newSize)
+    toast(`Menu size set to ${(sizeConfigs[newSize]?.label || newSize).toUpperCase()}`)
+    loadMenu()
+  }
+
   async function exportPng(size) {
     if (!canvasRef.current) return
     setExporting(true)
@@ -1611,6 +1624,7 @@ export default function MenuPage() {
               templates={templates}
               canEdit={canEdit}
               onChanged={loadMenu}
+              onChangePrimary={changePrimarySize}
             />
             <SpacingOverridePanel
               menu={menu}
@@ -1729,6 +1743,9 @@ export default function MenuPage() {
                 <LayoutFitBadge
                   canvasRef={canvasRef}
                   size={activeSize}
+                  primarySize={menu.size}
+                  onApplySize={changePrimarySize}
+                  canEdit={canEdit && !activeVariant}
                   sponsors={(menuSponsorIds?.length || 0) > 0}
                   depsKey={`${activeSize}|${menuSponsorIds?.length || 0}|${items.length}`}
                 />

@@ -48,10 +48,12 @@ function SyncStatus({ syncedAt }) {
   )
 }
 
-export default function MenuSizesPanel({ menu, variants = [], templates = {}, canEdit = false, onChanged }) {
+export default function MenuSizesPanel({ menu, variants = [], templates = {}, canEdit = false, onChanged, onChangePrimary }) {
   const { defs, configs } = useSizeDefs()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
+  // Collapsed by default so the panel doesn't crowd out the preview below it.
+  const [open, setOpen] = useState(false)
 
   const primarySize = menu?.size || 'lg'
   const used = new Set([primarySize, ...variants.map(v => v.size)])
@@ -88,15 +90,30 @@ export default function MenuSizesPanel({ menu, variants = [], templates = {}, ca
   const label = (size) => configs[size]?.label || String(size).toUpperCase()
   const dims  = (size) => configs[size]?.print || ''
 
+  // Compact one-line size summary shown when collapsed (e.g. "LG · FLYER").
+  const summary = [primarySize, ...variants.map(v => v.size)].map(label).join(' · ')
+
   return (
-    <div className="card p-4 sm:p-5 mb-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
-        <div>
-          <h3 className="text-sm font-semibold text-ink-900">Sizes &amp; variations</h3>
-          <p className="text-xs text-ink-400 mt-0.5">
-            This menu prints in one or more sizes. Same content, different layouts — each syncs to Figma and gets its own final file.
-          </p>
-        </div>
+    <div className="card px-4 sm:px-5 py-3 mb-4">
+      {/* Always-visible compact header — click to expand the manager. */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 text-left"
+      >
+        <span className="text-sm font-semibold text-ink-900 whitespace-nowrap">Sizes</span>
+        <span className="text-xs text-ink-400 font-mono truncate min-w-0">{summary}</span>
+        <span className="ml-auto text-xs text-brand-600 font-medium whitespace-nowrap flex items-center gap-1">
+          {open ? 'Hide' : (canEdit ? 'Manage' : 'Details')}
+          <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </span>
+      </button>
+
+      {open && (<>
+      <div className="flex items-center justify-between gap-3 flex-wrap mt-3 mb-3">
+        <p className="text-xs text-ink-400">
+          Same content, different layouts — each size syncs to Figma and gets its own final file.
+        </p>
         {canEdit && available.length > 0 && (
           <label className="inline-flex items-center gap-2 flex-shrink-0">
             <span className="sr-only">Add a size</span>
@@ -118,11 +135,25 @@ export default function MenuSizesPanel({ menu, variants = [], templates = {}, ca
       {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2.5 py-1.5 mb-3">{err}</p>}
 
       <div className="space-y-2.5">
-        {/* Primary size — behaves exactly as before; managed on the menu itself. */}
+        {/* Primary size — its size is the menu's own; changeable right here. */}
         <div className="flex items-center gap-3 flex-wrap rounded-lg border border-surface-200 bg-surface-50 px-3 py-2.5">
           <span className="inline-flex items-center gap-2 min-w-0">
-            <span className="text-xs font-mono font-semibold text-ink-700 uppercase">{label(primarySize)}</span>
-            <span className="text-xs text-ink-400 whitespace-nowrap">{dims(primarySize)}</span>
+            {canEdit && onChangePrimary ? (
+              <select
+                className="input input-sm w-auto"
+                value={primarySize}
+                disabled={busy}
+                onChange={e => onChangePrimary(e.target.value)}
+                title="Change the menu's primary size"
+              >
+                {defs.map(d => <option key={d.id} value={d.id}>{d.label} — {d.width_in}"×{d.height_in}"</option>)}
+              </select>
+            ) : (
+              <>
+                <span className="text-xs font-mono font-semibold text-ink-700 uppercase">{label(primarySize)}</span>
+                <span className="text-xs text-ink-400 whitespace-nowrap">{dims(primarySize)}</span>
+              </>
+            )}
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-brand-700 bg-brand-50 rounded px-1.5 py-0.5 whitespace-nowrap">Primary</span>
           <span className="ml-auto flex items-center gap-3">
@@ -238,6 +269,7 @@ export default function MenuSizesPanel({ menu, variants = [], templates = {}, ca
       {canEdit && available.length === 0 && variants.length > 0 && (
         <p className="text-[11px] text-ink-300 mt-3">Every available size is in use. Add more sizes on the Admin → Sizes list.</p>
       )}
+      </>)}
     </div>
   )
 }
