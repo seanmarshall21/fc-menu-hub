@@ -48,7 +48,7 @@ function SyncStatus({ syncedAt }) {
   )
 }
 
-export default function MenuSizesPanel({ menu, variants = [], templates = {}, canEdit = false, onChanged, onChangePrimary }) {
+export default function MenuSizesPanel({ menu, variants = [], templates = {}, canEdit = false, onChanged, onChangePrimary, onPreview, activePreview }) {
   const { defs, configs } = useSizeDefs()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -89,6 +89,17 @@ export default function MenuSizesPanel({ menu, variants = [], templates = {}, ca
 
   const label = (size) => configs[size]?.label || String(size).toUpperCase()
   const dims  = (size) => configs[size]?.print || ''
+
+  // Preview a size below without committing — so you can eyeball each option.
+  const PreviewBtn = ({ size }) => onPreview ? (
+    <button
+      type="button"
+      onClick={() => onPreview(size)}
+      className={`text-xs font-medium whitespace-nowrap px-2 py-0.5 rounded flex-shrink-0 ${activePreview === size ? 'bg-brand-500 text-white' : 'text-brand-600 hover:bg-brand-50'}`}
+    >
+      {activePreview === size ? 'Previewing' : 'Preview'}
+    </button>
+  ) : null
 
   // Compact one-line size summary shown when collapsed (e.g. "LG · FLYER").
   const summary = [primarySize, ...variants.map(v => v.size)].map(label).join(' · ')
@@ -157,6 +168,7 @@ export default function MenuSizesPanel({ menu, variants = [], templates = {}, ca
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-brand-700 bg-brand-50 rounded px-1.5 py-0.5 whitespace-nowrap">Primary</span>
           <span className="ml-auto flex items-center gap-3">
+            <PreviewBtn size={primarySize} />
             <SyncStatus syncedAt={menu?.last_synced_at} />
             {menu?.print_file_url
               ? <span className="text-xs text-emerald-700 whitespace-nowrap">Final file ✓</span>
@@ -176,6 +188,18 @@ export default function MenuSizesPanel({ menu, variants = [], templates = {}, ca
                   <span className="text-xs text-ink-400 whitespace-nowrap">{dims(v.size)}</span>
                 </span>
                 <span className="ml-auto flex items-center gap-3">
+                  <PreviewBtn size={v.size} />
+                  {canEdit && onChangePrimary && (
+                    <button
+                      type="button"
+                      onClick={() => onChangePrimary(v.size)}
+                      disabled={busy}
+                      className="text-xs font-medium text-ink-500 hover:text-brand-700 whitespace-nowrap flex-shrink-0"
+                      title="Make this the menu's primary size"
+                    >
+                      Make primary
+                    </button>
+                  )}
                   <SyncStatus syncedAt={v.last_synced_at} />
                   {canEdit && (
                     <button

@@ -693,7 +693,19 @@ export default function MenuPage() {
   // sizes panel) — no Edit-modal detour. Preview follows the new size. ──
   async function changePrimarySize(newSize) {
     if (!newSize || newSize === menu.size) return
+    const oldSize = menu.size
+    const asVariant = variants.find(v => v.size === newSize)
     const wasFinal = menu.phase === 'complete' || menu.phase === 'exported'
+    // If the new size is currently an extra size, swap roles: promote it to
+    // primary (drop its variant row) and keep the old primary as a variant so
+    // it isn't lost. A plain resize (new size isn't a variant) just changes size.
+    if (asVariant) {
+      await supabase.from('menu_variants').delete().eq('id', asVariant.id)
+      if (oldSize && !variants.some(v => v.size === oldSize)) {
+        await supabase.from('menu_variants')
+          .insert({ menu_id: menu.id, size: oldSize, layout_mode: 'template', source_size: newSize })
+      }
+    }
     const patch = { size: newSize, ...(wasFinal ? { phase: 'edits' } : {}) }
     const { error } = await supabase.from('menus').update(patch).eq('id', menu.id)
     if (error) { toast('Could not change size', { type: 'error' }); return }
@@ -1625,6 +1637,8 @@ export default function MenuPage() {
               canEdit={canEdit}
               onChanged={loadMenu}
               onChangePrimary={changePrimarySize}
+              onPreview={setPreviewSize}
+              activePreview={previewSize || menu.size}
             />
             <SpacingOverridePanel
               menu={menu}
@@ -1784,6 +1798,7 @@ export default function MenuPage() {
                   items={items}
                   eventSponsors={previewSponsors}
                   menuSponsorIds={menuSponsorIds}
+                  currency={currency}
                 />
               </div>
             )}

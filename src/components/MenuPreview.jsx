@@ -3,6 +3,7 @@
  * Approximates the Figma template layout: sections with items in
  * main (with description) or alt (compact) layout, sponsor strip at bottom.
  */
+import { formatPrice } from '@/lib/formatPrice'
 
 // ── Diet icon SVGs (approximating the Figma icons) ──────────────────────────
 const IcnVegetarian = () => (
@@ -53,7 +54,7 @@ function PriceGroup({ size, price, align = 'right' }) {
 // ── Single item — main layout ─────────────────────────────────────────────────
 // Left: title + diet icons + description
 // Right: price_group_1 stacked above price_group_2 (vertical column)
-function ItemMain({ item }) {
+function ItemMain({ item, currency }) {
   return (
     <div className="py-3 border-b border-gray-100 last:border-0">
       <div className="flex items-start justify-between gap-6">
@@ -77,8 +78,8 @@ function ItemMain({ item }) {
         </div>
         {/* Price column — group_1 on top, group_2 below (matches Figma price-group-column) */}
         <div className="flex flex-col gap-1 flex-shrink-0">
-          <PriceGroup size={item.size1} price={item.price1} align="right" />
-          {item.two_sizes && <PriceGroup size={item.size2} price={item.price2} align="right" />}
+          <PriceGroup size={item.size1} price={formatPrice(item.price1, currency)} align="right" />
+          {item.two_sizes && <PriceGroup size={item.size2} price={formatPrice(item.price2, currency)} align="right" />}
         </div>
       </div>
     </div>
@@ -88,7 +89,7 @@ function ItemMain({ item }) {
 // ── Single item — alt layout ──────────────────────────────────────────────────
 // Title only (description hidden, diet icons hidden per Figma)
 // Prices in a horizontal row: price_group_2 LEFT, price_group_1 RIGHT (Figma order)
-function ItemAlt({ item }) {
+function ItemAlt({ item, currency }) {
   return (
     <div className="py-2 border-b border-gray-100 last:border-0">
       <div className="flex items-center justify-between gap-4">
@@ -99,8 +100,8 @@ function ItemAlt({ item }) {
         {/* Price row — group_1 on left, group_2 on right.
             Single price stays left-anchored so it doesn't float right. */}
         <div className="flex items-center gap-6 flex-shrink-0">
-          <PriceGroup size={item.size1} price={item.price1} align="right" />
-          {item.two_sizes && <PriceGroup size={item.size2} price={item.price2} align="right" />}
+          <PriceGroup size={item.size1} price={formatPrice(item.price1, currency)} align="right" />
+          {item.two_sizes && <PriceGroup size={item.size2} price={formatPrice(item.price2, currency)} align="right" />}
         </div>
       </div>
     </div>
@@ -132,7 +133,7 @@ function SponsorStrip({ sponsors }) {
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
-export default function MenuPreview({ menu, items, eventSponsors, menuSponsorIds }) {
+export default function MenuPreview({ menu, items, eventSponsors, menuSponsorIds, currency }) {
   const activeSponsors = (eventSponsors || []).filter(s => menuSponsorIds?.has(s.id) && s.active)
   const sectionGroups = buildSectionGroups(
     (items || []).filter(i => i.status === 'active')
@@ -179,8 +180,8 @@ export default function MenuPreview({ menu, items, eventSponsors, menuSponsorIds
               <div>
                 {group.items.map(item => (
                   item.layout === 'alt'
-                    ? <ItemAlt key={item.id} item={item} />
-                    : <ItemMain key={item.id} item={item} />
+                    ? <ItemAlt key={item.id} item={item} currency={currency} />
+                    : <ItemMain key={item.id} item={item} currency={currency} />
                 ))}
               </div>
             </div>
