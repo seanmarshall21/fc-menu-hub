@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import NotifyMultiSelect from '@/components/NotifyMultiSelect'
 
 const STATUS_OPTIONS = ['active', 'not_added', 'draft']
 const STATUS_LABELS  = { active: 'Active', not_added: 'Not Added', draft: 'Hidden' }
@@ -216,39 +217,12 @@ export default function MenuItemEditForm({ item, menu, sections, defaultNotifyId
           series/event/menu cascade resolves to (passed in via defaultNotifyIds).
           Pre-checked by default; uncheck anyone you don't want pinged. */}
       {notifyOptions.length > 0 && (
-        <div className="mb-3 rounded-lg border border-surface-200 bg-surface-50 px-3 py-2.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-ink-700">Notify for edits</label>
-            <span className="text-[10px] text-ink-400">
-              {notifyIds.size === 0 ? 'No one will be notified' : `${notifyIds.size} selected`}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {notifyOptions.map(u => {
-              const active = notifyIds.has(u.id)
-              const isSelf = u.id === profile?.id
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => toggleNotify(u.id)}
-                  disabled={isSelf}
-                  title={isSelf ? "You can't notify yourself" : u.email}
-                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
-                    isSelf
-                      ? 'bg-surface-100 text-ink-300 border-surface-200 cursor-not-allowed'
-                      : active
-                        ? 'bg-brand-500 text-white border-brand-500'
-                        : 'bg-surface-0 text-ink-600 border-surface-300 hover:border-brand-400 hover:text-brand-600'
-                  }`}
-                >
-                  {active && !isSelf && <span className="mr-1">✓</span>}
-                  {u.full_name || u.email}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <NotifyMultiSelect
+          options={notifyOptions}
+          selectedIds={notifyIds}
+          onToggle={toggleNotify}
+          selfId={profile?.id}
+        />
       )}
 
       <div className="mb-3">
