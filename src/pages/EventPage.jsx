@@ -1859,35 +1859,7 @@ export default function EventPage() {
         />
       </>}
       secondaryActions={(<>
-        {!isProduction && event.figma_file_url && (
-          <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm px-2" title="Open in Figma" aria-label="Open in Figma">
-            <FigmaLogo size={14} />
-          </a>
-        )}
-        {canEdit && (
-          <button onClick={openEditEvent} className="btn-secondary btn-sm px-2" title="Edit event" aria-label="Edit event">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-          </button>
-        )}
-
-        {/* Print Files — one dropdown: open prep/print folders, edit links */}
-        {(event.print_folder_url || event.prep_folder_url || canEdit) && (
-          <OverflowMenu
-            label="Print Files"
-            triggerLabel="Print Files"
-            align="left"
-            triggerStyle={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFB300 50%, #FB8C00 100%)' }}
-            triggerClassName="btn-sm inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-black shadow-sm hover:brightness-105 transition whitespace-nowrap flex-shrink-0"
-            triggerIcon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>}
-          >
-            {event.print_folder_url && <a href={event.print_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print folder ↗</a>}
-            {!isProduction && event.prep_folder_url && <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>}
-            {!event.print_folder_url && !event.prep_folder_url && <span className={`${MENU_ROW} text-ink-400`}>No folders added yet</span>}
-            {canEdit && <button className={MENU_ROW} onClick={() => setFolderModal({ prep: event.prep_folder_url || '', print: event.print_folder_url || '' })}>Edit links…</button>}
-          </OverflowMenu>
-        )}
-
-        {/* Main functions: send a preview link / manage order forms */}
+        {/* Primary workflow — the two daily actions stay visible. */}
         {menus.length > 0 && (
           <button
             onClick={openPreviewLibrary}
@@ -1905,6 +1877,18 @@ export default function EventPage() {
             Order
           </button>
         )}
+        {/* Everything occasional — Figma, edit, print/prep folders — folds into one menu. */}
+        <OverflowMenu label="More actions" triggerLabel="More" align="right">
+          {!isProduction && event.figma_file_url && (
+            <a href={event.figma_file_url} onClick={(e) => openFigmaDesktopFirst(e, event.figma_file_url)} target="_blank" rel="noreferrer" className={MENU_ROW}>
+              <FigmaLogo size={13} /> Open in Figma ↗
+            </a>
+          )}
+          {canEdit && <button className={MENU_ROW} onClick={openEditEvent}>Edit event…</button>}
+          {event.print_folder_url && <a href={event.print_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Print folder ↗</a>}
+          {!isProduction && event.prep_folder_url && <a href={event.prep_folder_url} target="_blank" rel="noreferrer" className={MENU_ROW}>Prep folder ↗</a>}
+          {canEdit && <button className={MENU_ROW} onClick={() => setFolderModal({ prep: event.prep_folder_url || '', print: event.print_folder_url || '' })}>Edit print / prep links…</button>}
+        </OverflowMenu>
       </>)}
       below={(
         <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden touch-pan-x overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
