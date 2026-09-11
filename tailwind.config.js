@@ -1,3 +1,5 @@
+import tailwindcssAnimate from 'tailwindcss-animate'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
@@ -39,6 +41,42 @@ export default {
           300: 'rgb(var(--ink-300) / <alpha-value>)',
           200: 'rgb(var(--ink-200) / <alpha-value>)',
         },
+        // ── shadcn/ui semantic names, mapped onto the app's own tokens so
+        // shadcn components inherit the exact light + warm-dark palettes with
+        // no new CSS variables. These names don't collide with brand/surface/ink.
+        border:     'rgb(var(--surface-200) / <alpha-value>)',
+        input:      'rgb(var(--surface-200) / <alpha-value>)',
+        ring:       'rgb(var(--brand-600) / <alpha-value>)',
+        background: 'rgb(var(--surface-0) / <alpha-value>)',
+        foreground: 'rgb(var(--ink-900) / <alpha-value>)',
+        primary: {
+          DEFAULT:    'rgb(var(--brand-600) / <alpha-value>)',
+          foreground: 'rgb(var(--surface-0) / <alpha-value>)',
+        },
+        secondary: {
+          DEFAULT:    'rgb(var(--surface-100) / <alpha-value>)',
+          foreground: 'rgb(var(--ink-800) / <alpha-value>)',
+        },
+        muted: {
+          DEFAULT:    'rgb(var(--surface-100) / <alpha-value>)',
+          foreground: 'rgb(var(--ink-500) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT:    'rgb(var(--surface-100) / <alpha-value>)',
+          foreground: 'rgb(var(--ink-800) / <alpha-value>)',
+        },
+        destructive: {
+          DEFAULT:    'rgb(239 68 68 / <alpha-value>)',
+          foreground: 'rgb(255 255 255 / <alpha-value>)',
+        },
+        popover: {
+          DEFAULT:    'rgb(var(--surface-0) / <alpha-value>)',
+          foreground: 'rgb(var(--ink-900) / <alpha-value>)',
+        },
+        card: {
+          DEFAULT:    'rgb(var(--surface-0) / <alpha-value>)',
+          foreground: 'rgb(var(--ink-900) / <alpha-value>)',
+        },
         phase: {
           build:      '#d1fae5',
           proof:      '#fef3c7',
@@ -58,5 +96,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 }
